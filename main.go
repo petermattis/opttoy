@@ -87,10 +87,9 @@ func newMemo() *memo {
 func (m *memo) build(n *node) {
 	switch n.typ {
 	case join:
+		m.add(n)
 		m.build(n.left)
 		m.build(n.right)
-		n.class = n.String()
-		m.add(n)
 
 	case scan:
 		m.add(n)
@@ -129,8 +128,7 @@ func (m *memo) associate(n *node) *node {
 
 func (m *memo) expand() int {
 	var count int
-	for i := len(m.classes) - 1; i >= 0; i-- {
-		c := m.classes[i]
+	for _, c := range m.classes {
 		for _, n := range c.nodes {
 			if t := m.commute(n); t != nil && m.add(t) {
 				count++
@@ -141,9 +139,6 @@ func (m *memo) expand() int {
 					count++
 				}
 			}
-		}
-		if count > 0 {
-			break
 		}
 	}
 	return count
@@ -188,8 +183,7 @@ func (m *memo) list(n *node) {
 
 func (m *memo) String() string {
 	var buf bytes.Buffer
-	for i := len(m.classes) - 1; i >= 0; i-- {
-		c := m.classes[i]
+	for i, c := range m.classes {
 		fmt.Fprintf(&buf, "%d:", i)
 		for _, n := range c.nodes {
 			fmt.Fprintf(&buf, " [%s]", n.String())
