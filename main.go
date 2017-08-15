@@ -17,6 +17,8 @@ const (
 type node struct {
 	typ         nodeType
 	class       string // equivalence class
+	classIdx    int
+	nodeIdx     int
 	left, right *node
 }
 
@@ -35,6 +37,17 @@ func parse(s string) *node {
 		}
 	}
 	return n
+}
+
+func (n *node) Debug() string {
+	switch n.typ {
+	case join:
+		return fmt.Sprintf("(%s ⋈ %s):%d", n.left.Debug(), n.right.Debug(), n.classIdx)
+	case scan:
+		return fmt.Sprintf("%s:%d", n.class, n.classIdx)
+	default:
+		return "not reached"
+	}
 }
 
 func (n *node) String() string {
@@ -68,6 +81,7 @@ func (c *class) add(n *node) bool {
 	i = len(c.nodes)
 	c.nodes = append(c.nodes, n)
 	c.m[id] = i
+	n.nodeIdx = i
 	return true
 }
 
@@ -171,12 +185,12 @@ func (m *memo) add(n *node) bool {
 		m.classMap[n.class] = i
 	}
 	m.nodeMap[id] = i
+	n.classIdx = i
 	return m.classes[i].add(n)
 }
 
 func (m *memo) list(n *node) {
-	i := m.nodeMap[n.String()]
-	for _, n := range m.classes[i].nodes {
+	for _, n := range m.classes[n.classIdx].nodes {
 		fmt.Println(n)
 	}
 }
@@ -186,7 +200,7 @@ func (m *memo) String() string {
 	for i, c := range m.classes {
 		fmt.Fprintf(&buf, "%d:", i)
 		for _, n := range c.nodes {
-			fmt.Fprintf(&buf, " [%s]", n.String())
+			fmt.Fprintf(&buf, " [%s]", n.Debug())
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
