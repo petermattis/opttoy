@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -16,14 +17,13 @@ const (
 type node struct {
 	typ         nodeType
 	class       string // equivalence class
-	classIdx    int
 	left, right *node
 }
 
 func parse(s string) *node {
 	var n *node
 	for _, p := range strings.Split(s, ",") {
-		t := &node{typ: scan, class: p, classIdx: -1}
+		t := &node{typ: scan, class: p}
 		if n == nil {
 			n = t
 		} else {
@@ -72,12 +72,14 @@ func (c *class) add(n *node) bool {
 }
 
 type memo struct {
+	nodeMap  map[string]int
 	classMap map[string]int
 	classes  []*class
 }
 
 func newMemo() *memo {
 	return &memo{
+		nodeMap:  make(map[string]int),
 		classMap: make(map[string]int),
 	}
 }
@@ -127,18 +129,21 @@ func (m *memo) associate(n *node) *node {
 
 func (m *memo) expand() int {
 	var count int
-	for _, c := range m.classes {
+	for i := len(m.classes) - 1; i >= 0; i-- {
+		c := m.classes[i]
 		for _, n := range c.nodes {
 			if t := m.commute(n); t != nil && m.add(t) {
 				count++
 			}
 			if t := m.associate(n); t != nil && m.add(t) {
 				count++
-				t.right.class = t.right.String()
 				if m.add(t.right) {
 					count++
 				}
 			}
+		}
+		if count > 0 {
+			break
 		}
 	}
 	return count
@@ -156,6 +161,13 @@ func (m *memo) expandAll() {
 }
 
 func (m *memo) add(n *node) bool {
+	id := n.String()
+	if n.class == "" {
+		n.class = id
+	}
+	if _, ok := m.nodeMap[id]; ok {
+		return false
+	}
 	i, ok := m.classMap[n.class]
 	if !ok {
 		i = len(m.classes)
@@ -163,8 +175,15 @@ func (m *memo) add(n *node) bool {
 		m.classes = append(m.classes, c)
 		m.classMap[n.class] = i
 	}
-	n.classIdx = i
+	m.nodeMap[id] = i
 	return m.classes[i].add(n)
+}
+
+func (m *memo) list(n *node) {
+	i := m.nodeMap[n.String()]
+	for _, n := range m.classes[i].nodes {
+		fmt.Println(n)
+	}
 }
 
 func (m *memo) String() string {
@@ -181,8 +200,13 @@ func (m *memo) String() string {
 }
 
 func main() {
-	n := parse("A,B,C")
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "usage: opttoy <query>\n")
+		os.Exit(1)
+	}
+	n := parse(os.Args[1])
 	m := newMemo()
 	m.build(n)
 	m.expandAll()
+	m.list(n)
 }
