@@ -262,7 +262,6 @@ func (m *memo) dfsVisit(c *class, t *int, state map[*class]*dfsInfo) {
 }
 
 func (m *memo) topoSort() []*class {
-
 	dfs := m.DFS()
 	sort.Slice(dfs, func(i, j int) bool { return dfs[i].F >= dfs[j].F })
 
