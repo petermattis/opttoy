@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -181,10 +182,90 @@ func (m *memo) list(n *node) {
 	}
 }
 
+type dfsStatus int
+
+const (
+	white dfsStatus = iota
+	gray
+	black
+)
+
+type dfsInfo struct {
+	Me     *class    // this class
+	Parent *class    // parent
+	D      int       // discovery time
+	F      int       // finished visiting time
+	Color  dfsStatus // WHITE (not discovered), GRAY (not visited), BLACK (done)
+}
+
+type dfsInfoList []*dfsInfo
+
+func (m *memo) DFS() dfsInfoList {
+	state := make(map[*class]*dfsInfo, len(m.classes))
+	for _, c := range m.classes {
+		state[c] = &dfsInfo{c, nil, -1, -1, white}
+	}
+	t := 0
+
+	res := make([]*dfsInfo, 0, len(m.classes))
+	for _, c := range m.classes {
+		if state[c].Color == white {
+			m.dfsVisit(c, &t, state)
+		}
+		res = append(res, state[c])
+	}
+	return res
+}
+
+func (m *memo) dfsVisit(c *class, t *int, state map[*class]*dfsInfo) {
+	*t++
+	state[c].D = *t
+	state[c].Color = gray
+
+	for _, n := range c.nodes {
+		for i := 0; i < 2; i++ {
+			var v *node
+			if i == 0 {
+				v = n.left
+			} else {
+				v = n.right
+			}
+			if v == nil {
+				continue
+			}
+
+			vc := m.classes[m.classMap[v.class]]
+			if state[vc].Color == white {
+				state[vc].Parent = c
+				m.dfsVisit(vc, t, state)
+			}
+		}
+	}
+
+	state[c].Color = black
+	*t++
+	state[c].F = *t
+}
+
+func (m *memo) topoSort() []*class {
+
+	dfs := m.DFS()
+	sort.Slice(dfs, func(i, j int) bool { return dfs[i].F >= dfs[j].F })
+
+	res := make([]*class, 0, len(dfs))
+	for i := range dfs {
+		res = append(res, dfs[i].Me)
+	}
+
+	return res
+}
+
 func (m *memo) String() string {
 	var buf bytes.Buffer
-	for i, c := range m.classes {
-		fmt.Fprintf(&buf, "%d:", i)
+
+	sorted := m.topoSort()
+	for i, c := range sorted {
+		fmt.Fprintf(&buf, "%d:", len(sorted)-i)
 		for _, n := range c.nodes {
 			fmt.Fprintf(&buf, " [%s]", n.String())
 		}
