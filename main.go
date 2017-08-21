@@ -49,48 +49,68 @@ func (n *node) String() string {
 	}
 }
 
-type class struct {
-	m     map[string]int
-	nodes []*node
+type expr struct {
+	typ         nodeType
+	class       string // equivalence class
+	left, right int    // class id's
 }
 
-func newClass() *class {
-	return &class{
-		m: make(map[string]int),
+func (e *expr) String() string {
+	switch e.typ {
+	case join:
+		return fmt.Sprintf("(%d ⋈ %d)", e.left, e.right)
+	case scan:
+		return fmt.Sprintf("%s", e.class)
+	default:
+		return "not reached"
 	}
 }
 
-func (c *class) add(n *node) bool {
-	id := n.String()
+type class struct {
+	id    int
+	m     map[string]int
+	exprs []*expr
+}
+
+func newClass(id int) *class {
+	return &class{
+		id: id,
+		m:  make(map[string]int),
+	}
+}
+
+func (c *class) add(e *expr) bool {
+	id := e.String()
 	i, ok := c.m[id]
 	if ok {
 		return false
 	}
-	i = len(c.nodes)
-	c.nodes = append(c.nodes, n)
+	i = len(c.exprs)
+	c.exprs = append(c.exprs, e)
 	c.m[id] = i
 	return true
 }
 
 type memo struct {
-	nodeMap  map[string]int
+	exprMap  map[string]int
 	classMap map[string]int
 	classes  []*class
 }
 
 func newMemo() *memo {
-	return &memo{
-		nodeMap:  make(map[string]int),
+	m := &memo{
+		exprMap:  make(map[string]int),
 		classMap: make(map[string]int),
 	}
+	return m
 }
 
 func (m *memo) build(n *node) {
 	switch n.typ {
 	case join:
-		m.add(n)
 		m.build(n.left)
 		m.build(n.right)
+		m.add(n)
 
 	case scan:
 		m.add(n)
@@ -127,17 +147,63 @@ func (m *memo) associate(n *node) *node {
 	}
 }
 
+func (m *memo) genTrees(e *expr) []*node {
+	res := make([]*node, 0)
+	var left, right []*node
+	if e.left != -1 {
+		for _, e := range m.classes[e.left].exprs {
+			left = append(left, m.genTrees(e)...)
+		}
+	} else {
+		left = []*node{{
+			typ:   e.typ,
+			class: e.class,
+			left:  nil,
+			right: nil,
+		}}
+	}
+	if e.right != -1 {
+		for _, e := range m.classes[e.right].exprs {
+			right = append(right, m.genTrees(e)...)
+		}
+	} else {
+		right = []*node{{
+			typ:   e.typ,
+			class: e.class,
+			left:  nil,
+			right: nil,
+		}}
+	}
+	for _, lnode := range left {
+		for _, rnode := range right {
+			n := &node{
+				typ:   e.typ,
+				class: e.class,
+				left:  lnode,
+				right: rnode,
+			}
+			res = append(res, n)
+		}
+	}
+	return res
+}
+
 func (m *memo) expand() int {
 	var count int
 	for _, c := range m.classes {
-		for _, n := range c.nodes {
-			if t := m.commute(n); t != nil && m.add(t) {
-				count++
-			}
-			if t := m.associate(n); t != nil && m.add(t) {
-				count++
-				if m.add(t.right) {
+		for _, e := range c.exprs {
+			nodes := m.genTrees(e)
+			for _, n := range nodes {
+				if t := m.commute(n); t != nil && m.add(t) {
 					count++
+				}
+				if t := m.associate(n); t != nil {
+					if m.add(t.right) {
+						count++
+					}
+					if m.add(t) {
+						count++
+					}
 				}
 			}
 		}
@@ -161,24 +227,33 @@ func (m *memo) add(n *node) bool {
 	if n.class == "" {
 		n.class = id
 	}
-	if _, ok := m.nodeMap[id]; ok {
+	if _, ok := m.exprMap[id]; ok {
 		return false
 	}
 	i, ok := m.classMap[n.class]
 	if !ok {
 		i = len(m.classes)
-		c := newClass()
+		c := newClass(i)
 		m.classes = append(m.classes, c)
 		m.classMap[n.class] = i
 	}
-	m.nodeMap[id] = i
-	return m.classes[i].add(n)
+	lexpr := -1
+	if n.left != nil {
+		lexpr = m.exprMap[n.left.class]
+	}
+	rexpr := -1
+	if n.right != nil {
+		rexpr = m.exprMap[n.right.class]
+	}
+	e := &expr{n.typ, n.class, lexpr, rexpr}
+	m.exprMap[id] = i
+	return m.classes[i].add(e)
 }
 
 func (m *memo) list(n *node) {
-	i := m.nodeMap[n.String()]
-	for _, n := range m.classes[i].nodes {
-		fmt.Println(n)
+	i := m.exprMap[n.String()]
+	for _, e := range m.classes[i].exprs {
+		fmt.Println(e)
 	}
 }
 
@@ -222,19 +297,19 @@ func (m *memo) dfsVisit(c *class, t *int, state map[*class]*dfsInfo) {
 	state[c].D = *t
 	state[c].Color = gray
 
-	for _, n := range c.nodes {
+	for _, e := range c.exprs {
 		for i := 0; i < 2; i++ {
-			var v *node
+			var v int
 			if i == 0 {
-				v = n.left
+				v = e.left
 			} else {
-				v = n.right
+				v = e.right
 			}
-			if v == nil {
+			if v == -1 {
 				continue
 			}
 
-			vc := m.classes[m.classMap[v.class]]
+			vc := m.classes[v]
 			if state[vc].Color == white {
 				state[vc].Parent = c
 				m.dfsVisit(vc, t, state)
@@ -263,10 +338,10 @@ func (m *memo) String() string {
 	var buf bytes.Buffer
 
 	sorted := m.topoSort()
-	for i, c := range sorted {
-		fmt.Fprintf(&buf, "%d:", len(sorted)-i)
-		for _, n := range c.nodes {
-			fmt.Fprintf(&buf, " [%s]", n.String())
+	for _, c := range sorted {
+		fmt.Fprintf(&buf, "%d:", c.id)
+		for _, e := range c.exprs {
+			fmt.Fprintf(&buf, " [%s]", e.String())
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
