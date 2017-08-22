@@ -18,6 +18,8 @@ const (
 type node struct {
 	typ         nodeType
 	class       string // equivalence class
+	classIdx    int
+	nodeIdx     int
 	left, right *node
 }
 
@@ -36,6 +38,17 @@ func parse(s string) *node {
 		}
 	}
 	return n
+}
+
+func (n *node) Debug() string {
+	switch n.typ {
+	case join:
+		return fmt.Sprintf("(%s ⋈ %s):%d", n.left.Debug(), n.right.Debug(), n.classIdx)
+	case scan:
+		return fmt.Sprintf("%s:%d", n.class, n.classIdx)
+	default:
+		return "not reached"
+	}
 }
 
 func (n *node) String() string {
@@ -88,6 +101,7 @@ func (c *class) add(e *expr) bool {
 	i = len(c.exprs)
 	c.exprs = append(c.exprs, e)
 	c.m[id] = i
+	n.nodeIdx = i
 	return true
 }
 
