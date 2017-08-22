@@ -11,12 +11,12 @@ import (
 type nodeType int
 
 const (
-	join nodeType = iota
-	scan
+	joinNode nodeType = iota
+	scanNode
 )
 
 type node struct {
-	typ         nodeType
+	op          operator
 	class       string // equivalence class
 	classIdx    int
 	nodeIdx     int
@@ -26,12 +26,12 @@ type node struct {
 func parse(s string) *node {
 	var n *node
 	for _, p := range strings.Split(s, ",") {
-		t := &node{typ: scan, class: p}
+		t := &node{op: &scan, class: p}
 		if n == nil {
 			n = t
 		} else {
 			n = &node{
-				typ:   join,
+				op:    &join,
 				left:  n,
 				right: t,
 			}
@@ -41,10 +41,10 @@ func parse(s string) *node {
 }
 
 func (n *node) Debug() string {
-	switch n.typ {
-	case join:
+	switch n.op.typ() {
+	case joinNode:
 		return fmt.Sprintf("(%s ⋈ %s):%d", n.left.Debug(), n.right.Debug(), n.classIdx)
-	case scan:
+	case scanNode:
 		return fmt.Sprintf("%s:%d", n.class, n.classIdx)
 	default:
 		return "not reached"
@@ -52,10 +52,10 @@ func (n *node) Debug() string {
 }
 
 func (n *node) String() string {
-	switch n.typ {
-	case join:
+	switch n.op.typ() {
+	case joinNode:
 		return fmt.Sprintf("(%s ⋈ %s)", n.left, n.right)
-	case scan:
+	case scanNode:
 		return fmt.Sprintf("%s", n.class)
 	default:
 		return "not reached"
@@ -63,16 +63,16 @@ func (n *node) String() string {
 }
 
 type expr struct {
-	typ         nodeType
+	op          operator
 	class       string // equivalence class
 	left, right int    // class id's
 }
 
 func (e *expr) String() string {
-	switch e.typ {
-	case join:
+	switch e.op.typ() {
+	case joinNode:
 		return fmt.Sprintf("(%d ⋈ %d)", e.left, e.right)
-	case scan:
+	case scanNode:
 		return fmt.Sprintf("%s", e.class)
 	default:
 		return "not reached"
@@ -119,46 +119,103 @@ func newMemo() *memo {
 }
 
 func (m *memo) build(n *node) {
-	switch n.typ {
-	case join:
+	switch n.op.typ() {
+	case joinNode:
 		m.build(n.left)
 		m.build(n.right)
 		m.add(n)
 
-	case scan:
+	case scanNode:
 		m.add(n)
 	}
 }
 
+type xform interface {
+	check(n *node) bool
+	apply(n *node) []*node
+}
+
 // A ⋈ B => B ⋈ A
-func (m *memo) commute(n *node) *node {
-	if n.typ != join {
+type joinCommuteXform struct{}
+
+func (jc *joinCommuteXform) check(n *node) bool {
+	return n.op.typ() == joinNode
+}
+
+func (jc *joinCommuteXform) apply(n *node) []*node {
+	if !jc.check(n) {
 		return nil
 	}
-	return &node{
-		typ:   join,
+	return []*node{{
+		op:    &join,
 		class: n.class,
 		left:  n.right,
 		right: n.left,
-	}
+	}}
 }
 
+var joinCommute joinCommuteXform
+
 // (A ⋈ B) ⋈ C  => A ⋈ (B ⋈ C)
-func (m *memo) associate(n *node) *node {
-	if n.typ != join || n.left.typ != join {
+type joinAssocXform struct{}
+
+func (ja *joinAssocXform) check(n *node) bool {
+	return n.op.typ() == joinNode && n.left.op.typ() == joinNode
+}
+
+func (ja *joinAssocXform) apply(n *node) []*node {
+	if !ja.check(n) {
 		return nil
 	}
-	return &node{
-		typ:   join,
-		class: n.class,
-		left:  n.left.left,
-		right: &node{
-			typ:   join,
-			left:  n.left.right,
-			right: n.right,
+	r := &node{
+		op:    &join,
+		left:  n.left.right,
+		right: n.right,
+	}
+	return []*node{
+		r,
+		{
+			op:    &join,
+			class: n.class,
+			left:  n.left.left,
+			right: r,
 		},
 	}
 }
+
+var joinAssoc joinAssocXform
+
+type operator interface {
+	typ() nodeType
+	compatXform() []xform
+}
+
+type joinOp struct{}
+
+func (joinOp) typ() nodeType {
+	return joinNode
+}
+
+func (joinOp) compatXform() []xform {
+	return []xform{
+		&joinAssoc,
+		&joinCommute,
+	}
+}
+
+var join joinOp
+
+type scanOp struct{}
+
+func (scanOp) typ() nodeType {
+	return scanNode
+}
+
+func (scanOp) compatXform() []xform {
+	return nil
+}
+
+var scan scanOp
 
 func (m *memo) genTrees(e *expr) []*node {
 	res := make([]*node, 0)
@@ -169,7 +226,7 @@ func (m *memo) genTrees(e *expr) []*node {
 		}
 	} else {
 		left = []*node{{
-			typ:   e.typ,
+			op:    e.op,
 			class: e.class,
 			left:  nil,
 			right: nil,
@@ -181,7 +238,7 @@ func (m *memo) genTrees(e *expr) []*node {
 		}
 	} else {
 		right = []*node{{
-			typ:   e.typ,
+			op:    e.op,
 			class: e.class,
 			left:  nil,
 			right: nil,
@@ -190,7 +247,7 @@ func (m *memo) genTrees(e *expr) []*node {
 	for _, lnode := range left {
 		for _, rnode := range right {
 			n := &node{
-				typ:   e.typ,
+				op:    e.op,
 				class: e.class,
 				left:  lnode,
 				right: rnode,
@@ -201,21 +258,26 @@ func (m *memo) genTrees(e *expr) []*node {
 	return res
 }
 
+// Exhaustive search:
+// for each memo class
+//     for each forest starting at a node in that class
+//         for each expression in that forest
+//             for each transformation that is compatible with that expression
+//                 apply that transformation
 func (m *memo) expand() int {
 	var count int
 	for _, c := range m.classes {
 		for _, e := range c.exprs {
 			nodes := m.genTrees(e)
 			for _, n := range nodes {
-				if t := m.commute(n); t != nil && m.add(t) {
-					count++
-				}
-				if t := m.associate(n); t != nil {
-					if m.add(t.right) {
-						count++
-					}
-					if m.add(t) {
-						count++
+				for _, x := range n.op.compatXform() {
+					if x.check(n) {
+						ts := x.apply(n)
+						for _, t := range ts {
+							if m.add(t) {
+								count++
+							}
+						}
 					}
 				}
 			}
@@ -258,7 +320,7 @@ func (m *memo) add(n *node) bool {
 	if n.right != nil {
 		rexpr = m.exprMap[n.right.class]
 	}
-	e := &expr{n.typ, n.class, lexpr, rexpr}
+	e := &expr{n.op, n.class, lexpr, rexpr}
 	m.exprMap[id] = i
 	return m.classes[i].add(e)
 }
