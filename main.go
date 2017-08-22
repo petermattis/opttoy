@@ -101,7 +101,6 @@ func (c *class) add(e *expr) bool {
 	i = len(c.exprs)
 	c.exprs = append(c.exprs, e)
 	c.m[id] = i
-	n.nodeIdx = i
 	return true
 }
 
