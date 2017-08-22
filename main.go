@@ -19,7 +19,6 @@ type node struct {
 	op          operator
 	class       string // equivalence class
 	classIdx    int
-	nodeIdx     int
 	left, right *node
 }
 
