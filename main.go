@@ -8,13 +8,6 @@ import (
 	"strings"
 )
 
-type nodeType int
-
-const (
-	joinNode nodeType = iota
-	scanNode
-)
-
 type node struct {
 	op          operator
 	class       string // equivalence class
@@ -40,10 +33,10 @@ func parse(s string) *node {
 }
 
 func (n *node) Debug() string {
-	switch n.op.typ() {
-	case joinNode:
+	switch n.op.(type) {
+	case *joinOp:
 		return fmt.Sprintf("(%s ⋈ %s):%d", n.left.Debug(), n.right.Debug(), n.classIdx)
-	case scanNode:
+	case *scanOp:
 		return fmt.Sprintf("%s:%d", n.class, n.classIdx)
 	default:
 		return "not reached"
@@ -51,10 +44,10 @@ func (n *node) Debug() string {
 }
 
 func (n *node) String() string {
-	switch n.op.typ() {
-	case joinNode:
+	switch n.op.(type) {
+	case *joinOp:
 		return fmt.Sprintf("(%s ⋈ %s)", n.left, n.right)
-	case scanNode:
+	case *scanOp:
 		return fmt.Sprintf("%s", n.class)
 	default:
 		return "not reached"
@@ -68,10 +61,10 @@ type expr struct {
 }
 
 func (e *expr) String() string {
-	switch e.op.typ() {
-	case joinNode:
+	switch e.op.(type) {
+	case *joinOp:
 		return fmt.Sprintf("(%d ⋈ %d)", e.left, e.right)
-	case scanNode:
+	case *scanOp:
 		return fmt.Sprintf("%s", e.class)
 	default:
 		return "not reached"
@@ -118,13 +111,13 @@ func newMemo() *memo {
 }
 
 func (m *memo) build(n *node) {
-	switch n.op.typ() {
-	case joinNode:
+	switch n.op.(type) {
+	case *joinOp:
 		m.build(n.left)
 		m.build(n.right)
 		m.add(n)
 
-	case scanNode:
+	case *scanOp:
 		m.add(n)
 	}
 }
@@ -138,7 +131,8 @@ type xform interface {
 type joinCommuteXform struct{}
 
 func (jc *joinCommuteXform) check(n *node) bool {
-	return n.op.typ() == joinNode
+	_, ok := n.op.(*joinOp)
+	return ok
 }
 
 func (jc *joinCommuteXform) apply(n *node) []*node {
@@ -159,7 +153,11 @@ var joinCommute joinCommuteXform
 type joinAssocXform struct{}
 
 func (ja *joinAssocXform) check(n *node) bool {
-	return n.op.typ() == joinNode && n.left.op.typ() == joinNode
+	if _, ok := n.op.(joinOp); ok {
+		_, ok := n.left.op.(joinOp)
+		return ok
+	}
+	return false
 }
 
 func (ja *joinAssocXform) apply(n *node) []*node {
@@ -185,15 +183,10 @@ func (ja *joinAssocXform) apply(n *node) []*node {
 var joinAssoc joinAssocXform
 
 type operator interface {
-	typ() nodeType
 	compatXform() []xform
 }
 
 type joinOp struct{}
-
-func (joinOp) typ() nodeType {
-	return joinNode
-}
 
 func (joinOp) compatXform() []xform {
 	return []xform{
@@ -205,10 +198,6 @@ func (joinOp) compatXform() []xform {
 var join joinOp
 
 type scanOp struct{}
-
-func (scanOp) typ() nodeType {
-	return scanNode
-}
 
 func (scanOp) compatXform() []xform {
 	return nil
