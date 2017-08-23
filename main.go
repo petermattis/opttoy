@@ -123,7 +123,6 @@ func (m *memo) build(n *node) {
 }
 
 type xform interface {
-	check(n *node) bool
 	apply(n *node) []*node
 }
 
@@ -252,11 +251,9 @@ func (m *memo) expand() int {
 		for _, e := range c.exprs {
 			for _, n := range m.genTrees(e) {
 				for _, x := range n.op.compatXform() {
-					if x.check(n) {
-						for _, t := range x.apply(n) {
-							if m.add(t) {
-								count++
-							}
+					for _, t := range x.apply(n) {
+						if m.add(t) {
+							count++
 						}
 					}
 				}
