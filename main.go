@@ -18,12 +18,12 @@ type node struct {
 func parse(s string) *node {
 	var n *node
 	for _, p := range strings.Split(s, ",") {
-		t := &node{op: &scan, class: p}
+		t := &node{op: scanOp{}, class: p}
 		if n == nil {
 			n = t
 		} else {
 			n = &node{
-				op:    &join,
+				op:    joinOp{},
 				left:  n,
 				right: t,
 			}
@@ -34,9 +34,9 @@ func parse(s string) *node {
 
 func (n *node) Debug() string {
 	switch n.op.(type) {
-	case *joinOp:
+	case joinOp:
 		return fmt.Sprintf("(%s ⋈ %s):%d", n.left.Debug(), n.right.Debug(), n.classIdx)
-	case *scanOp:
+	case scanOp:
 		return fmt.Sprintf("%s:%d", n.class, n.classIdx)
 	default:
 		return "not reached"
@@ -45,9 +45,9 @@ func (n *node) Debug() string {
 
 func (n *node) String() string {
 	switch n.op.(type) {
-	case *joinOp:
+	case joinOp:
 		return fmt.Sprintf("(%s ⋈ %s)", n.left, n.right)
-	case *scanOp:
+	case scanOp:
 		return fmt.Sprintf("%s", n.class)
 	default:
 		return "not reached"
@@ -62,9 +62,9 @@ type expr struct {
 
 func (e *expr) String() string {
 	switch e.op.(type) {
-	case *joinOp:
+	case joinOp:
 		return fmt.Sprintf("(%d ⋈ %d)", e.left, e.right)
-	case *scanOp:
+	case scanOp:
 		return fmt.Sprintf("%s", e.class)
 	default:
 		return "not reached"
@@ -112,12 +112,12 @@ func newMemo() *memo {
 
 func (m *memo) build(n *node) {
 	switch n.op.(type) {
-	case *joinOp:
+	case joinOp:
 		m.build(n.left)
 		m.build(n.right)
 		m.add(n)
 
-	case *scanOp:
+	case scanOp:
 		m.add(n)
 	}
 }
@@ -130,29 +130,27 @@ type xform interface {
 // A ⋈ B => B ⋈ A
 type joinCommuteXform struct{}
 
-func (jc *joinCommuteXform) check(n *node) bool {
-	_, ok := n.op.(*joinOp)
+func (joinCommuteXform) check(n *node) bool {
+	_, ok := n.op.(joinOp)
 	return ok
 }
 
-func (jc *joinCommuteXform) apply(n *node) []*node {
+func (jc joinCommuteXform) apply(n *node) []*node {
 	if !jc.check(n) {
 		return nil
 	}
 	return []*node{{
-		op:    &join,
+		op:    joinOp{},
 		class: n.class,
 		left:  n.right,
 		right: n.left,
 	}}
 }
 
-var joinCommute joinCommuteXform
-
 // (A ⋈ B) ⋈ C  => A ⋈ (B ⋈ C)
 type joinAssocXform struct{}
 
-func (ja *joinAssocXform) check(n *node) bool {
+func (joinAssocXform) check(n *node) bool {
 	if _, ok := n.op.(joinOp); ok {
 		_, ok := n.left.op.(joinOp)
 		return ok
@@ -160,19 +158,19 @@ func (ja *joinAssocXform) check(n *node) bool {
 	return false
 }
 
-func (ja *joinAssocXform) apply(n *node) []*node {
+func (ja joinAssocXform) apply(n *node) []*node {
 	if !ja.check(n) {
 		return nil
 	}
 	r := &node{
-		op:    &join,
+		op:    joinOp{},
 		left:  n.left.right,
 		right: n.right,
 	}
 	return []*node{
 		r,
 		{
-			op:    &join,
+			op:    joinOp{},
 			class: n.class,
 			left:  n.left.left,
 			right: r,
@@ -180,30 +178,26 @@ func (ja *joinAssocXform) apply(n *node) []*node {
 	}
 }
 
-var joinAssoc joinAssocXform
-
 type operator interface {
 	compatXform() []xform
+}
+
+var joinXforms = []xform{
+	joinAssocXform{},
+	joinCommuteXform{},
 }
 
 type joinOp struct{}
 
 func (joinOp) compatXform() []xform {
-	return []xform{
-		&joinAssoc,
-		&joinCommute,
-	}
+	return joinXforms
 }
-
-var join joinOp
 
 type scanOp struct{}
 
 func (scanOp) compatXform() []xform {
 	return nil
 }
-
-var scan scanOp
 
 func (m *memo) genTrees(e *expr) []*node {
 	res := make([]*node, 0)
@@ -256,12 +250,10 @@ func (m *memo) expand() int {
 	var count int
 	for _, c := range m.classes {
 		for _, e := range c.exprs {
-			nodes := m.genTrees(e)
-			for _, n := range nodes {
+			for _, n := range m.genTrees(e) {
 				for _, x := range n.op.compatXform() {
 					if x.check(n) {
-						ts := x.apply(n)
-						for _, t := range ts {
+						for _, t := range x.apply(n) {
 							if m.add(t) {
 								count++
 							}
