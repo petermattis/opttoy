@@ -3,6 +3,7 @@ package v2
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strings"
 
@@ -60,12 +61,27 @@ func (b *bitmap) set(i bitmapIndex) {
 	*b |= 1 << i
 }
 
+func (b *bitmap) indexes() []bitmapIndex {
+	t := uint64(*b)
+	r := make([]bitmapIndex, 0, bits.OnesCount64(t))
+	for t != 0 {
+		i := bitmapIndex(bits.TrailingZeros64(t))
+		r = append(r, i)
+		t &= ^(1 << i)
+	}
+	return r
+}
+
 type operator int16
 
 const (
 	unknownOp operator = iota
 
 	scanOp
+
+	unionOp
+	intersectOp
+	exceptOp
 
 	innerJoinOp
 	leftJoinOp
@@ -135,6 +151,9 @@ const (
 var operatorName = [...]string{
 	unknownOp:           "unknown",
 	scanOp:              "scan",
+	unionOp:             "union",
+	intersectOp:         "intersect",
+	exceptOp:            "except",
 	innerJoinOp:         "inner join",
 	leftJoinOp:          "left join",
 	rightJoinOp:         "right join",
@@ -212,6 +231,9 @@ const (
 var operatorTypeMap = [...]operatorType{
 	unknownOp:           unknownType,
 	scanOp:              relational,
+	unionOp:             relational,
+	intersectOp:         relational,
+	exceptOp:            relational,
 	innerJoinOp:         relational,
 	leftJoinOp:          relational,
 	rightJoinOp:         relational,
@@ -444,19 +466,30 @@ func (e *expr) String() string {
 		if e.body != nil {
 			fmt.Fprintf(buf, " (%s)", e.body)
 		}
-		if e.inputVars != 0 || e.outputVars != 0 {
-			fmt.Fprintf(buf, " [")
+		if attrs := e.attrs(); e.inputVars != 0 || e.outputVars != 0 || len(attrs) > 0 {
+			buf.WriteString(" [")
 			sep := ""
 			if e.inputVars != 0 {
 				fmt.Fprintf(buf, "in=%s", e.inputVars)
 				sep = " "
 			}
 			if e.outputVars != 0 {
+				sep = " "
 				fmt.Fprintf(buf, "%sout=%s", sep, e.outputVars)
 			}
-			fmt.Fprintf(buf, "]")
+			if len(attrs) > 0 {
+				fmt.Fprintf(buf, "%sattr=", sep)
+				for i := range attrs {
+					if i > 0 {
+						buf.WriteString(",")
+					}
+					fmt.Fprintf(buf, "%d", attrs[i])
+				}
+			}
+			buf.WriteString("]")
 		}
-		fmt.Fprintf(buf, "\n")
+
+		buf.WriteString("\n")
 		if projections := e.projections(); len(projections) > 0 {
 			fmt.Fprintf(buf, "%s  project:\n", indent)
 			for _, project := range projections {
@@ -498,6 +531,20 @@ func (e *expr) addProjection(p *expr) {
 	e.projectCount++
 }
 
+func (e *expr) replaceProjection(p *expr, r []*expr) {
+	for i, project := range e.projections() {
+		if project == p {
+			e.children = append(e.children, r[1:]...)
+			pos := int(e.inputCount) + i
+			copy(e.children[pos+len(r):], e.children[pos+1:])
+			copy(e.children[pos:], r)
+			e.projectCount += int16(len(r) - 1)
+			return
+		}
+	}
+	fatalf("not reached")
+}
+
 func (e *expr) removeProjections() {
 	if e.projectCount > 0 {
 		copy(e.children[e.inputCount:], e.children[e.inputCount+e.projectCount:])
@@ -526,6 +573,24 @@ func (e *expr) addFilter(f *expr) {
 func (e *expr) removeFilters() {
 	filterStart := e.inputCount + e.projectCount
 	e.children = e.children[:int(filterStart)]
+}
+
+// attrs returns the attribute indexes in the order they are output by the
+// expression. The attribute indexes are computed from the output vars of the
+// projections.
+func (e *expr) attrs() []bitmapIndex {
+	projections := e.projections()
+	if len(projections) == 0 {
+		if operatorTypeMap[e.op] == relational {
+			return e.outputVars.indexes()
+		}
+		return nil
+	}
+	r := make([]bitmapIndex, len(projections))
+	for i, project := range projections {
+		r[i] = bitmapIndex(bits.TrailingZeros64(uint64(project.outputVars)))
+	}
+	return r
 }
 
 func applyProjections(expr *expr) {
@@ -600,8 +665,15 @@ func (e *expr) resolve(state *queryState, parent *expr) {
 		filter.resolve(state, e)
 	}
 
-	for i, project := range e.projections() {
+	for i := 0; i < len(e.projections()); i++ {
+		project := e.projections()[i]
 		project.resolve(state, e)
+		if project != e.projections()[i] {
+			// Resolving the projection caused it to change. Back up and resolve
+			// again.
+			i--
+			continue
+		}
 		if project.outputVars == 0 {
 			project.outputVars.set(bitmapIndex(len(state.columns)))
 			state.columns = append(state.columns, columnRef{
@@ -624,38 +696,85 @@ func (e *expr) resolveBody(state *queryState, parent *expr) {
 			fatalf("%s", err)
 		}
 		name := tableName.Table()
-		if table, ok := state.catalog[name]; !ok {
+		table, ok := state.catalog[name]
+		if !ok {
 			fatalf("unknown table %s", name)
-		} else {
-			e.body = table
-			base := bitmapIndex(len(state.columns))
+		}
+		e.body = table
+
+		base, ok := state.tables[name]
+		if !ok {
+			base = bitmapIndex(len(state.columns))
 			state.tables[name] = base
 			for i := range table.columnNames {
 				state.columns = append(state.columns, columnRef{
 					table: table,
 					index: columnIndex(i),
 				})
-				e.inputVars.set(base + bitmapIndex(i))
 			}
+		}
+		for i := range table.columnNames {
+			e.inputVars.set(base + bitmapIndex(i))
 		}
 
 	case parser.UnqualifiedStar:
-		e.inputVars = parent.inputVars
+		addAttrs := func(projections []*expr, attrs []bitmapIndex) []*expr {
+			for _, attr := range attrs {
+				col := state.columns[attr]
+				p := &expr{
+					op: variableOp,
+					body: parser.UnresolvedName{
+						parser.Name(col.table.name),
+						parser.Name(col.table.columnNames[col.index]),
+					},
+				}
+				projections = append(projections, p)
+			}
+			return projections
+		}
+		var newProjections []*expr
+		if inputs := parent.inputs(); len(inputs) == 0 {
+			newProjections = addAttrs(newProjections, parent.inputVars.indexes())
+		} else {
+			for _, input := range parent.inputs() {
+				newProjections = addAttrs(newProjections, input.attrs())
+			}
+		}
+		parent.replaceProjection(e, newProjections)
 
 	case parser.UnresolvedName:
 		if len(b) != 2 {
 			fatalf("unsupported unqualified name: %s", b)
 		}
 		tableName := string(b[0].(parser.Name))
-		colName := string(b[1].(parser.Name))
 		if base, ok := state.tables[tableName]; !ok {
 			fatalf("unknown table %s", b)
 		} else if table, ok := state.catalog[tableName]; !ok {
 			fatalf("unknown table %s", b)
-		} else if colIndex, ok := table.columns[colName]; !ok {
-			fatalf("unknown column %s", b)
 		} else {
-			e.inputVars.set(base + bitmapIndex(colIndex))
+			switch t := b[1].(type) {
+			case parser.Name:
+				colName := string(t)
+				if colIndex, ok := table.columns[colName]; !ok {
+					fatalf("unknown column %s", b)
+				} else {
+					e.inputVars.set(base + bitmapIndex(colIndex))
+				}
+			case parser.UnqualifiedStar:
+				newProjections := make([]*expr, 0, len(table.columnNames))
+				for _, colName := range table.columnNames {
+					newProjections = append(newProjections, &expr{
+						op: variableOp,
+						body: parser.UnresolvedName{
+							parser.Name(tableName),
+							parser.Name(colName),
+						},
+					})
+				}
+				parent.replaceProjection(e, newProjections)
+			default:
+				unimplemented("%T", b[1])
+			}
 		}
 
 	case *parser.NumVal:
@@ -985,6 +1104,8 @@ func (e *executor) buildTable(table parser.TableExpr) *expr {
 			unimplemented("%T", source.Cond)
 		}
 		return result
+	case *parser.Subquery:
+		return e.build(source.Select)
 
 	default:
 		unimplemented("%T", table)
@@ -1086,12 +1207,20 @@ func (e *executor) buildExpr(pexpr parser.Expr) *expr {
 }
 
 func (e *executor) buildSelect(stmt *parser.Select) *expr {
-	// TODO: stmt.Limit
-	orderBy := stmt.OrderBy
-
+	switch t := stmt.Select.(type) {
+	case *parser.SelectClause:
+		// TODO: stmt.Limit
+		return e.buildSelectClause(t, stmt.OrderBy)
+	case *parser.UnionClause:
+		return e.buildUnion(t)
 	// TODO: handle other stmt.Select types.
-	clause := stmt.Select.(*parser.SelectClause)
+	default:
+		unimplemented("%T", stmt.Select)
+	}
+	return nil
+}
 
+func (e *executor) buildSelectClause(clause *parser.SelectClause, orderBy parser.OrderBy) *expr {
 	var result *expr
 	if clause.From != nil {
 		var inputs []*expr
@@ -1124,6 +1253,11 @@ func (e *executor) buildSelect(stmt *parser.Select) *expr {
 		}
 	}
 
+	// TODO(peter): This isn't correct. Consider "SELECT * FROM (SELECT a.x FROM
+	// a)". We're currently translating that into "SELECT * FROM a", while really
+	// it should be translated to "SELECT a.x FROM a". I think we need a selectOp
+	// node and a rewrite pass to push them down.
+	result.removeProjections()
 	for _, expr := range clause.Exprs {
 		result.addProjection(e.buildExpr(expr.Expr))
 	}
@@ -1146,6 +1280,25 @@ func (e *executor) buildSelect(stmt *parser.Select) *expr {
 	}
 
 	return result
+}
+
+func (e *executor) buildUnion(clause *parser.UnionClause) *expr {
+	op := unionOp
+	switch clause.Type {
+	case parser.UnionOp:
+	case parser.IntersectOp:
+		op = intersectOp
+	case parser.ExceptOp:
+		op = exceptOp
+	}
+	return &expr{
+		op: op,
+		children: []*expr{
+			e.buildSelect(clause.Left),
+			e.buildSelect(clause.Right),
+		},
+		inputCount: 2,
+	}
 }
 
 func (e *executor) createTable(stmt *parser.CreateTable) {

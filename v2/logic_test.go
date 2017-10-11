@@ -17,7 +17,7 @@ import (
 
 var (
 	logicTestData    = flag.String("d", "testdata/[^.]*", "test data glob")
-	rewriteTestFiles = flag.Bool("rewrite-testfiles", false, "")
+	rewriteTestFiles = flag.Bool("rewrite", false, "")
 )
 
 type lineScanner struct {

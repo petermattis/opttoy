@@ -7,7 +7,7 @@ CREATE TABLE b (x INT, z INT)
 prep
 SELECT a.x, a.y FROM a JOIN b ON (a.x = b.x)
 ----
-inner join [in=0-2 out=0-1]
+inner join [in=0-2 out=0-1 attr=0,1]
   project:
     variable (a.x) [in=0 out=0]
     variable (a.y) [in=1 out=1]
@@ -17,21 +17,23 @@ inner join [in=0-2 out=0-1]
         variable (a.x) [in=0 out=0]
         variable (b.x) [in=2 out=2]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1]
-    scan (b (x, z)) [in=2-3 out=2]
+    scan (a (x, y)) [in=0-1 out=0-1 attr=0,1]
+    scan (b (x, z)) [in=2-3 out=2 attr=2]
 
 prep
 SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
-scan (a (x, y)) [in=0-1 out=0-1]
+scan (a (x, y)) [in=0-1 out=0-1 attr=0,1]
   project:
-    variable (*) [in=0-1 out=0-1]
+    variable (a.x) [in=0 out=0]
+    variable (a.y) [in=1 out=1]
   filter:
     exists [in=2-3]
       inputs:
-        scan (b (x, z)) [in=2-3 out=2-3]
+        scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
           project:
-            variable (*) [in=2-3 out=2-3]
+            variable (b.x) [in=2 out=2]
+            variable (b.z) [in=3 out=3]
           filter:
             comp (=) [in=0,2]
               inputs:
@@ -46,14 +48,15 @@ scan (a (x, y)) [in=0-1 out=0-1]
 decorrelate
 SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
-inner join
+inner join [attr=0,1]
   project:
-    variable (*) [in=0-1 out=0-1]
+    variable (a.x) [in=0 out=0]
+    variable (a.y) [in=1 out=1]
   filter:
     comp (=) [in=0,2]
       inputs:
         variable (a.x) [in=0 out=0]
         variable (b.x) [in=2 out=2]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1]
-    scan (b (x, z)) [in=2-3 out=2-3]
+    scan (a (x, y)) [in=0-1 out=0-1 attr=0,1]
+    scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
