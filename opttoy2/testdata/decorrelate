@@ -1,0 +1,59 @@
+exec
+CREATE TABLE a (x INT, y INT)
+
+exec
+CREATE TABLE b (x INT, z INT)
+
+prep
+SELECT a.x, a.y FROM a JOIN b ON (a.x = b.x)
+----
+inner join [in=0-2 out=0-1]
+  project:
+    variable (a.x) [in=0 out=0]
+    variable (a.y) [in=1 out=1]
+  filter:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0 out=0]
+        variable (b.x) [in=2 out=2]
+  inputs:
+    scan (a (x, y)) [in=0-1 out=0-1]
+    scan (b (x, z)) [in=2-3 out=2]
+
+prep
+SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
+----
+scan (a (x, y)) [in=0-1 out=0-1]
+  project:
+    variable (*) [in=0-1 out=0-1]
+  filter:
+    exists [in=2-3]
+      inputs:
+        scan (b (x, z)) [in=2-3 out=2-3]
+          project:
+            variable (*) [in=2-3 out=2-3]
+          filter:
+            comp (=) [in=0,2]
+              inputs:
+                variable (a.x) [in=0 out=0]
+                variable (b.x) [in=2 out=2]
+
+# TODO(peter): this doesn't actually perform decorrelation yet. Notice
+# that the filter in the inner scan is dependent on a variable (0)
+# that is not provided as an input. This indicates we have a
+# correlation that needs to be hoisted.
+
+decorrelate
+SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
+----
+inner join
+  project:
+    variable (*) [in=0-1 out=0-1]
+  filter:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0 out=0]
+        variable (b.x) [in=2 out=2]
+  inputs:
+    scan (a (x, y)) [in=0-1 out=0-1]
+    scan (b (x, z)) [in=2-3 out=2-3]
