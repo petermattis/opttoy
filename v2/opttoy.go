@@ -60,6 +60,14 @@ func (b *bitmap) set(i bitmapIndex) {
 	*b |= 1 << i
 }
 
+func (b *bitmap) and(other bitmap) {
+	*b &= other
+}
+
+func (b *bitmap) or(other bitmap) {
+	*b |= other
+}
+
 type operator int16
 
 const (
@@ -320,7 +328,120 @@ var unaryOpMap = [...]operator{
 	parser.UnaryComplement: unaryComplementOp,
 }
 
-// expr is a unified interface for both relational and scalar expressions in a
+type xform interface {
+	checkPattern(*expr) bool
+	utility(*expr) int
+	transform(*expr) *expr
+}
+
+// vvv a very rudimentary properties class file vvv
+//
+// I don't want to sell a single class for all the properties.
+// Don't even want to get into that discussion here.
+// All I'm saying is that we can group all the basic add/union/intersect/get
+// logic for properties in one place that's not the expression class.
+
+type properties struct {
+	// Relational
+	columns bitmap
+}
+
+func (p *properties) getColumns() bitmap {
+	return p.columns
+}
+
+func (p *properties) addColumns(b bitmap) {
+	p.columns.or(b)
+}
+
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+// vvv a very rudimentary transformation source file vvv
+//
+// The code to apply the transformation sits here.
+// Using join commutativity is a cop out because there's no auxiliary code
+// necessary.
+// Other transformations do require so.
+// For instance, join associativity requires manipulating the join predicates
+// during the transformation.
+// Such manipulations would live here (but would use expression manipulation
+// primitives from somewhere else).
+// My point is, to learn about a transformation, this would be a one stop shop.
+
+type xformJoinCommut struct {
+}
+
+func (*xformJoinCommut) checkPattern(e *expr) bool {
+	if e.op != innerJoinOp {
+		return false
+	}
+	return true
+}
+
+func (*xformJoinCommut) utility(e *expr) int {
+	return 10 // high
+}
+
+func (*xformJoinCommut) transform(e *expr) *expr {
+	return &expr{
+		op:       e.op,
+		children: []*expr{e.children[1], e.children[0], e.children[2]},
+	}
+}
+
+type xoperator interface {
+	xformTab() []*xform
+	drvProp(e *expr) *properties
+	reqProp(e *expr) *properties
+}
+
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+// vvvv a very rudimentary operator source file vvvv
+//
+// The code to derive the properties sits here.
+// The actual expression would be responsible to hold the properties.
+// There are ways to cache the calculations, as you can imagine.
+// Same point I made in the transformation applies here.
+// To learn about an operator, this file would be a one-stop shop.
+
+type xjoin struct {
+	xformsList []xform
+}
+
+func (*xjoin) xformTab() []xform {
+	return []xform{
+		&xformJoinCommut{},
+	}
+}
+
+func (*xjoin) drvProp(e *expr) *properties {
+	var p properties
+	for i := 0; i < 2; i++ {
+		ce := e.children[i]
+		co := ce.xop
+		cp := co.drvProp(ce)
+		p.addColumns(cp.getColumns())
+		// p.addOtherProps(cp.getOtherPros())
+	}
+	return &p
+}
+
+func (*xjoin) reqProp(e *expr) *properties {
+	// ask the scalar expression of the join
+	// for the columns it references
+	// var p properties
+	// l := len(e.children)
+	// se := e.children[l-1]
+	// so := se.xop
+	// sp := so.reqProp(se)
+	// p.addColumns(sp.getColumns())
+	return nil
+}
+
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+// exprn is a unified interface for both relational and scalar expressions in a
 // query. Expressions have optional inputs, projections and
 // filters. Additionally, an expression maintains a bitmap of required input
 // variables and a bitmap of the output variables it generates.
@@ -416,7 +537,22 @@ var unaryOpMap = [...]operator{
 type expr struct {
 	// NB: op, inputCount and projectCount are placed next to each other in order
 	// to reduce space wastage due to padding.
-	op operator
+	op  operator
+	xop xoperator
+	// vvv Required and derived properties. vvv
+	//
+	// The idea is that each expression would hold the its properties.
+	// Note that the differnce between the 'expr' and 'mexpr' class is not
+	// only the 'children' type. The 'mexpr's wouldn not have all the properties
+	// since the MEMO equivalent class by definition factors out the relational
+	// properties of all the expression on the group.
+	// I have been advocting for both types.
+	// Especially because we can "extract" expr's from mexpr's on demand -- that is
+	// only when we know we'll tweak expr because expr is the variation that's
+	// equipped with the machinery to manipulate properties.
+	reqProp properties
+	drvProp properties
+	// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	// The inputs, projections and filters are all stored in the children slice
 	// to minimize overhead. The inputCount and projectCount values delineate the
 	// input, projection and filter sub-slices:
