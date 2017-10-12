@@ -192,15 +192,15 @@ func TestLogic(t *testing.T) {
 					return ""
 				}
 
-				expr, state := e.prep(d.stmt)
+				expr, _ := e.prep(d.stmt)
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
 					case "prep":
 						// Already done.
 					case "push_down":
-						expr.pushDownFilters(state)
+						expr.pushDownFilters()
 					case "decorrelate":
-						expr.decorrelate(state)
+						expr.decorrelate()
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}

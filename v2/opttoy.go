@@ -779,7 +779,7 @@ func buildEquivalencyMap(filters []*expr) map[bitmap]*expr {
 }
 
 // TODO(peter): I'm sure this is incorrect in various cases.
-func (e *expr) pushDownFilters(state *queryState) {
+func (e *expr) pushDownFilters() {
 	// Push down filters to inputs.
 	filters := e.filters()
 	// Strip off all of the filters. We'll re-add any filters that couldn't be
@@ -818,12 +818,12 @@ func (e *expr) pushDownFilters(state *queryState) {
 
 	for _, input := range e.inputs() {
 		input.updateProperties()
-		input.pushDownFilters(state)
+		input.pushDownFilters()
 	}
 	e.updateProperties()
 }
 
-func (e *expr) decorrelate(state *queryState) {
+func (e *expr) decorrelate() {
 	// TODO(peter): In general the simple unnesting phase moves all dependent
 	// predicates up the tree as far as possible, potentially beyond joins,
 	// selections, group by, etc., until it reaches a point where all its
@@ -921,8 +921,8 @@ func (e *executor) exec(sql string) {
 			e.createTable(stmt)
 		default:
 			fmt.Printf("%s\n", stmt)
-			expr, state := e.prep(stmt)
-			expr.pushDownFilters(state)
+			expr, _ := e.prep(stmt)
+			expr.pushDownFilters()
 			fmt.Printf("%s\n", expr)
 		}
 	}
