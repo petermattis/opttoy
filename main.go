@@ -54,6 +54,29 @@ func (n *node) String() string {
 	}
 }
 
+func (n *node) EquivClass() string {
+	// For now, we use the list of the tables in alphabetical order to check
+	// if two nodes belong in the same memo class.  Needless to say, this is
+	// only going to take us so far...
+	tables := n.JoinSig()
+	sort.Strings(tables)
+	return strings.Join(tables, ",")
+}
+
+func (n *node) JoinSig() []string {
+	var res []string
+	switch n.op.(type) {
+	case joinOp:
+		children := [2]*node{n.left, n.right}
+		for _, child := range children {
+			res = append(res, child.JoinSig()...)
+		}
+	case scanOp:
+		res = append(res, n.class)
+	}
+	return res
+}
+
 type expr struct {
 	op          operator
 	class       string // equivalence class
@@ -282,12 +305,13 @@ func (m *memo) add(n *node) bool {
 	if _, ok := m.exprMap[id]; ok {
 		return false
 	}
-	i, ok := m.classMap[n.class]
+	ec := n.EquivClass()
+	i, ok := m.classMap[ec]
 	if !ok {
 		i = len(m.classes)
 		c := newClass(i)
 		m.classes = append(m.classes, c)
-		m.classMap[n.class] = i
+		m.classMap[ec] = i
 	}
 	lexpr := -1
 	if n.left != nil {
