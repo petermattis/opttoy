@@ -4,17 +4,37 @@ CREATE TABLE a (x INT, y INT)
 exec
 CREATE TABLE b (x INT, z INT)
 
+# prep
+# SELECT * FROM (SELECT a.x FROM a)
+# ----
+
 prep
 SELECT a.y FROM a
 ----
-scan (a (x, y)) [in=0-1 out=1]
+scan (a (x, y)) [in=0-1 out=1 attr=1]
   project:
     variable (a.y) [in=1 out=1]
 
 prep
+SELECT a.* FROM a
+----
+scan (a (x, y)) [in=0-1 out=0-1 attr=0,1]
+  project:
+    variable (a.x) [in=0 out=0]
+    variable (a.y) [in=1 out=1]
+
+prep
+SELECT a.y, a.x FROM a
+----
+scan (a (x, y)) [in=0-1 out=0-1 attr=1,0]
+  project:
+    variable (a.y) [in=1 out=1]
+    variable (a.x) [in=0 out=0]
+
+prep
 SELECT a.y+1 FROM a
 ----
-scan (a (x, y)) [in=0-1 out=2]
+scan (a (x, y)) [in=0-1 out=2 attr=2]
   project:
     binary (+) [in=1 out=2]
       inputs:
@@ -24,9 +44,10 @@ scan (a (x, y)) [in=0-1 out=2]
 prep
 SELECT * FROM b WHERE b.z > 10
 ----
-scan (b (x, z)) [in=0-1 out=0-1]
+scan (b (x, z)) [in=0-1 out=0-1 attr=0,1]
   project:
-    variable (*) [in=0-1 out=0-1]
+    variable (b.x) [in=0 out=0]
+    variable (b.z) [in=1 out=1]
   filter:
     comp (>) [in=1]
       inputs:
@@ -36,7 +57,7 @@ scan (b (x, z)) [in=0-1 out=0-1]
 prep
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
-inner join [in=0-3 out=1,3]
+inner join [in=0-3 out=1,3 attr=1,3]
   project:
     variable (a.y) [in=1 out=1]
     variable (b.z) [in=3 out=3]
@@ -54,13 +75,13 @@ inner join [in=0-3 out=1,3]
         variable (b.z) [in=3 out=3]
         const (3)
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1]
-    scan (b (x, z)) [in=2-3 out=2-3]
+    scan (a (x, y)) [in=0-1 out=0-1 attr=0,1]
+    scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
 
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
-inner join [in=0,2-3 out=2]
+inner join [in=0,2-3 out=2 attr=2]
   project:
     variable (b.x) [in=2 out=2]
   filter:
@@ -77,13 +98,13 @@ inner join [in=0,2-3 out=2]
         variable (a.x) [in=0 out=0]
         variable (b.x) [in=2 out=2]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0]
-    scan (b (x, z)) [in=2-3 out=2-3]
+    scan (a (x, y)) [in=0-1 out=0 attr=0]
+    scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
 
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
-inner join [in=0,2-3 out=2]
+inner join [in=0,2-3 out=2 attr=2]
   project:
     variable (b.x) [in=2 out=2]
   filter:
@@ -100,13 +121,13 @@ inner join [in=0,2-3 out=2]
         variable (a.x) [in=0 out=0]
         variable (b.x) [in=2 out=2]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0]
-    scan (b (x, z)) [in=2-3 out=2-3]
+    scan (a (x, y)) [in=0-1 out=0 attr=0]
+    scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
 
 prep
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
-inner join [in=0,2-3 out=2]
+inner join [in=0,2-3 out=2 attr=2]
   project:
     variable (b.x) [in=2 out=2]
   filter:
@@ -123,5 +144,19 @@ inner join [in=0,2-3 out=2]
         variable (a.x) [in=0 out=0]
         variable (b.x) [in=2 out=2]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0]
-    scan (b (x, z)) [in=2-3 out=2-3]
+    scan (a (x, y)) [in=0-1 out=0 attr=0]
+    scan (b (x, z)) [in=2-3 out=2-3 attr=2,3]
+
+prep
+SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
+----
+union
+  inputs:
+    scan (a (x, y)) [in=0-1 attr=0,1]
+      project:
+        variable (a.x) [in=0 out=0]
+        variable (a.y) [in=1 out=1]
+    scan (a (x, y)) [in=0-1 attr=1,0]
+      project:
+        variable (a.y) [in=1 out=1]
+        variable (a.x) [in=0 out=0]
