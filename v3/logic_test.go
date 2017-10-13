@@ -198,7 +198,7 @@ func TestLogic(t *testing.T) {
 					case "prep":
 						// Already done.
 					case "push_down":
-						expr.pushDownFilters()
+						pushDownFilters(expr)
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}

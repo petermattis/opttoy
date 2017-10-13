@@ -4,10 +4,6 @@ CREATE TABLE a (x INT, y INT)
 exec
 CREATE TABLE b (x INT, z INT)
 
-# prep
-# SELECT * FROM (SELECT a.x FROM a)
-# ----
-
 prep
 SELECT a.y FROM a
 ----
