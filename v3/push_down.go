@@ -22,23 +22,22 @@ func isFilterCompatible(e *expr, filter *expr) bool {
 	return (filter.inputVars & e.inputVars) == filter.inputVars
 }
 
-func buildEquivalencyMap(filters []*expr) map[bitmap]*expr {
-	// Build an equivalency map from any equality predicates.
-	var equivalencyMap map[bitmap]*expr
+func findEquivalency(filters []*expr, e *expr) *expr {
 	for _, filter := range filters {
 		if filter.op == eqOp {
 			left := filter.inputs()[0]
 			right := filter.inputs()[1]
 			if left.op == variableOp && right.op == variableOp {
-				if equivalencyMap == nil {
-					equivalencyMap = make(map[bitmap]*expr)
+				if left.inputVars == e.inputVars {
+					return right
 				}
-				equivalencyMap[left.outputVars] = right
-				equivalencyMap[right.outputVars] = left
+				if right.inputVars == e.inputVars {
+					return left
+				}
 			}
 		}
 	}
-	return equivalencyMap
+	return nil
 }
 
 // TODO(peter): The current code is likely incorrect in various ways. Below is
@@ -74,8 +73,6 @@ func pushDownFilters(e *expr) {
 	// Strip off all of the filters. We'll re-add any filters that couldn't be
 	// pushed down.
 	e.children = e.children[:e.inputCount+e.projectCount]
-	var equivalencyMap map[bitmap]*expr
-	var equivalencyMapInited bool
 
 	for _, filter := range filters {
 		count := 0
@@ -87,11 +84,7 @@ func pushDownFilters(e *expr) {
 			}
 
 			// Check to see if creating a new filter by substitution could be pushed down.
-			if !equivalencyMapInited {
-				equivalencyMapInited = true
-				equivalencyMap = buildEquivalencyMap(filters)
-			}
-			if replacement, ok := equivalencyMap[filter.inputVars]; ok {
+			if replacement := findEquivalency(filters, filter); replacement != nil {
 				if isFilterCompatible(input, replacement) {
 					newFilter := substitute(filter, filter.inputVars, replacement)
 					input.addFilter(newFilter)
@@ -109,5 +102,25 @@ func pushDownFilters(e *expr) {
 		input.updateProperties()
 		pushDownFilters(input)
 	}
+
+	// TODO(peter): This is hacky and should be generalized. If filters were
+	// added to a scanOp, lift the filters into a selectOp.
+	if e.op == scanOp && len(e.filters()) > 0 {
+		filters := e.filters()
+		t := *e
+		t.removeFilters()
+		*e = expr{
+			op:         selectOp,
+			children:   make([]*expr, len(filters)+1),
+			inputCount: 1,
+		}
+		e.inputs()[0] = &t
+		copy(e.children[e.inputCount+e.projectCount:], filters)
+		t.updateProperties()
+	}
+	if e.op == selectOp && len(e.filters()) == 0 {
+		*e = *e.inputs()[0]
+	}
+
 	e.updateProperties()
 }
