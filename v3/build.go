@@ -72,6 +72,7 @@ func buildTable(table parser.TableExpr) *expr {
 			body: source,
 		}
 	case *parser.AliasedTableExpr:
+		// TODO(peter): handle source.As.
 		return buildTable(source.Expr)
 	case *parser.ParenTableExpr:
 		return buildTable(source.Expr)
@@ -270,6 +271,7 @@ func buildSelectClause(clause *parser.SelectClause, orderBy parser.OrderBy) *exp
 			inputCount: 1,
 		}
 		for _, expr := range clause.Exprs {
+			// TODO(peter): handle expr.As
 			result.addProjection(buildExpr(expr.Expr))
 		}
 	}

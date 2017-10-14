@@ -37,6 +37,22 @@ projectOp [in=0 out=0 cols=0]
         scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
 
 prep
+SELECT * FROM (SELECT a.x+1 FROM a)
+----
+projectOp [in=2 out=2 cols=2]
+  project:
+    variable [in=2 out=2]
+  inputs:
+    projectOp [in=0 out=2 cols=2]
+      project:
+        binary (+) [in=0 out=2]
+          inputs:
+            variable (a.x) [in=0 out=0]
+            const (1)
+      inputs:
+        scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+
+prep
 SELECT a.y, a.x FROM a
 ----
 projectOp [in=0-1 out=0-1 cols=1,0]

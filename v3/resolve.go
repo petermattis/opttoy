@@ -28,8 +28,9 @@ func resolve(e *expr, state *queryState, parent *expr) {
 		}
 		if project.outputVars == 0 {
 			project.outputVars.set(bitmapIndex(len(state.columns)))
+			// TODO(peter): consider creating a "view" in order to give this new
+			// variable a name.
 			state.columns = append(state.columns, columnRef{
-				// relation: expr
 				index: columnIndex(i),
 			})
 		}
@@ -70,26 +71,20 @@ func resolveBody(e *expr, state *queryState, parent *expr) {
 		}
 
 	case parser.UnqualifiedStar:
-		addColumns := func(projections []*expr, columns []bitmapIndex) []*expr {
-			for _, colIndex := range columns {
-				col := state.columns[colIndex]
+		var newProjections []*expr
+		for _, input := range parent.inputs() {
+			for _, colIndex := range input.columns() {
 				p := &expr{
 					op: variableOp,
-					body: parser.UnresolvedName{
+				}
+				if col := state.columns[colIndex]; col.table != nil {
+					p.body = parser.UnresolvedName{
 						parser.Name(col.table.name),
 						parser.Name(col.table.columnNames[col.index]),
-					},
+					}
 				}
-				projections = append(projections, p)
-			}
-			return projections
-		}
-		var newProjections []*expr
-		if inputs := parent.inputs(); len(inputs) == 0 {
-			newProjections = addColumns(newProjections, parent.inputVars.indexes())
-		} else {
-			for _, input := range inputs {
-				newProjections = addColumns(newProjections, input.columns())
+				p.inputVars.set(colIndex)
+				newProjections = append(newProjections, p)
 			}
 		}
 		parent.replaceProjection(e, newProjections)
