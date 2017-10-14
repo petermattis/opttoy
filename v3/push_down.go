@@ -41,7 +41,33 @@ func buildEquivalencyMap(filters []*expr) map[bitmap]*expr {
 	return equivalencyMap
 }
 
-// TODO(peter): I'm sure this is incorrect in various cases.
+// TODO(peter): The current code is likely incorrect in various ways. Below is
+// what we should be doing.
+//
+// We want to push filters through relational operators, but not onto
+// relational operators. For example:
+//
+//   select a.x > 1    --->  join a, b
+//     join                    select a.x > 1
+//       scan a (x, y)           scan a (x, y)
+//       scan b (x, z)         scan b (x, z)
+//
+// While pushing a filter down, we need to infer additional filters using
+// column equivalencies.
+//
+//   select a.x > 1    ---> join a.x = b.x
+//     join a.x = b.x         select a.x > 1
+//       scan a (x, y)          scan a (x, y)
+//       scan b (x, z)        select b.x > 1
+//                              scan b (x, z)
+//
+// Note that a filter might be compatible with a relational operator, but not
+// with its inputs. Consider:
+//
+//   select a.y + b.z > 1
+//     join a.x = b.x
+//       scan a (x, y)
+//       scan b (x, z)
 func pushDownFilters(e *expr) {
 	// Push down filters to inputs.
 	filters := e.filters()
