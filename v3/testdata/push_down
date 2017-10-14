@@ -1,0 +1,39 @@
+exec
+CREATE TABLE a (x INT, y INT)
+
+exec
+CREATE TABLE b (x INT, z INT)
+
+push_down
+SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
+----
+projectOp [in=1,3 out=1,3 cols=1,3]
+  project:
+    variable (a.y) [in=1 out=1]
+    variable (b.z) [in=3 out=3]
+  inputs:
+    selectOp [in=0-3 out=0-3 cols=0,1,2,3]
+      inputs:
+        inner join [in=0-3 out=0-3 cols=0,1,2,3]
+          filter:
+            comp (=) [in=0,2]
+              inputs:
+                variable (a.x) [in=0 out=0]
+                variable (b.x) [in=2 out=2]
+          inputs:
+            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+              filter:
+                comp (>) [in=0]
+                  inputs:
+                    variable (a.x) [in=0 out=0]
+                    const (7)
+            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]
+              filter:
+                comp (>) [in=2]
+                  inputs:
+                    variable (b.x) [in=2 out=2]
+                    const (7)
+                comp (=) [in=3]
+                  inputs:
+                    variable (b.z) [in=3 out=3]
+                    const (3)
