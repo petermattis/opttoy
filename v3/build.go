@@ -2,6 +2,56 @@ package v3
 
 import "github.com/cockroachdb/cockroach/pkg/sql/parser"
 
+var comparisonOpMap = [...]operator{
+	parser.EQ:                eqOp,
+	parser.LT:                ltOp,
+	parser.GT:                gtOp,
+	parser.LE:                leOp,
+	parser.GE:                geOp,
+	parser.NE:                neOp,
+	parser.In:                inOp,
+	parser.NotIn:             notInOp,
+	parser.Like:              likeOp,
+	parser.NotLike:           notLikeOp,
+	parser.ILike:             iLikeOp,
+	parser.NotILike:          notILikeOp,
+	parser.SimilarTo:         similarToOp,
+	parser.NotSimilarTo:      notSimilarToOp,
+	parser.RegMatch:          regMatchOp,
+	parser.NotRegMatch:       notRegMatchOp,
+	parser.RegIMatch:         regIMatchOp,
+	parser.NotRegIMatch:      notRegIMatchOp,
+	parser.IsDistinctFrom:    isDistinctFromOp,
+	parser.IsNotDistinctFrom: isNotDistinctFromOp,
+	parser.Is:                isOp,
+	parser.IsNot:             isNotOp,
+	parser.Any:               anyOp,
+	parser.Some:              someOp,
+	parser.All:               allOp,
+}
+
+var binaryOpMap = [...]operator{
+	parser.Bitand:   bitandOp,
+	parser.Bitor:    bitorOp,
+	parser.Bitxor:   bitxorOp,
+	parser.Plus:     plusOp,
+	parser.Minus:    minusOp,
+	parser.Mult:     multOp,
+	parser.Div:      divOp,
+	parser.FloorDiv: floorDivOp,
+	parser.Mod:      modOp,
+	parser.Pow:      powOp,
+	parser.Concat:   concatOp,
+	parser.LShift:   lShiftOp,
+	parser.RShift:   rShiftOp,
+}
+
+var unaryOpMap = [...]operator{
+	parser.UnaryPlus:       unaryPlusOp,
+	parser.UnaryMinus:      unaryMinusOp,
+	parser.UnaryComplement: unaryComplementOp,
+}
+
 func build(stmt parser.Statement) *expr {
 	switch stmt := stmt.(type) {
 	case *parser.Select:
