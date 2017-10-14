@@ -1,45 +1,139 @@
 package v3
 
 import (
-	"sort"
+	"fmt"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
-func resolve(e *expr, state *queryState, parent *expr) {
-	for _, input := range e.inputs() {
-		resolve(input, state, e)
+type columnInfo struct {
+	index  bitmapIndex
+	name   string
+	tables []string
+}
+
+func (c columnInfo) hasColumn(tableName, colName string) bool {
+	if colName != c.name {
+		return false
+	}
+	if tableName == "" {
+		return true
+	}
+	return c.hasTable(tableName)
+}
+
+func (c columnInfo) hasTable(tableName string) bool {
+	for _, t := range c.tables {
+		if t == tableName {
+			return true
+		}
+	}
+	return false
+}
+
+func (c columnInfo) resolvedName(tableName string) *parser.ColumnItem {
+	if tableName == "" {
+		if len(c.tables) > 0 {
+			tableName = c.tables[0]
+		}
+	}
+	return &parser.ColumnItem{
+		TableName: parser.TableName{
+			TableName:               parser.Name(tableName),
+			DBNameOriginallyOmitted: true,
+		},
+		ColumnName: parser.Name(c.name),
+	}
+}
+
+func (c columnInfo) newVariableExpr(tableName string) *expr {
+	return &expr{
+		op:   variableOp,
+		body: c.resolvedName(tableName),
+	}
+}
+
+func findColumnInfo(cols []columnInfo, name string) columnInfo {
+	for _, col := range cols {
+		if col.name == name {
+			return col
+		}
+	}
+	return columnInfo{}
+}
+
+func concatColumns(cols [][]columnInfo) []columnInfo {
+	if len(cols) == 1 {
+		return cols[0]
+	}
+	var res []columnInfo
+	for _, c := range cols {
+		res = append(res, c...)
+	}
+	return res
+}
+
+func resolve(e *expr, state *queryState, parent *expr) []columnInfo {
+	inputCols := make([][]columnInfo, len(e.inputs()))
+	for i, input := range e.inputs() {
+		inputCols[i] = resolve(input, state, e)
 	}
 
-	resolveBody(e, state, parent)
+	cols := resolveRelationalBody(e, state, parent, inputCols)
 
-	for _, filter := range e.filters() {
-		resolve(filter, state, e)
+	if filters := e.filters(); len(filters) > 0 {
+		allInputs := concatColumns(inputCols)
+		for _, filter := range filters {
+			resolveScalar(filter, state, e, allInputs)
+		}
 	}
 
+	if len(e.projections()) > 0 {
+		cols = resolveProjections(e, state, concatColumns(inputCols))
+	}
+
+	e.updateProperties()
+	return cols
+}
+
+func resolveProjections(e *expr, state *queryState, inputCols []columnInfo) []columnInfo {
+	var cols []columnInfo
 	for i := 0; i < len(e.projections()); i++ {
 		project := e.projections()[i]
-		resolve(project, state, e)
-		if project != e.projections()[i] {
-			// Resolving the projection caused it to change. Back up and resolve
+		replacement := resolveScalar(project, state, e, inputCols)
+		if replacement != nil {
+			// Resolving the projection caused it to expand. Back up and resolve
 			// again.
+			fmt.Printf("expanded projection:\n%s\n%s\n", project, replacement)
+			e.replaceProjection(project, replacement)
 			i--
 			continue
 		}
 		if project.outputVars == 0 {
-			project.outputVars.set(bitmapIndex(len(state.columns)))
-			// TODO(peter): consider creating a "view" in order to give this new
-			// variable a name.
+			index := bitmapIndex(len(state.columns))
+			project.outputVars.set(index)
 			state.columns = append(state.columns, columnRef{
 				index: columnIndex(i),
 			})
+			// TODO(peter): format the expression to use as the name.
+			cols = append(cols, columnInfo{
+				index:  index,
+				name:   fmt.Sprintf("column%d", i+1),
+				tables: []string{},
+			})
+		} else {
+			for _, col := range inputCols {
+				if project.outputVars == (bitmap(1) << col.index) {
+					cols = append(cols, col)
+					break
+				}
+			}
 		}
 	}
-
-	e.updateProperties()
+	return cols
 }
 
-func resolveBody(e *expr, state *queryState, parent *expr) {
+func resolveRelationalBody(e *expr, state *queryState, parent *expr, inputCols [][]columnInfo) []columnInfo {
 	switch b := e.body.(type) {
 	case nil:
 
@@ -66,71 +160,172 @@ func resolveBody(e *expr, state *queryState, parent *expr) {
 				})
 			}
 		}
-		for i := range table.columnNames {
-			e.inputVars.set(base + bitmapIndex(i))
+		cols := make([]columnInfo, 0, len(table.columnNames))
+		for i, colName := range table.columnNames {
+			index := base + bitmapIndex(i)
+			e.inputVars.set(index)
+			cols = append(cols, columnInfo{
+				index:  index,
+				name:   colName,
+				tables: []string{table.name},
+			})
 		}
+		return cols
+
+	case parser.NaturalJoinCond:
+		return resolveNaturalJoin(e, state, inputCols)
+
+	case *parser.UsingJoinCond:
+		return resolveUsingJoin(e, state, b.Cols, inputCols)
+
+	default:
+		unimplemented("%T", e.body)
+	}
+
+	cols := inputCols[0]
+	for _, other := range inputCols[1:] {
+		cols = append(cols, other...)
+	}
+	return cols
+}
+
+func resolveNaturalJoin(e *expr, state *queryState, inputCols [][]columnInfo) []columnInfo {
+	names := make(parser.NameList, 0, len(inputCols[0]))
+	for _, col := range inputCols[0] {
+		names = append(names, parser.Name(col.name))
+	}
+	for _, columns := range inputCols[1:] {
+		var common parser.NameList
+		for _, colName := range names {
+			for _, col := range columns {
+				if colName == parser.Name(col.name) {
+					common = append(common, colName)
+				}
+			}
+		}
+		names = common
+	}
+	return resolveUsingJoin(e, state, names, inputCols)
+}
+
+func resolveUsingJoin(e *expr, state *queryState, names parser.NameList, inputCols [][]columnInfo) []columnInfo {
+	e.body = nil
+
+	joined := make(map[string]int, len(names))
+	for _, name := range names {
+		joined[string(name)] = -1
+		// For every adjacent pair of tables, add an equality predicate.
+		for i := 1; i < len(inputCols); i++ {
+			left := findColumnInfo(inputCols[i-1], string(name))
+			if left.tables == nil {
+				fatalf("unable to resolve name %s", name)
+			}
+			right := findColumnInfo(inputCols[i], string(name))
+			if right.tables == nil {
+				fatalf("unable to resolve name %s", name)
+			}
+			e.addFilter(&expr{
+				op: eqOp,
+				children: []*expr{
+					left.newVariableExpr(""),
+					right.newVariableExpr(""),
+				},
+				inputCount: 2,
+			})
+		}
+	}
+
+	var res []columnInfo
+	for _, columns := range inputCols {
+		for _, col := range columns {
+			if idx, ok := joined[col.name]; ok {
+				if idx != -1 {
+					oldCol := res[idx]
+					res[idx] = columnInfo{
+						index:  oldCol.index,
+						name:   oldCol.name,
+						tables: append(oldCol.tables, col.tables[0]),
+					}
+					continue
+				}
+				joined[col.name] = len(res)
+			}
+
+			res = append(res, columnInfo{
+				index:  col.index,
+				name:   col.name,
+				tables: []string{col.tables[0]},
+			})
+		}
+	}
+	return res
+}
+
+func resolveScalar(e *expr, state *queryState, parent *expr, cols []columnInfo) []*expr {
+	for _, input := range e.inputs() {
+		// TODO(peter): This probably does the wrong thing for subqueries.
+		resolveScalar(input, state, parent, cols)
+	}
+
+	res := resolveScalarBody(e, state, parent, cols)
+
+	// NB: Scalars do not have any filters or projections.
+
+	e.updateProperties()
+	return res
+}
+
+func resolveScalarBody(e *expr, state *queryState, parent *expr, cols []columnInfo) []*expr {
+	switch b := e.body.(type) {
+	case nil:
 
 	case parser.UnqualifiedStar:
 		var newProjections []*expr
-		for _, input := range parent.inputs() {
-			for _, colIndex := range input.columns() {
-				p := &expr{
-					op: variableOp,
-				}
-				if col := state.columns[colIndex]; col.table != nil {
-					p.body = parser.UnresolvedName{
-						parser.Name(col.table.name),
-						parser.Name(col.table.columnNames[col.index]),
-					}
-				}
-				p.inputVars.set(colIndex)
-				newProjections = append(newProjections, p)
-			}
+		for _, col := range cols {
+			newProjections = append(newProjections, col.newVariableExpr(""))
 		}
-		parent.replaceProjection(e, newProjections)
+		if len(newProjections) == 0 {
+			fatalf("failed to expand *")
+		}
+		return newProjections
 
 	case parser.UnresolvedName:
-		if len(b) != 2 {
-			fatalf("unsupported unqualified name: %s", b)
+		vn, err := b.NormalizeVarName()
+		if err != nil {
+			panic(err)
 		}
-		tableName := string(b[0].(parser.Name))
-		if base, ok := state.tables[tableName]; !ok {
-			fatalf("unknown table %s", b)
-		} else if table, ok := state.catalog[tableName]; !ok {
-			fatalf("unknown table %s", b)
-		} else {
-			switch t := b[1].(type) {
-			case parser.Name:
-				colName := string(t)
-				if colIndex, ok := table.columns[colName]; !ok {
-					fatalf("unknown column %s", b)
-				} else {
-					e.inputVars.set(base + bitmapIndex(colIndex))
+		e.body = vn
+		return resolveScalarBody(e, state, parent, cols)
+
+	case *parser.ColumnItem:
+		tableName := b.TableName.Table()
+		colName := string(b.ColumnName)
+		for _, col := range cols {
+			if col.hasColumn(tableName, colName) {
+				if tableName == "" && len(col.tables) > 0 {
+					b.TableName.TableName = parser.Name(col.tables[0])
+					b.TableName.DBNameOriginallyOmitted = true
 				}
-			case parser.UnqualifiedStar:
-				newProjections := make([]*expr, 0, len(table.columnNames))
-				for _, colName := range table.columnNames {
-					newProjections = append(newProjections, &expr{
-						op: variableOp,
-						body: parser.UnresolvedName{
-							parser.Name(tableName),
-							parser.Name(colName),
-						},
-					})
-				}
-				parent.replaceProjection(e, newProjections)
-			default:
-				unimplemented("%T", b[1])
+				e.inputVars.set(col.index)
+				return nil
 			}
 		}
+		fatalf("unknown column %s", b)
+
+	case *parser.AllColumnsSelector:
+		tableName := b.TableName.Table()
+		var newProjections []*expr
+		for _, col := range cols {
+			if col.hasTable(tableName) {
+				newProjections = append(newProjections, col.newVariableExpr(tableName))
+			}
+		}
+		if len(newProjections) == 0 {
+			fatalf("unknown table %s", b)
+		}
+		return newProjections
 
 	case *parser.NumVal:
-
-	case parser.NaturalJoinCond:
-		resolveNaturalJoin(e, state)
-
-	case *parser.UsingJoinCond:
-		resolveUsingJoin(e, state, b.Cols)
 
 	case *parser.ExistsExpr:
 		// TODO(peter): unimplemented.
@@ -138,67 +333,5 @@ func resolveBody(e *expr, state *queryState, parent *expr) {
 	default:
 		unimplemented("%T", e.body)
 	}
-}
-
-func resolveNaturalJoin(e *expr, state *queryState) {
-	common := make(map[string]struct{})
-	for i, input := range e.inputs() {
-		table := input.body.(*table)
-		if i == 0 {
-			for col := range table.columns {
-				common[col] = struct{}{}
-			}
-		} else {
-			for col := range common {
-				if _, ok := table.columns[col]; !ok {
-					delete(common, col)
-				}
-			}
-		}
-	}
-
-	names := make(parser.NameList, 0, len(common))
-	for col := range common {
-		names = append(names, parser.Name(col))
-	}
-	sort.Slice(names, func(i, j int) bool {
-		return names[i] < names[j]
-	})
-
-	resolveUsingJoin(e, state, names)
-}
-
-func resolveUsingJoin(e *expr, state *queryState, names parser.NameList) {
-	// TODO(peter): check for validity of the names.
-
-	for _, name := range names {
-		// For every adjacent pair of tables, add an equality predicate.
-		inputs := e.inputs()
-		for i := 1; i < len(inputs); i++ {
-			left := inputs[i-1].body.(*table)
-			right := inputs[i].body.(*table)
-			e.addFilter(&expr{
-				op: eqOp,
-				children: []*expr{
-					{
-						op: variableOp,
-						body: parser.UnresolvedName{
-							parser.Name(left.name),
-							name,
-						},
-					},
-					{
-						op: variableOp,
-						body: parser.UnresolvedName{
-							parser.Name(right.name),
-							name,
-						},
-					},
-				},
-				inputCount: 2,
-			})
-		}
-	}
-
-	e.body = nil
+	return nil
 }

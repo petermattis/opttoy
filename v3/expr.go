@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+// TODO(peter): Rework this documentation. Invariants: only projectOp contains
+// projections. Only selectOp and *JoinOp contain filters.
+
 // expr is a unified interface for both relational and scalar expressions in a
 // query. Expressions have optional inputs, projections and
 // filters. Additionally, an expression maintains a bitmap of required input

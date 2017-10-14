@@ -6,9 +6,8 @@
 // - functional dependencies
 // - column value constraints
 //
-// * properly handle AliasedTableExpr. might require renameOp.
-// * properly handle name resolution. scoping is likely incorrect at the
-//   moment. and we don't support unqualified column names.
+// * properly handle AliasedTableExpr and SelectExpr.As. might require
+//   renameOp.
 
 package v3
 

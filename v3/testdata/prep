@@ -5,7 +5,7 @@ exec
 CREATE TABLE b (x INT, z INT)
 
 prep
-SELECT a.y FROM a
+SELECT y FROM a
 ----
 projectOp [in=1 out=1 cols=1]
   project:
@@ -41,7 +41,7 @@ SELECT * FROM (SELECT a.x+1 FROM a)
 ----
 projectOp [in=2 out=2 cols=2]
   project:
-    variable [in=2 out=2]
+    variable (column1) [in=2 out=2]
   inputs:
     projectOp [in=0 out=2 cols=2]
       project:
@@ -123,9 +123,9 @@ projectOp [in=1,3 out=1,3 cols=1,3]
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
+projectOp [in=0 out=0 cols=0]
   project:
-    variable (b.x) [in=2 out=2]
+    variable (b.x) [in=0 out=0]
   inputs:
     selectOp [in=0-3 out=0-3 cols=0,1,2,3]
       filter:
@@ -151,9 +151,9 @@ projectOp [in=2 out=2 cols=2]
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
+projectOp [in=0 out=0 cols=0]
   project:
-    variable (b.x) [in=2 out=2]
+    variable (b.x) [in=0 out=0]
   inputs:
     selectOp [in=0-3 out=0-3 cols=0,1,2,3]
       filter:
@@ -179,9 +179,9 @@ projectOp [in=2 out=2 cols=2]
 prep
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
+projectOp [in=0 out=0 cols=0]
   project:
-    variable (b.x) [in=2 out=2]
+    variable (b.x) [in=0 out=0]
   inputs:
     selectOp [in=0-3 out=0-3 cols=0,1,2,3]
       filter:
