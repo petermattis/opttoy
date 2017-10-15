@@ -195,10 +195,9 @@ func buildTable(
 			}
 
 			result = &expr{
-				op:         renameOp,
-				children:   []*expr{result},
-				inputCount: 1,
-				body:       source.As,
+				op:       renameOp,
+				children: []*expr{result},
+				body:     source.As,
 			}
 
 			newCols := make([]columnInfo, 0, len(cols))
@@ -232,7 +231,6 @@ func buildTable(
 				left,
 				right,
 			},
-			inputCount: 2,
 		}
 
 		inputCols := [][]columnInfo{leftCols, rightCols}
@@ -315,7 +313,6 @@ func buildUsingJoin(
 					left.newVariableExpr(""),
 					right.newVariableExpr(""),
 				},
-				inputCount: 2,
 			}
 			f.updateProperties()
 			e.addFilter(f)
@@ -365,7 +362,6 @@ func buildScalar(
 				buildScalar(t.Left, state, inputCols),
 				buildScalar(t.Right, state, inputCols),
 			},
-			inputCount: 2,
 		}
 	case *parser.OrExpr:
 		result = &expr{
@@ -374,7 +370,6 @@ func buildScalar(
 				buildScalar(t.Left, state, inputCols),
 				buildScalar(t.Right, state, inputCols),
 			},
-			inputCount: 2,
 		}
 	case *parser.NotExpr:
 		result = &expr{
@@ -382,7 +377,6 @@ func buildScalar(
 			children: []*expr{
 				buildScalar(t.Expr, state, inputCols),
 			},
-			inputCount: 1,
 		}
 
 	case *parser.BinaryExpr:
@@ -392,7 +386,6 @@ func buildScalar(
 				buildScalar(t.Left, state, inputCols),
 				buildScalar(t.Right, state, inputCols),
 			},
-			inputCount: 2,
 		}
 	case *parser.ComparisonExpr:
 		result = &expr{
@@ -401,7 +394,6 @@ func buildScalar(
 				buildScalar(t.Left, state, inputCols),
 				buildScalar(t.Right, state, inputCols),
 			},
-			inputCount: 2,
 		}
 	case *parser.UnaryExpr:
 		result = &expr{
@@ -409,7 +401,6 @@ func buildScalar(
 			children: []*expr{
 				buildScalar(t.Expr, state, inputCols),
 			},
-			inputCount: 1,
 		}
 
 	case *parser.ColumnItem:
@@ -451,7 +442,6 @@ func buildScalar(
 			children: []*expr{
 				buildScalar(t.Subquery, state, inputCols),
 			},
-			inputCount: 1,
 		}
 
 	case *parser.Subquery:
@@ -508,10 +498,12 @@ func buildFrom(
 	}
 
 	var result *expr
+	resultCols := inputCols
+
 	for _, table := range from.Tables {
-		t, tcols := buildTable(table, state, inputCols)
+		t, tcols := buildTable(table, state, resultCols)
 		if result == nil {
-			result, inputCols = t, tcols
+			result, resultCols = t, tcols
 			continue
 		}
 		result = &expr{
@@ -520,10 +512,9 @@ func buildFrom(
 				result,
 				t,
 			},
-			inputCount: 2,
 		}
 		result.updateProperties()
-		inputCols = buildNaturalJoin(result, state, [][]columnInfo{inputCols, tcols})
+		resultCols = buildNaturalJoin(result, state, [][]columnInfo{resultCols, tcols})
 	}
 
 	if where != nil {
@@ -532,13 +523,12 @@ func buildFrom(
 			children: []*expr{
 				result,
 			},
-			inputCount: 1,
 		}
-		result.addFilter(buildScalar(where.Expr, state, inputCols))
+		result.addFilter(buildScalar(where.Expr, state, resultCols))
 		result.updateProperties()
 	}
 
-	return result, inputCols
+	return result, resultCols
 }
 
 func buildGroupBy(
@@ -553,9 +543,8 @@ func buildGroupBy(
 	}
 
 	result := &expr{
-		op:         groupByOp,
-		children:   []*expr{input},
-		inputCount: 1,
+		op:       groupByOp,
+		children: []*expr{input},
 	}
 	result.updateProperties()
 
@@ -565,7 +554,6 @@ func buildGroupBy(
 			children: []*expr{
 				result,
 			},
-			inputCount: 1,
 		}
 		result.addFilter(buildScalar(having.Expr, state, inputCols))
 		result.updateProperties()
@@ -630,7 +618,6 @@ func buildProjections(
 		children: []*expr{
 			input,
 		},
-		inputCount: 1,
 	}
 	var resultCols []columnInfo
 
@@ -686,9 +673,8 @@ func buildDistinct(
 	}
 
 	result := &expr{
-		op:         distinctOp,
-		children:   []*expr{input},
-		inputCount: 1,
+		op:       distinctOp,
+		children: []*expr{input},
 	}
 	result.updateProperties()
 	return result, inputCols
@@ -707,10 +693,9 @@ func buildOrderBy(
 	// TODO(peter): order by is not a relational expression, but instead a
 	// required property on the output.
 	result := &expr{
-		op:         orderByOp,
-		children:   []*expr{input},
-		inputCount: 1,
-		body:       orderBy,
+		op:       orderByOp,
+		children: []*expr{input},
+		body:     orderBy,
 	}
 	result.updateProperties()
 	return result, inputCols
@@ -737,7 +722,6 @@ func buildUnion(
 			left,
 			right,
 		},
-		inputCount: 2,
 	}
 	result.updateProperties()
 	return result, leftCols

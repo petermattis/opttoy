@@ -102,18 +102,19 @@ import (
 // code by the inputs required by the projection ("a.x") and the inputs
 // required by the join condition (also "a.x").
 type expr struct {
-	// NB: op, inputCount and projectCount are placed next to each other in order
-	// to reduce space wastage due to padding.
+	// NB: op, projectCount and filterCount are placed next to each other in
+	// order to reduce space wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
-	// to minimize overhead. The inputCount and projectCount values delineate the
-	// input, projection and filter sub-slices:
+	// to minimize overhead. The projectCount and filterCount values delineate
+	// the input, projection and filter sub-slices:
+	//   inputCount == len(children) - projectCount - filterCount
 	//   inputs:      children[:inputCount]
-	//   projections: children[inputCount:inputCount+projectCount]
-	//   filters:     children[inputCount+projectCount:]
+	//   projections: children[inputCount:inputCount + projectCount]
+	//   filters:     children[inputCount + projectCount:]
 	// TODO(peter): replace inputCount with filterCount.
-	inputCount   int16
 	projectCount int16
+	filterCount  int16
 	// The input and output bitmaps specified required inputs and generated
 	// outputs. The indexes refer to queryState.columns which is constructed on a
 	// per-query basis by the columns required by filters, join conditions, and
@@ -183,45 +184,34 @@ func (e *expr) String() string {
 }
 
 func (e *expr) inputs() []*expr {
-	return e.children[:e.inputCount]
+	return e.children[:len(e.children)-int(e.projectCount+e.filterCount)]
 }
 
 func (e *expr) projections() []*expr {
-	return e.children[e.inputCount : e.inputCount+e.projectCount]
+	inputCount := len(e.children) - int(e.projectCount+e.filterCount)
+	return e.children[inputCount : inputCount+int(e.projectCount)]
 }
 
 func (e *expr) addProjection(p *expr) {
-	filterStart := e.inputCount + e.projectCount
+	filterStart := len(e.children) - int(e.filterCount)
 	e.children = append(e.children, nil)
 	copy(e.children[filterStart+1:], e.children[filterStart:])
 	e.children[filterStart] = p
 	e.projectCount++
 }
 
-func (e *expr) replaceProjection(p *expr, r []*expr) {
-	for i, project := range e.projections() {
-		if project == p {
-			e.children = append(e.children, r[1:]...)
-			pos := int(e.inputCount) + i
-			copy(e.children[pos+len(r):], e.children[pos+1:])
-			copy(e.children[pos:], r)
-			e.projectCount += int16(len(r) - 1)
-			return
-		}
-	}
-	fatalf("not reached")
-}
-
 func (e *expr) removeProjections() {
 	if e.projectCount > 0 {
-		copy(e.children[e.inputCount:], e.children[e.inputCount+e.projectCount:])
+		inputCount := len(e.children) - int(e.projectCount+e.filterCount)
+		copy(e.children[inputCount:], e.children[inputCount+int(e.projectCount):])
 		e.children = e.children[:len(e.children)-int(e.projectCount)]
 		e.projectCount = 0
 	}
 }
 
 func (e *expr) filters() []*expr {
-	return e.children[e.inputCount+e.projectCount:]
+	filterStart := len(e.children) - int(e.filterCount)
+	return e.children[filterStart:]
 }
 
 func (e *expr) addFilter(f *expr) {
@@ -235,11 +225,13 @@ func (e *expr) addFilter(f *expr) {
 		return
 	}
 	e.children = append(e.children, f)
+	e.filterCount++
 }
 
 func (e *expr) removeFilters() {
-	filterStart := e.inputCount + e.projectCount
-	e.children = e.children[:int(filterStart)]
+	filterStart := len(e.children) - int(e.filterCount)
+	e.children = e.children[:filterStart]
+	e.filterCount = 0
 }
 
 func (e *expr) info() *operatorInfo {

@@ -72,7 +72,7 @@ func pushDownFilters(e *expr) {
 	filters := e.filters()
 	// Strip off all of the filters. We'll re-add any filters that couldn't be
 	// pushed down.
-	e.children = e.children[:e.inputCount+e.projectCount]
+	e.removeFilters()
 
 	for _, filter := range filters {
 		count := 0
@@ -110,12 +110,12 @@ func pushDownFilters(e *expr) {
 		t := *e
 		t.removeFilters()
 		*e = expr{
-			op:         selectOp,
-			children:   make([]*expr, len(filters)+1),
-			inputCount: 1,
+			op:          selectOp,
+			children:    make([]*expr, len(filters)+1),
+			filterCount: int16(len(filters)),
 		}
 		e.inputs()[0] = &t
-		copy(e.children[e.inputCount+e.projectCount:], filters)
+		copy(e.children[1:], filters)
 		t.updateProperties()
 	}
 	if e.op == selectOp && len(e.filters()) == 0 {
