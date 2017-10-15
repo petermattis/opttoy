@@ -47,6 +47,19 @@ type queryState struct {
 	tables  map[string]bitmapIndex
 	// query index to table and column index.
 	columns []columnRef
+	data    []interface{}
+}
+
+func (s *queryState) addData(d interface{}) int32 {
+	s.data = append(s.data, d)
+	return int32(len(s.data))
+}
+
+func (s *queryState) getData(idx int32) interface{} {
+	if idx == 0 {
+		return nil
+	}
+	return s.data[idx-1]
 }
 
 type executor struct {
@@ -70,20 +83,20 @@ func (e *executor) exec(sql string) {
 			e.createTable(stmt)
 		default:
 			fmt.Printf("%s\n", stmt)
-			expr, _ := e.prep(stmt)
+			expr := e.prep(stmt)
 			pushDownFilters(expr)
 			fmt.Printf("%s\n", expr)
 		}
 	}
 }
 
-func (e *executor) prep(stmt parser.Statement) (*expr, *queryState) {
-	state := &queryState{
-		catalog: e.catalog,
-		tables:  make(map[string]bitmapIndex),
-	}
-	expr := build(stmt, state, nil)
-	return expr, state
+func (e *executor) prep(stmt parser.Statement) *expr {
+	return build(stmt, &table{
+		state: &queryState{
+			catalog: e.catalog,
+			tables:  make(map[string]bitmapIndex),
+		},
+	})
 }
 
 func (e *executor) createTable(stmt *parser.CreateTable) {

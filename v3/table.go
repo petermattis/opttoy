@@ -49,23 +49,15 @@ func (c column) resolvedName(tableName string) *parser.ColumnItem {
 	}
 }
 
-func (c column) newVariableExpr(tableName string) *expr {
+func (c column) newVariableExpr(tableName string, table *table) *expr {
 	e := &expr{
-		op:   variableOp,
-		body: c.resolvedName(tableName),
+		op:        variableOp,
+		dataIndex: table.state.addData(c.resolvedName(tableName)),
+		table:     table,
 	}
 	e.inputVars.set(c.index)
 	e.updateProperties()
 	return e
-}
-
-func findColumn(cols []column, name string) column {
-	for _, col := range cols {
-		if col.name == name {
-			return col
-		}
-	}
-	return column{}
 }
 
 // TODO(peter): adds keys, unique keys, and foreign keys. track NOT NULL and
@@ -73,6 +65,7 @@ func findColumn(cols []column, name string) column {
 type table struct {
 	name    string
 	columns []column
+	state   *queryState
 }
 
 func (t *table) String() string {
@@ -103,9 +96,19 @@ func (t *table) String() string {
 	return buf.String()
 }
 
+func (t *table) newColumnExpr(name string) *expr {
+	for _, col := range t.columns {
+		if col.name == name {
+			return col.newVariableExpr(t.name, t)
+		}
+	}
+	return nil
+}
+
 func concatTable(left, right *table) *table {
 	t := &table{
 		columns: make([]column, len(left.columns)+len(right.columns)),
+		state:   left.state,
 	}
 	copy(t.columns[:], left.columns)
 	copy(t.columns[len(left.columns):], right.columns)

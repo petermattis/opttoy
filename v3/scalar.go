@@ -11,8 +11,10 @@ func init() {
 	scalarFormat := func(e *expr, buf *bytes.Buffer, level int) {
 		indent := spaces[:2*level]
 		fmt.Fprintf(buf, "%s%v", indent, e.op)
-		if e.body != nil {
-			fmt.Fprintf(buf, " (%s)", e.body)
+		if e.table != nil {
+			if data := e.table.state.getData(e.dataIndex); data != nil {
+				fmt.Fprintf(buf, " (%s)", data)
+			}
 		}
 		e.formatVars(buf)
 		buf.WriteString("\n")

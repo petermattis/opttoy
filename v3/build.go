@@ -58,25 +58,20 @@ var unaryOpMap = [...]operator{
 
 func build(
 	stmt parser.Statement,
-	state *queryState,
 	tab *table,
 ) *expr {
 	switch stmt := stmt.(type) {
 	case *parser.Select:
-		return buildSelect(stmt, state, tab)
+		return buildSelect(stmt, tab)
 	case *parser.ParenSelect:
-		return buildSelect(stmt.Select, state, tab)
+		return buildSelect(stmt.Select, tab)
 	default:
 		unimplemented("%T", stmt)
 		return nil
 	}
 }
 
-func buildTable(
-	texpr parser.TableExpr,
-	state *queryState,
-	tab *table,
-) *expr {
+func buildTable(texpr parser.TableExpr, tab *table) *expr {
 	switch source := texpr.(type) {
 	case *parser.NormalizableTableName:
 		tableName, err := source.Normalize()
@@ -84,6 +79,7 @@ func buildTable(
 			fatalf("%s", err)
 		}
 		name := tableName.Table()
+		state := tab.state
 		tab, ok := state.catalog[name]
 		if !ok {
 			fatalf("unknown table %s", name)
@@ -94,6 +90,7 @@ func buildTable(
 			table: &table{
 				name:    tab.name,
 				columns: make([]column, 0, len(tab.columns)),
+				state:   state,
 			},
 		}
 
@@ -121,7 +118,7 @@ func buildTable(
 		return result
 
 	case *parser.AliasedTableExpr:
-		result := buildTable(source.Expr, state, tab)
+		result := buildTable(source.Expr, tab)
 		if source.As.Alias != "" {
 			if n := len(source.As.Cols); n > 0 && n != len(result.table.columns) {
 				fatalf("rename specified %d columns, but table contains %d",
@@ -135,6 +132,7 @@ func buildTable(
 				table: &table{
 					name:    string(source.As.Alias),
 					columns: make([]column, 0, len(tab.columns)),
+					state:   tab.state,
 				},
 			}
 
@@ -158,27 +156,27 @@ func buildTable(
 		return result
 
 	case *parser.ParenTableExpr:
-		return buildTable(source.Expr, state, tab)
+		return buildTable(source.Expr, tab)
 
 	case *parser.JoinTableExpr:
 		result := &expr{
 			op: innerJoinOp,
 			children: []*expr{
-				buildTable(source.Left, state, tab),
-				buildTable(source.Right, state, tab),
+				buildTable(source.Left, tab),
+				buildTable(source.Right, tab),
 			},
 		}
 
 		switch cond := source.Cond.(type) {
 		case *parser.OnJoinCond:
 			result.table = concatTable(result.inputs()[0].table, result.inputs()[1].table)
-			result.addFilter(buildScalar(cond.Expr, state, result.table))
+			result.addFilter(buildScalar(cond.Expr, result.table))
 
 		case parser.NaturalJoinCond:
-			buildNaturalJoin(result, state)
+			buildNaturalJoin(result)
 
 		case *parser.UsingJoinCond:
-			buildUsingJoin(result, state, cond.Cols)
+			buildUsingJoin(result, cond.Cols)
 
 		default:
 			unimplemented("%T", source.Cond)
@@ -188,7 +186,7 @@ func buildTable(
 		return result
 
 	case *parser.Subquery:
-		return build(source.Select, state, tab)
+		return build(source.Select, tab)
 
 	default:
 		unimplemented("%T", texpr)
@@ -196,7 +194,7 @@ func buildTable(
 	}
 }
 
-func buildNaturalJoin(e *expr, state *queryState) {
+func buildNaturalJoin(e *expr) {
 	inputs := e.inputs()
 	names := make(parser.NameList, 0, len(inputs[0].table.columns))
 	for _, col := range inputs[0].table.columns {
@@ -213,29 +211,29 @@ func buildNaturalJoin(e *expr, state *queryState) {
 		}
 		names = common
 	}
-	buildUsingJoin(e, state, names)
+	buildUsingJoin(e, names)
 }
 
-func buildUsingJoin(e *expr, state *queryState, names parser.NameList) {
+func buildUsingJoin(e *expr, names parser.NameList) {
 	joined := make(map[string]int, len(names))
 	inputs := e.inputs()
 	for _, name := range names {
 		joined[string(name)] = -1
 		// For every adjacent pair of tables, add an equality predicate.
 		for i := 1; i < len(inputs); i++ {
-			left := findColumn(inputs[i-1].table.columns, string(name))
-			if left.tables == nil {
+			left := inputs[i-1].table.newColumnExpr(string(name))
+			if left == nil {
 				fatalf("unable to resolve name %s", name)
 			}
-			right := findColumn(inputs[i].table.columns, string(name))
-			if right.tables == nil {
+			right := inputs[i].table.newColumnExpr(string(name))
+			if right == nil {
 				fatalf("unable to resolve name %s", name)
 			}
 			f := &expr{
 				op: eqOp,
 				children: []*expr{
-					left.newVariableExpr(""),
-					right.newVariableExpr(""),
+					left,
+					right,
 				},
 			}
 			f.updateProperties()
@@ -243,7 +241,7 @@ func buildUsingJoin(e *expr, state *queryState, names parser.NameList) {
 		}
 	}
 
-	e.table = &table{}
+	e.table = &table{state: inputs[0].table.state}
 	for _, input := range inputs {
 		for _, col := range input.table.columns {
 			if idx, ok := joined[col.name]; ok {
@@ -268,37 +266,33 @@ func buildUsingJoin(e *expr, state *queryState, names parser.NameList) {
 	}
 }
 
-func buildScalar(
-	pexpr parser.Expr,
-	state *queryState,
-	tab *table,
-) *expr {
+func buildScalar(pexpr parser.Expr, tab *table) *expr {
 	var result *expr
 	switch t := pexpr.(type) {
 	case *parser.ParenExpr:
-		return buildScalar(t.Expr, state, tab)
+		return buildScalar(t.Expr, tab)
 
 	case *parser.AndExpr:
 		result = &expr{
 			op: andOp,
 			children: []*expr{
-				buildScalar(t.Left, state, tab),
-				buildScalar(t.Right, state, tab),
+				buildScalar(t.Left, tab),
+				buildScalar(t.Right, tab),
 			},
 		}
 	case *parser.OrExpr:
 		result = &expr{
 			op: orOp,
 			children: []*expr{
-				buildScalar(t.Left, state, tab),
-				buildScalar(t.Right, state, tab),
+				buildScalar(t.Left, tab),
+				buildScalar(t.Right, tab),
 			},
 		}
 	case *parser.NotExpr:
 		result = &expr{
 			op: notOp,
 			children: []*expr{
-				buildScalar(t.Expr, state, tab),
+				buildScalar(t.Expr, tab),
 			},
 		}
 
@@ -306,23 +300,23 @@ func buildScalar(
 		result = &expr{
 			op: binaryOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Left, state, tab),
-				buildScalar(t.Right, state, tab),
+				buildScalar(t.Left, tab),
+				buildScalar(t.Right, tab),
 			},
 		}
 	case *parser.ComparisonExpr:
 		result = &expr{
 			op: comparisonOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Left, state, tab),
-				buildScalar(t.Right, state, tab),
+				buildScalar(t.Left, tab),
+				buildScalar(t.Right, tab),
 			},
 		}
 	case *parser.UnaryExpr:
 		result = &expr{
 			op: unaryOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Expr, state, tab),
+				buildScalar(t.Expr, tab),
 			},
 		}
 
@@ -336,8 +330,9 @@ func buildScalar(
 					t.TableName.DBNameOriginallyOmitted = true
 				}
 				result = &expr{
-					op:   variableOp,
-					body: t,
+					op:        variableOp,
+					dataIndex: tab.state.addData(t),
+					table:     tab,
 				}
 				result.inputVars.set(col.index)
 				result.updateProperties()
@@ -351,24 +346,25 @@ func buildScalar(
 		if err != nil {
 			panic(err)
 		}
-		return buildScalar(vn, state, tab)
+		return buildScalar(vn, tab)
 
 	case *parser.NumVal:
 		result = &expr{
-			op:   constOp,
-			body: t,
+			op:        constOp,
+			dataIndex: tab.state.addData(t),
+			table:     tab,
 		}
 
 	case *parser.ExistsExpr:
 		result = &expr{
 			op: existsOp,
 			children: []*expr{
-				buildScalar(t.Subquery, state, tab),
+				buildScalar(t.Subquery, tab),
 			},
 		}
 
 	case *parser.Subquery:
-		return build(t.Select, state, tab)
+		return build(t.Select, tab)
 
 	default:
 		unimplemented("%T", pexpr)
@@ -377,25 +373,21 @@ func buildScalar(
 	return result
 }
 
-func buildSelect(
-	stmt *parser.Select,
-	state *queryState,
-	tab *table,
-) *expr {
+func buildSelect(stmt *parser.Select, tab *table) *expr {
 	var result *expr
 
 	switch t := stmt.Select.(type) {
 	case *parser.SelectClause:
-		result = buildFrom(t.From, t.Where, state, tab)
-		result = buildGroupBy(result, t.GroupBy, t.Having, state)
-		result = buildProjections(result, t.Exprs, state)
-		result = buildDistinct(result, t.Distinct, state)
+		result = buildFrom(t.From, t.Where, tab)
+		result = buildGroupBy(result, t.GroupBy, t.Having)
+		result = buildProjections(result, t.Exprs)
+		result = buildDistinct(result, t.Distinct)
 
 	case *parser.UnionClause:
-		result = buildUnion(t, state, tab)
+		result = buildUnion(t, tab)
 
 	case *parser.ParenSelect:
-		result = buildSelect(t.Select, state, tab)
+		result = buildSelect(t.Select, tab)
 
 	// TODO(peter): case *parser.ValuesClause:
 
@@ -403,24 +395,19 @@ func buildSelect(
 		unimplemented("%T", stmt.Select)
 	}
 
-	result = buildOrderBy(result, stmt.OrderBy, state)
+	result = buildOrderBy(result, stmt.OrderBy)
 	// TODO(peter): stmt.Limit
 	return result
 }
 
-func buildFrom(
-	from *parser.From,
-	where *parser.Where,
-	state *queryState,
-	tab *table,
-) *expr {
+func buildFrom(from *parser.From, where *parser.Where, tab *table) *expr {
 	if from == nil {
 		return nil
 	}
 
 	var result *expr
 	for _, table := range from.Tables {
-		t := buildTable(table, state, tab)
+		t := buildTable(table, tab)
 		if result == nil {
 			result, tab = t, t.table
 			continue
@@ -433,7 +420,7 @@ func buildFrom(
 			},
 		}
 		result.updateProperties()
-		buildNaturalJoin(result, state)
+		buildNaturalJoin(result)
 		tab = result.table
 	}
 
@@ -445,19 +432,14 @@ func buildFrom(
 			},
 			table: result.table,
 		}
-		result.addFilter(buildScalar(where.Expr, state, tab))
+		result.addFilter(buildScalar(where.Expr, tab))
 		result.updateProperties()
 	}
 
 	return result
 }
 
-func buildGroupBy(
-	input *expr,
-	groupBy parser.GroupBy,
-	having *parser.Where,
-	state *queryState,
-) *expr {
+func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *expr {
 	if groupBy == nil {
 		return input
 	}
@@ -476,23 +458,19 @@ func buildGroupBy(
 			},
 			table: result.table,
 		}
-		result.addFilter(buildScalar(having.Expr, state, result.table))
+		result.addFilter(buildScalar(having.Expr, result.table))
 		result.updateProperties()
 	}
 
 	return result
 }
 
-func buildProjection(
-	pexpr parser.Expr,
-	state *queryState,
-	tab *table,
-) []*expr {
+func buildProjection(pexpr parser.Expr, tab *table) []*expr {
 	switch t := pexpr.(type) {
 	case parser.UnqualifiedStar:
 		var projections []*expr
 		for _, col := range tab.columns {
-			projections = append(projections, col.newVariableExpr(""))
+			projections = append(projections, col.newVariableExpr("", tab))
 		}
 		if len(projections) == 0 {
 			fatalf("failed to expand *")
@@ -504,7 +482,7 @@ func buildProjection(
 		var projections []*expr
 		for _, col := range tab.columns {
 			if col.hasTable(tableName) {
-				projections = append(projections, col.newVariableExpr(tableName))
+				projections = append(projections, col.newVariableExpr(tableName, tab))
 			}
 		}
 		if len(projections) == 0 {
@@ -517,33 +495,30 @@ func buildProjection(
 		if err != nil {
 			panic(err)
 		}
-		return buildProjection(vn, state, tab)
+		return buildProjection(vn, tab)
 
 	default:
-		return []*expr{buildScalar(pexpr, state, tab)}
+		return []*expr{buildScalar(pexpr, tab)}
 	}
 }
 
-func buildProjections(
-	input *expr,
-	sexprs parser.SelectExprs,
-	state *queryState,
-) *expr {
+func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 	if len(sexprs) == 0 {
 		return input
 	}
 
+	state := input.table.state
 	result := &expr{
 		op: projectOp,
 		children: []*expr{
 			input,
 		},
-		table: &table{},
+		table: &table{state: state},
 	}
 
 	var projections []*expr
 	for _, expr := range sexprs {
-		exprs := buildProjection(expr.Expr, state, input.table)
+		exprs := buildProjection(expr.Expr, input.table)
 		projections = append(projections, exprs...)
 		for _, p := range exprs {
 			if p.outputVars == 0 {
@@ -586,11 +561,7 @@ func buildProjections(
 	return result
 }
 
-func buildDistinct(
-	input *expr,
-	distinct bool,
-	state *queryState,
-) *expr {
+func buildDistinct(input *expr, distinct bool) *expr {
 	if !distinct {
 		return input
 	}
@@ -604,11 +575,7 @@ func buildDistinct(
 	return result
 }
 
-func buildOrderBy(
-	input *expr,
-	orderBy parser.OrderBy,
-	state *queryState,
-) *expr {
+func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 	if orderBy == nil {
 		return input
 	}
@@ -616,20 +583,16 @@ func buildOrderBy(
 	// TODO(peter): order by is not a relational expression, but instead a
 	// required property on the output.
 	result := &expr{
-		op:       orderByOp,
-		children: []*expr{input},
-		body:     orderBy,
-		table:    input.table,
+		op:        orderByOp,
+		dataIndex: input.table.state.addData(orderBy),
+		children:  []*expr{input},
+		table:     input.table,
 	}
 	result.updateProperties()
 	return result
 }
 
-func buildUnion(
-	clause *parser.UnionClause,
-	state *queryState,
-	tab *table,
-) *expr {
+func buildUnion(clause *parser.UnionClause, tab *table) *expr {
 	op := unionOp
 	switch clause.Type {
 	case parser.UnionOp:
@@ -638,8 +601,8 @@ func buildUnion(
 	case parser.ExceptOp:
 		op = exceptOp
 	}
-	left := buildSelect(clause.Left, state, tab)
-	right := buildSelect(clause.Right, state, tab)
+	left := buildSelect(clause.Left, tab)
+	right := buildSelect(clause.Right, tab)
 	result := &expr{
 		op: op,
 		children: []*expr{

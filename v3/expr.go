@@ -112,9 +112,10 @@ type expr struct {
 	//   inputs:      children[:inputCount]
 	//   projections: children[inputCount:inputCount + projectCount]
 	//   filters:     children[inputCount + projectCount:]
-	// TODO(peter): replace inputCount with filterCount.
 	projectCount int16
+	extraCount   int16 // TODO(peter): unimplemented
 	filterCount  int16
+	dataIndex    int32
 	// The input and output bitmaps specified required inputs and generated
 	// outputs. The indexes refer to queryState.columns which is constructed on a
 	// per-query basis by the columns required by filters, join conditions, and
@@ -122,10 +123,7 @@ type expr struct {
 	inputVars  bitmap
 	outputVars bitmap
 	children   []*expr
-	// body hold additional info from the AST such as constant values and
-	// table/variable names.
-	body  interface{}
-	table *table
+	table      *table
 }
 
 func (e *expr) String() string {
