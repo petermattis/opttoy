@@ -36,13 +36,12 @@ func fatalf(format string, args ...interface{}) {
 type columnIndex uint
 
 type table struct {
-	name        string
-	columns     map[string]columnIndex
-	columnNames []string
+	name    string
+	columns []string
 }
 
 func (t *table) String() string {
-	return fmt.Sprintf("%s (%s)", t.name, strings.Join(t.columnNames, ", "))
+	return fmt.Sprintf("%s (%s)", t.name, strings.Join(t.columns, ", "))
 }
 
 type columnRef struct {
@@ -109,19 +108,19 @@ func (e *executor) createTable(stmt *parser.CreateTable) {
 		fatalf("table %s already exists", name)
 	}
 	table := &table{
-		name:    name,
-		columns: make(map[string]columnIndex),
+		name: name,
 	}
 	e.catalog[name] = table
 
+	columns := make(map[string]columnIndex)
 	for _, def := range stmt.Defs {
 		switch def := def.(type) {
 		case *parser.ColumnTableDef:
-			if _, ok := table.columns[string(def.Name)]; ok {
+			if _, ok := columns[string(def.Name)]; ok {
 				fatalf("column %s already exists", def.Name)
 			}
-			table.columns[string(def.Name)] = columnIndex(len(table.columnNames))
-			table.columnNames = append(table.columnNames, string(def.Name))
+			columns[string(def.Name)] = columnIndex(len(table.columns))
+			table.columns = append(table.columns, string(def.Name))
 		default:
 			unimplemented("%T", def)
 		}

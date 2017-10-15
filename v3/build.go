@@ -166,15 +166,15 @@ func buildTable(
 		if !ok {
 			base = bitmapIndex(len(state.columns))
 			state.tables[name] = base
-			for i := range table.columnNames {
+			for i := range table.columns {
 				state.columns = append(state.columns, columnRef{
 					table: table,
 					index: columnIndex(i),
 				})
 			}
 		}
-		cols := make([]columnInfo, 0, len(table.columnNames))
-		for i, colName := range table.columnNames {
+		cols := make([]columnInfo, 0, len(table.columns))
+		for i, colName := range table.columns {
 			index := base + bitmapIndex(i)
 			e.inputVars.set(index)
 			cols = append(cols, columnInfo{
