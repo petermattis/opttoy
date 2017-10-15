@@ -73,7 +73,16 @@ func buildTable(table parser.TableExpr) *expr {
 		}
 	case *parser.AliasedTableExpr:
 		// TODO(peter): handle source.As.
-		return buildTable(source.Expr)
+		e := buildTable(source.Expr)
+		if source.As.Alias != "" {
+			e = &expr{
+				op:         renameOp,
+				children:   []*expr{e},
+				inputCount: 1,
+				body:       source.As,
+			}
+		}
+		return e
 	case *parser.ParenTableExpr:
 		return buildTable(source.Expr)
 	case *parser.JoinTableExpr:

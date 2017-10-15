@@ -73,18 +73,18 @@ func concatColumns(cols [][]columnInfo) []columnInfo {
 	return res
 }
 
-func resolve(e *expr, state *queryState, parent *expr) []columnInfo {
+func resolve(e *expr, state *queryState) []columnInfo {
 	inputCols := make([][]columnInfo, len(e.inputs()))
 	for i, input := range e.inputs() {
-		inputCols[i] = resolve(input, state, e)
+		inputCols[i] = resolve(input, state)
 	}
 
-	cols := resolveRelationalBody(e, state, parent, inputCols)
+	cols := resolveRelationalBody(e, state, inputCols)
 
 	if filters := e.filters(); len(filters) > 0 {
 		allInputs := concatColumns(inputCols)
 		for _, filter := range filters {
-			resolveScalar(filter, state, e, allInputs)
+			resolveScalar(filter, state, allInputs)
 		}
 	}
 
@@ -100,11 +100,10 @@ func resolveProjections(e *expr, state *queryState, inputCols []columnInfo) []co
 	var cols []columnInfo
 	for i := 0; i < len(e.projections()); i++ {
 		project := e.projections()[i]
-		replacement := resolveScalar(project, state, e, inputCols)
+		replacement := resolveScalar(project, state, inputCols)
 		if replacement != nil {
 			// Resolving the projection caused it to expand. Back up and resolve
 			// again.
-			fmt.Printf("expanded projection:\n%s\n%s\n", project, replacement)
 			e.replaceProjection(project, replacement)
 			i--
 			continue
@@ -133,7 +132,7 @@ func resolveProjections(e *expr, state *queryState, inputCols []columnInfo) []co
 	return cols
 }
 
-func resolveRelationalBody(e *expr, state *queryState, parent *expr, inputCols [][]columnInfo) []columnInfo {
+func resolveRelationalBody(e *expr, state *queryState, inputCols [][]columnInfo) []columnInfo {
 	switch b := e.body.(type) {
 	case nil:
 
@@ -178,15 +177,27 @@ func resolveRelationalBody(e *expr, state *queryState, parent *expr, inputCols [
 	case *parser.UsingJoinCond:
 		return resolveUsingJoin(e, state, b.Cols, inputCols)
 
+	case parser.AliasClause:
+		if len(b.Cols) == 0 {
+			allColumns := concatColumns(inputCols)
+			cols := make([]columnInfo, 0, len(allColumns))
+			for _, col := range allColumns {
+				cols = append(cols, columnInfo{
+					index:  col.index,
+					name:   col.name,
+					tables: []string{string(b.Alias)},
+				})
+			}
+			return cols
+		}
+		// TODO(peter): handle renaming columns as well.
+		unimplemented("alias: %s", b)
+
 	default:
 		unimplemented("%T", e.body)
 	}
 
-	cols := inputCols[0]
-	for _, other := range inputCols[1:] {
-		cols = append(cols, other...)
-	}
-	return cols
+	return concatColumns(inputCols)
 }
 
 func resolveNaturalJoin(e *expr, state *queryState, inputCols [][]columnInfo) []columnInfo {
@@ -261,13 +272,13 @@ func resolveUsingJoin(e *expr, state *queryState, names parser.NameList, inputCo
 	return res
 }
 
-func resolveScalar(e *expr, state *queryState, parent *expr, cols []columnInfo) []*expr {
+func resolveScalar(e *expr, state *queryState, cols []columnInfo) []*expr {
 	for _, input := range e.inputs() {
 		// TODO(peter): This probably does the wrong thing for subqueries.
-		resolveScalar(input, state, parent, cols)
+		resolveScalar(input, state, cols)
 	}
 
-	res := resolveScalarBody(e, state, parent, cols)
+	res := resolveScalarBody(e, state, cols)
 
 	// NB: Scalars do not have any filters or projections.
 
@@ -275,7 +286,7 @@ func resolveScalar(e *expr, state *queryState, parent *expr, cols []columnInfo) 
 	return res
 }
 
-func resolveScalarBody(e *expr, state *queryState, parent *expr, cols []columnInfo) []*expr {
+func resolveScalarBody(e *expr, state *queryState, cols []columnInfo) []*expr {
 	switch b := e.body.(type) {
 	case nil:
 
@@ -295,7 +306,7 @@ func resolveScalarBody(e *expr, state *queryState, parent *expr, cols []columnIn
 			panic(err)
 		}
 		e.body = vn
-		return resolveScalarBody(e, state, parent, cols)
+		return resolveScalarBody(e, state, cols)
 
 	case *parser.ColumnItem:
 		tableName := b.TableName.Table()

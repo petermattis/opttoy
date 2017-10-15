@@ -10,6 +10,7 @@ const (
 	unknownOp operator = iota
 
 	scanOp
+	renameOp
 
 	unionOp
 	intersectOp

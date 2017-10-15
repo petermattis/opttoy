@@ -1,0 +1,46 @@
+exec
+CREATE TABLE a (x INT, y INT)
+
+exec
+CREATE TABLE b (x INT, z INT)
+
+prep
+SELECT * FROM (SELECT * FROM a) AS b
+----
+projectOp [in=0-1 out=0-1 cols=0,1]
+  project:
+    variable (b.x) [in=0 out=0]
+    variable (b.y) [in=1 out=1]
+  inputs:
+    rename ({b }) [in=0-1 out=0-1 cols=0,1]
+      inputs:
+        projectOp [in=0-1 out=0-1 cols=0,1]
+          project:
+            variable (a.x) [in=0 out=0]
+            variable (a.y) [in=1 out=1]
+          inputs:
+            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+
+prep
+SELECT d.*, c.* FROM a AS c, b AS d
+----
+projectOp [in=0-1,3 out=0-1,3 cols=0,3,0,1]
+  project:
+    variable (d.x) [in=0 out=0]
+    variable (d.z) [in=3 out=3]
+    variable (c.x) [in=0 out=0]
+    variable (c.y) [in=1 out=1]
+  inputs:
+    inner join [in=0-3 out=0-3 cols=0,1,2,3]
+      filter:
+        comp (=) [in=0,2]
+          inputs:
+            variable (c.x) [in=0 out=0]
+            variable (d.x) [in=2 out=2]
+      inputs:
+        rename ({c }) [in=0-1 out=0-1 cols=0,1]
+          inputs:
+            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+        rename ({d }) [in=2-3 out=2-3 cols=2,3]
+          inputs:
+            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]

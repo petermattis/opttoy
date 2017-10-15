@@ -6,8 +6,15 @@
 // - functional dependencies
 // - column value constraints
 //
-// * properly handle AliasedTableExpr and SelectExpr.As. might require
-//   renameOp.
+// cost-agnostic transformations
+// - predicate push down
+// - join elimination
+// - unnesting
+//
+// cost-based transformations
+// - join re-ordering
+// - group-by pull-up
+// - group-by push-down
 
 package v3
 
@@ -90,7 +97,7 @@ func (e *executor) prep(stmt parser.Statement) (*expr, *queryState) {
 		catalog: e.catalog,
 		tables:  make(map[string]bitmapIndex),
 	}
-	resolve(expr, state, nil)
+	resolve(expr, state)
 	return expr, state
 }
 
