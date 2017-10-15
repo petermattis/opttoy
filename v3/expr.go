@@ -129,53 +129,39 @@ type expr struct {
 }
 
 func (e *expr) String() string {
-	var format func(e *expr, buf *bytes.Buffer, indent string)
-	format = func(e *expr, buf *bytes.Buffer, indent string) {
-		fmt.Fprintf(buf, "%s%v", indent, e.op)
-		if e.body != nil {
-			fmt.Fprintf(buf, " (%s)", e.body)
-		}
-		if e.table != nil {
-			fmt.Fprintf(buf, " (%s)", e.table)
-		}
-		if e.inputVars != 0 || e.outputVars != 0 {
-			buf.WriteString(" [")
-			sep := ""
-			if e.inputVars != 0 {
-				fmt.Fprintf(buf, "in=%s", e.inputVars)
-				sep = " "
-			}
-			if e.outputVars != 0 {
-				sep = " "
-				fmt.Fprintf(buf, "%sout=%s", sep, e.outputVars)
-			}
-			buf.WriteString("]")
-		}
+	var buf bytes.Buffer
+	e.format(&buf, 0)
+	return buf.String()
+}
 
-		buf.WriteString("\n")
-		if projections := e.projections(); len(projections) > 0 {
-			fmt.Fprintf(buf, "%s  project:\n", indent)
-			for _, project := range projections {
-				format(project, buf, indent+"    ")
-			}
+func (e *expr) format(buf *bytes.Buffer, level int) {
+	e.info().format(e, buf, level)
+}
+
+func (e *expr) formatVars(buf *bytes.Buffer) {
+	if e.inputVars != 0 || e.outputVars != 0 {
+		buf.WriteString(" [")
+		sep := ""
+		if e.inputVars != 0 {
+			fmt.Fprintf(buf, "in=%s", e.inputVars)
+			sep = " "
 		}
-		if filters := e.filters(); len(filters) > 0 {
-			fmt.Fprintf(buf, "%s  filter:\n", indent)
-			for _, filter := range filters {
-				format(filter, buf, indent+"    ")
-			}
+		if e.outputVars != 0 {
+			sep = " "
+			fmt.Fprintf(buf, "%sout=%s", sep, e.outputVars)
 		}
-		if inputs := e.inputs(); len(inputs) > 0 {
-			fmt.Fprintf(buf, "%s  inputs:\n", indent)
-			for _, input := range inputs {
-				format(input, buf, indent+"    ")
-			}
+		buf.WriteString("]")
+	}
+}
+
+func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
+	if len(exprs) > 0 {
+		indent := spaces[:2*level]
+		fmt.Fprintf(buf, "%s  %s:\n", indent, title)
+		for _, e := range exprs {
+			e.format(buf, level+2)
 		}
 	}
-
-	var buf bytes.Buffer
-	format(e, &buf, "")
-	return buf.String()
 }
 
 func (e *expr) inputs() []*expr {

@@ -1,6 +1,24 @@
 package v3
 
+import (
+	"bytes"
+	"fmt"
+)
+
+const spaces = "                                                                "
+
 func init() {
+	scalarFormat := func(e *expr, buf *bytes.Buffer, level int) {
+		indent := spaces[:2*level]
+		fmt.Fprintf(buf, "%s%v", indent, e.op)
+		if e.body != nil {
+			fmt.Fprintf(buf, " (%s)", e.body)
+		}
+		e.formatVars(buf)
+		buf.WriteString("\n")
+		formatExprs(buf, "inputs", e.inputs(), level)
+	}
+
 	scalarUpdateProperties := func(expr *expr) {
 		// For a scalar operation the required input variables is the union of the
 		// required input variables of its inputs. There are no output variables.
@@ -14,6 +32,7 @@ func init() {
 	scalarInfo := func(name string) operatorInfo {
 		return operatorInfo{
 			name:             name,
+			format:           scalarFormat,
 			updateProperties: scalarUpdateProperties,
 		}
 	}

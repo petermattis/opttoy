@@ -8,27 +8,27 @@ push_down
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
 projectOp (a.y:1 b.z:3) [in=1,3 out=1,3]
-  project:
+  projections:
     variable (a.y) [in=1 out=1]
     variable (b.z) [in=3 out=3]
   inputs:
     inner join (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
-      filter:
+      filters:
         comp (=) [in=0,2]
           inputs:
             variable (a.x) [in=0 out=0]
             variable (b.x) [in=2 out=2]
       inputs:
-        selectOp [in=0-1 out=0-1]
-          filter:
+        selectOp (<nil>) [in=0-1 out=0-1]
+          filters:
             comp (>) [in=0]
               inputs:
                 variable (a.x) [in=0 out=0]
                 const (7)
           inputs:
             scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-        selectOp [in=2-3 out=2-3]
-          filter:
+        selectOp (<nil>) [in=2-3 out=2-3]
+          filters:
             comp (>) [in=2]
               inputs:
                 variable (b.x) [in=2 out=2]
@@ -44,14 +44,14 @@ push_down
 SELECT * FROM a JOIN b ON (a.x = b.x) WHERE a.y + b.z > 1
 ----
 projectOp (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
-  project:
+  projections:
     variable (a.x) [in=0 out=0]
     variable (a.y) [in=1 out=1]
     variable (b.x) [in=2 out=2]
     variable (b.z) [in=3 out=3]
   inputs:
     inner join (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
-      filter:
+      filters:
         comp (=) [in=0,2]
           inputs:
             variable (a.x) [in=0 out=0]

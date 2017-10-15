@@ -1,6 +1,8 @@
 package v3
 
 import (
+	"fmt"
+
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
@@ -551,7 +553,7 @@ func buildProjections(
 				})
 				name := string(expr.As)
 				if name == "" {
-					name = expr.Expr.String()
+					name = fmt.Sprintf("column%d", len(result.table.columns)+1)
 				}
 				result.table.columns = append(result.table.columns, column{
 					index:  index,

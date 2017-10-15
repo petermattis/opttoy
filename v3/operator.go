@@ -1,6 +1,7 @@
 package v3
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -88,12 +89,12 @@ const (
 
 type operatorInfo struct {
 	name             string
+	format           func(e *expr, buf *bytes.Buffer, level int)
 	updateProperties func(e *expr)
 }
 
 var operatorTab = [numOperators]operatorInfo{
 	unknownOp: {name: "unknown"},
-	orderByOp: {name: "orderBy"},
 }
 
 func (o operator) String() string {
@@ -101,4 +102,23 @@ func (o operator) String() string {
 		return fmt.Sprintf("operator(%d)", o)
 	}
 	return operatorTab[o].name
+}
+
+func init() {
+	operatorTab[orderByOp] = operatorInfo{
+		name: "orderBy",
+
+		format: func(e *expr, buf *bytes.Buffer, level int) {
+			indent := spaces[:2*level]
+			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
+			e.formatVars(buf)
+			buf.WriteString("\n")
+			formatExprs(buf, "filters", e.filters(), level)
+			formatExprs(buf, "inputs", e.inputs(), level)
+		},
+
+		updateProperties: func(expr *expr) {
+			unimplemented("orderBy.updateProperties")
+		},
+	}
 }
