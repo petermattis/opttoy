@@ -68,6 +68,8 @@ func findColumn(cols []column, name string) column {
 	return column{}
 }
 
+// TODO(peter): adds keys, unique keys, and foreign keys. track NOT NULL and
+// column value constraints.
 type table struct {
 	name    string
 	columns []column

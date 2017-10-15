@@ -6,11 +6,11 @@ import (
 )
 
 func init() {
-	operatorTab[groupByOp] = operatorInfo{
-		name: "groupBy",
+	operatorTab[orderByOp] = operatorInfo{
+		name: "orderBy",
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
-			// TODO(peter): extra = grouping expressions, projections = aggregations.
+			// TODO(peter): extra = sorting expressions
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
@@ -20,7 +20,7 @@ func init() {
 		},
 
 		updateProperties: func(expr *expr) {
-			unimplemented("groupBy.updateProperties")
+			unimplemented("orderBy.updateProperties")
 		},
 	}
 }
