@@ -173,21 +173,12 @@ func (e *expr) projections() []*expr {
 	return e.children[inputCount : inputCount+int(e.projectCount)]
 }
 
-func (e *expr) addProjection(p *expr) {
+func (e *expr) addProjections(projections []*expr) {
 	filterStart := len(e.children) - int(e.filterCount)
-	e.children = append(e.children, nil)
-	copy(e.children[filterStart+1:], e.children[filterStart:])
-	e.children[filterStart] = p
-	e.projectCount++
-}
-
-func (e *expr) removeProjections() {
-	if e.projectCount > 0 {
-		inputCount := len(e.children) - int(e.projectCount+e.filterCount)
-		copy(e.children[inputCount:], e.children[inputCount+int(e.projectCount):])
-		e.children = e.children[:len(e.children)-int(e.projectCount)]
-		e.projectCount = 0
-	}
+	e.children = append(e.children, projections...)
+	copy(e.children[filterStart+len(projections):], e.children[filterStart:])
+	copy(e.children[filterStart:], projections)
+	e.projectCount += int16(len(projections))
 }
 
 func (e *expr) filters() []*expr {

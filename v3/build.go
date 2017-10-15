@@ -526,10 +526,10 @@ func buildProjection(
 
 func buildProjections(
 	input *expr,
-	exprs parser.SelectExprs,
+	sexprs parser.SelectExprs,
 	state *queryState,
 ) *expr {
-	if len(exprs) == 0 {
+	if len(sexprs) == 0 {
 		return input
 	}
 
@@ -541,9 +541,11 @@ func buildProjections(
 		table: &table{},
 	}
 
-	for _, expr := range exprs {
-		projections := buildProjection(expr.Expr, state, input.table)
-		for _, p := range projections {
+	var projections []*expr
+	for _, expr := range sexprs {
+		exprs := buildProjection(expr.Expr, state, input.table)
+		projections = append(projections, exprs...)
+		for _, p := range exprs {
 			if p.outputVars == 0 {
 				index := bitmapIndex(len(state.columns))
 				p.outputVars.set(index)
@@ -576,9 +578,10 @@ func buildProjections(
 					}
 				}
 			}
-			result.addProjection(p)
 		}
 	}
+
+	result.addProjections(projections)
 	result.updateProperties()
 	return result
 }
