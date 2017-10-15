@@ -124,7 +124,8 @@ type expr struct {
 	children   []*expr
 	// body hold additional info from the AST such as constant values and
 	// table/variable names.
-	body interface{}
+	body  interface{}
+	table *table
 }
 
 func (e *expr) String() string {
@@ -134,7 +135,10 @@ func (e *expr) String() string {
 		if e.body != nil {
 			fmt.Fprintf(buf, " (%s)", e.body)
 		}
-		if columns := e.columns(); e.inputVars != 0 || e.outputVars != 0 || len(columns) > 0 {
+		if e.table != nil {
+			fmt.Fprintf(buf, " (%s)", e.table)
+		}
+		if e.inputVars != 0 || e.outputVars != 0 {
 			buf.WriteString(" [")
 			sep := ""
 			if e.inputVars != 0 {
@@ -144,15 +148,6 @@ func (e *expr) String() string {
 			if e.outputVars != 0 {
 				sep = " "
 				fmt.Fprintf(buf, "%sout=%s", sep, e.outputVars)
-			}
-			if len(columns) > 0 {
-				fmt.Fprintf(buf, "%scols=", sep)
-				for i := range columns {
-					if i > 0 {
-						buf.WriteString(",")
-					}
-					fmt.Fprintf(buf, "%d", columns[i])
-				}
 			}
 			buf.WriteString("]")
 		}

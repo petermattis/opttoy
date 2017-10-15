@@ -20,7 +20,6 @@ package v3
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
@@ -31,17 +30,6 @@ func unimplemented(format string, args ...interface{}) {
 
 func fatalf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
-}
-
-type columnIndex uint
-
-type table struct {
-	name    string
-	columns []string
-}
-
-func (t *table) String() string {
-	return fmt.Sprintf("%s (%s)", t.name, strings.Join(t.columns, ", "))
 }
 
 type columnRef struct {
@@ -94,7 +82,7 @@ func (e *executor) prep(stmt parser.Statement) (*expr, *queryState) {
 		catalog: e.catalog,
 		tables:  make(map[string]bitmapIndex),
 	}
-	expr, _ := build(stmt, state, nil)
+	expr := build(stmt, state, nil)
 	return expr, state
 }
 
@@ -111,16 +99,20 @@ func (e *executor) createTable(stmt *parser.CreateTable) {
 		name: name,
 	}
 	e.catalog[name] = table
+	tables := []string{name}
 
-	columns := make(map[string]columnIndex)
+	columns := make(map[string]struct{})
 	for _, def := range stmt.Defs {
 		switch def := def.(type) {
 		case *parser.ColumnTableDef:
 			if _, ok := columns[string(def.Name)]; ok {
 				fatalf("column %s already exists", def.Name)
 			}
-			columns[string(def.Name)] = columnIndex(len(table.columns))
-			table.columns = append(table.columns, string(def.Name))
+			columns[string(def.Name)] = struct{}{}
+			table.columns = append(table.columns, column{
+				name:   string(def.Name),
+				tables: tables,
+			})
 		default:
 			unimplemented("%T", def)
 		}
