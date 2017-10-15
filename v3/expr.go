@@ -111,6 +111,7 @@ type expr struct {
 	//   inputs:      children[:inputCount]
 	//   projections: children[inputCount:inputCount+projectCount]
 	//   filters:     children[inputCount+projectCount:]
+	// TODO(peter): replace inputCount with filterCount.
 	inputCount   int16
 	projectCount int16
 	// The input and output bitmaps specified required inputs and generated

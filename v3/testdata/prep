@@ -41,7 +41,7 @@ SELECT * FROM (SELECT a.x+1 FROM a)
 ----
 projectOp [in=2 out=2 cols=2]
   project:
-    variable (column1) [in=2 out=2]
+    variable ("a.x + 1") [in=2 out=2]
   inputs:
     projectOp [in=0 out=2 cols=2]
       project:

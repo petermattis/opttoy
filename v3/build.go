@@ -1,6 +1,8 @@
 package v3
 
-import "github.com/cockroachdb/cockroach/pkg/sql/parser"
+import (
+	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+)
 
 var comparisonOpMap = [...]operator{
 	parser.EQ:                eqOp,
@@ -52,262 +54,673 @@ var unaryOpMap = [...]operator{
 	parser.UnaryComplement: unaryComplementOp,
 }
 
-func build(stmt parser.Statement) *expr {
-	switch stmt := stmt.(type) {
-	case *parser.Select:
-		return buildSelect(stmt)
-	case *parser.ParenSelect:
-		return buildSelect(stmt.Select)
-	default:
-		unimplemented("%T", stmt)
-		return nil
+type columnInfo struct {
+	index  bitmapIndex
+	name   string
+	tables []string
+}
+
+func (c columnInfo) hasColumn(tableName, colName string) bool {
+	if colName != c.name {
+		return false
+	}
+	if tableName == "" {
+		return true
+	}
+	return c.hasTable(tableName)
+}
+
+func (c columnInfo) hasTable(tableName string) bool {
+	for _, t := range c.tables {
+		if t == tableName {
+			return true
+		}
+	}
+	return false
+}
+
+func (c columnInfo) resolvedName(tableName string) *parser.ColumnItem {
+	if tableName == "" {
+		if len(c.tables) > 0 {
+			tableName = c.tables[0]
+		}
+	}
+	return &parser.ColumnItem{
+		TableName: parser.TableName{
+			TableName:               parser.Name(tableName),
+			DBNameOriginallyOmitted: true,
+		},
+		ColumnName: parser.Name(c.name),
 	}
 }
 
-func buildTable(table parser.TableExpr) *expr {
+func (c columnInfo) newVariableExpr(tableName string) *expr {
+	e := &expr{
+		op:   variableOp,
+		body: c.resolvedName(tableName),
+	}
+	e.inputVars.set(c.index)
+	e.updateProperties()
+	return e
+}
+
+func findColumnInfo(cols []columnInfo, name string) columnInfo {
+	for _, col := range cols {
+		if col.name == name {
+			return col
+		}
+	}
+	return columnInfo{}
+}
+
+func concatColumns(cols [][]columnInfo) []columnInfo {
+	if len(cols) == 1 {
+		return cols[0]
+	}
+	var res []columnInfo
+	for _, c := range cols {
+		res = append(res, c...)
+	}
+	return res
+}
+
+func build(
+	stmt parser.Statement,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	switch stmt := stmt.(type) {
+	case *parser.Select:
+		return buildSelect(stmt, state, inputCols)
+	case *parser.ParenSelect:
+		return buildSelect(stmt.Select, state, inputCols)
+	default:
+		unimplemented("%T", stmt)
+		return nil, nil
+	}
+}
+
+func buildTable(
+	table parser.TableExpr,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
 	switch source := table.(type) {
 	case *parser.NormalizableTableName:
-		return &expr{
+		e := &expr{
 			op:   scanOp,
 			body: source,
 		}
+		tableName, err := source.Normalize()
+		if err != nil {
+			fatalf("%s", err)
+		}
+		name := tableName.Table()
+		table, ok := state.catalog[name]
+		if !ok {
+			fatalf("unknown table %s", name)
+		}
+		e.body = table
+
+		base, ok := state.tables[name]
+		if !ok {
+			base = bitmapIndex(len(state.columns))
+			state.tables[name] = base
+			for i := range table.columnNames {
+				state.columns = append(state.columns, columnRef{
+					table: table,
+					index: columnIndex(i),
+				})
+			}
+		}
+		cols := make([]columnInfo, 0, len(table.columnNames))
+		for i, colName := range table.columnNames {
+			index := base + bitmapIndex(i)
+			e.inputVars.set(index)
+			cols = append(cols, columnInfo{
+				index:  index,
+				name:   colName,
+				tables: []string{table.name},
+			})
+		}
+		e.updateProperties()
+		return e, cols
+
 	case *parser.AliasedTableExpr:
-		// TODO(peter): handle source.As.
-		e := buildTable(source.Expr)
+		result, cols := buildTable(source.Expr, state, inputCols)
 		if source.As.Alias != "" {
-			e = &expr{
+			if n := len(source.As.Cols); n > 0 && n != len(cols) {
+				fatalf("rename specified %d columns, but table contains %d",
+					n, len(cols))
+			}
+
+			result = &expr{
 				op:         renameOp,
-				children:   []*expr{e},
+				children:   []*expr{result},
 				inputCount: 1,
 				body:       source.As,
 			}
+
+			newCols := make([]columnInfo, 0, len(cols))
+			for i, col := range cols {
+				name := col.name
+				if i < len(source.As.Cols) {
+					name = string(source.As.Cols[i])
+				}
+
+				newCols = append(newCols, columnInfo{
+					index:  col.index,
+					name:   name,
+					tables: []string{string(source.As.Alias)},
+				})
+			}
+
+			result.updateProperties()
+			return result, newCols
 		}
-		return e
+		return result, cols
+
 	case *parser.ParenTableExpr:
-		return buildTable(source.Expr)
+		return buildTable(source.Expr, state, inputCols)
+
 	case *parser.JoinTableExpr:
+		left, leftCols := buildTable(source.Left, state, inputCols)
+		right, rightCols := buildTable(source.Right, state, inputCols)
 		result := &expr{
 			op: innerJoinOp,
 			children: []*expr{
-				buildTable(source.Left),
-				buildTable(source.Right),
+				left,
+				right,
 			},
 			inputCount: 2,
 		}
 
+		inputCols := [][]columnInfo{leftCols, rightCols}
+		var cols []columnInfo
+
 		switch cond := source.Cond.(type) {
 		case *parser.OnJoinCond:
-			result.addFilter(buildExpr(cond.Expr))
+			cols = concatColumns(inputCols)
+			result.addFilter(buildScalar(cond.Expr, state, cols))
 
 		case parser.NaturalJoinCond:
-			result.body = cond
+			cols = buildNaturalJoin(result, state, inputCols)
+
 		case *parser.UsingJoinCond:
-			result.body = cond
+			cols = buildUsingJoin(result, state, cond.Cols, inputCols)
 
 		default:
 			unimplemented("%T", source.Cond)
 		}
-		return result
+
+		result.updateProperties()
+		return result, cols
+
 	case *parser.Subquery:
-		return build(source.Select)
+		return build(source.Select, state, inputCols)
 
 	default:
 		unimplemented("%T", table)
-		return nil
+		return nil, nil
 	}
 }
 
-func buildExpr(pexpr parser.Expr) *expr {
+func buildNaturalJoin(
+	e *expr,
+	state *queryState,
+	inputCols [][]columnInfo,
+) []columnInfo {
+	names := make(parser.NameList, 0, len(inputCols[0]))
+	for _, col := range inputCols[0] {
+		names = append(names, parser.Name(col.name))
+	}
+	for _, columns := range inputCols[1:] {
+		var common parser.NameList
+		for _, colName := range names {
+			for _, col := range columns {
+				if colName == parser.Name(col.name) {
+					common = append(common, colName)
+				}
+			}
+		}
+		names = common
+	}
+	return buildUsingJoin(e, state, names, inputCols)
+}
+
+func buildUsingJoin(
+	e *expr,
+	state *queryState,
+	names parser.NameList,
+	inputCols [][]columnInfo,
+) []columnInfo {
+	e.body = nil
+
+	joined := make(map[string]int, len(names))
+	for _, name := range names {
+		joined[string(name)] = -1
+		// For every adjacent pair of tables, add an equality predicate.
+		for i := 1; i < len(inputCols); i++ {
+			left := findColumnInfo(inputCols[i-1], string(name))
+			if left.tables == nil {
+				fatalf("unable to resolve name %s", name)
+			}
+			right := findColumnInfo(inputCols[i], string(name))
+			if right.tables == nil {
+				fatalf("unable to resolve name %s", name)
+			}
+			f := &expr{
+				op: eqOp,
+				children: []*expr{
+					left.newVariableExpr(""),
+					right.newVariableExpr(""),
+				},
+				inputCount: 2,
+			}
+			f.updateProperties()
+			e.addFilter(f)
+		}
+	}
+
+	var res []columnInfo
+	for _, columns := range inputCols {
+		for _, col := range columns {
+			if idx, ok := joined[col.name]; ok {
+				if idx != -1 {
+					oldCol := res[idx]
+					res[idx] = columnInfo{
+						index:  oldCol.index,
+						name:   oldCol.name,
+						tables: append(oldCol.tables, col.tables[0]),
+					}
+					continue
+				}
+				joined[col.name] = len(res)
+			}
+
+			res = append(res, columnInfo{
+				index:  col.index,
+				name:   col.name,
+				tables: []string{col.tables[0]},
+			})
+		}
+	}
+	return res
+}
+
+func buildScalar(
+	pexpr parser.Expr,
+	state *queryState,
+	inputCols []columnInfo,
+) *expr {
+	var result *expr
 	switch t := pexpr.(type) {
 	case *parser.ParenExpr:
-		return buildExpr(t.Expr)
+		return buildScalar(t.Expr, state, inputCols)
 
 	case *parser.AndExpr:
-		return &expr{
+		result = &expr{
 			op: andOp,
 			children: []*expr{
-				buildExpr(t.Left),
-				buildExpr(t.Right),
+				buildScalar(t.Left, state, inputCols),
+				buildScalar(t.Right, state, inputCols),
 			},
 			inputCount: 2,
 		}
 	case *parser.OrExpr:
-		return &expr{
+		result = &expr{
 			op: orOp,
 			children: []*expr{
-				buildExpr(t.Left),
-				buildExpr(t.Right),
+				buildScalar(t.Left, state, inputCols),
+				buildScalar(t.Right, state, inputCols),
 			},
 			inputCount: 2,
 		}
 	case *parser.NotExpr:
-		return &expr{
+		result = &expr{
 			op: notOp,
 			children: []*expr{
-				buildExpr(t.Expr),
+				buildScalar(t.Expr, state, inputCols),
 			},
 			inputCount: 1,
 		}
 
 	case *parser.BinaryExpr:
-		return &expr{
+		result = &expr{
 			op: binaryOpMap[t.Operator],
 			children: []*expr{
-				buildExpr(t.Left),
-				buildExpr(t.Right),
+				buildScalar(t.Left, state, inputCols),
+				buildScalar(t.Right, state, inputCols),
 			},
 			inputCount: 2,
 		}
 	case *parser.ComparisonExpr:
-		return &expr{
+		result = &expr{
 			op: comparisonOpMap[t.Operator],
 			children: []*expr{
-				buildExpr(t.Left),
-				buildExpr(t.Right),
+				buildScalar(t.Left, state, inputCols),
+				buildScalar(t.Right, state, inputCols),
 			},
 			inputCount: 2,
 		}
 	case *parser.UnaryExpr:
-		return &expr{
+		result = &expr{
 			op: unaryOpMap[t.Operator],
 			children: []*expr{
-				buildExpr(t.Expr),
+				buildScalar(t.Expr, state, inputCols),
 			},
 			inputCount: 1,
 		}
 
-	case parser.UnqualifiedStar:
-		return &expr{
-			op:   variableOp,
-			body: t,
+	case *parser.ColumnItem:
+		tableName := t.TableName.Table()
+		colName := string(t.ColumnName)
+		for _, col := range inputCols {
+			if col.hasColumn(tableName, colName) {
+				if tableName == "" && len(col.tables) > 0 {
+					t.TableName.TableName = parser.Name(col.tables[0])
+					t.TableName.DBNameOriginallyOmitted = true
+				}
+				result = &expr{
+					op:   variableOp,
+					body: t,
+				}
+				result.inputVars.set(col.index)
+				result.updateProperties()
+				return result
+			}
 		}
+		fatalf("unknown column %s", t)
+
 	case parser.UnresolvedName:
-		return &expr{
-			op:   variableOp,
-			body: t,
+		vn, err := t.NormalizeVarName()
+		if err != nil {
+			panic(err)
 		}
+		return buildScalar(vn, state, inputCols)
+
 	case *parser.NumVal:
-		return &expr{
+		result = &expr{
 			op:   constOp,
 			body: t,
 		}
 
 	case *parser.ExistsExpr:
-		return &expr{
+		result = &expr{
 			op: existsOp,
 			children: []*expr{
-				buildExpr(t.Subquery),
+				buildScalar(t.Subquery, state, inputCols),
 			},
 			inputCount: 1,
 		}
 
 	case *parser.Subquery:
-		return build(t.Select)
+		result, _ := build(t.Select, state, inputCols)
+		return result
 
 	default:
 		unimplemented("%T", pexpr)
-		return nil
 	}
+	result.updateProperties()
+	return result
 }
 
-func buildSelect(stmt *parser.Select) *expr {
+func buildSelect(
+	stmt *parser.Select,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	var result *expr
+	var cols []columnInfo
+
 	switch t := stmt.Select.(type) {
 	case *parser.SelectClause:
-		// TODO: stmt.Limit
-		return buildSelectClause(t, stmt.OrderBy)
+		result, cols = buildFrom(t.From, t.Where, state, inputCols)
+		result, cols = buildGroupBy(result, t.GroupBy, t.Having, state, cols)
+		result, cols = buildProjections(result, t.Exprs, state, cols)
+		result, cols = buildDistinct(result, t.Distinct, state, cols)
+
 	case *parser.UnionClause:
-		return buildUnion(t)
-	// TODO: handle other stmt.Select types.
+		result, cols = buildUnion(t, state, inputCols)
+
+	case *parser.ParenSelect:
+		result, cols = buildSelect(t.Select, state, inputCols)
+
+	// TODO(peter): case *parser.ValuesClause:
+
 	default:
 		unimplemented("%T", stmt.Select)
 	}
-	return nil
+
+	result, cols = buildOrderBy(result, stmt.OrderBy, state, cols)
+	// TODO(peter): stmt.Limit
+	return result, cols
 }
 
-func buildSelectClause(clause *parser.SelectClause, orderBy parser.OrderBy) *expr {
+func buildFrom(
+	from *parser.From,
+	where *parser.Where,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	if from == nil {
+		return nil, nil
+	}
+
 	var result *expr
-	if clause.From != nil {
-		var inputs []*expr
-		for _, table := range clause.From.Tables {
-			inputs = append(inputs, buildTable(table))
+	for _, table := range from.Tables {
+		t, tcols := buildTable(table, state, inputCols)
+		if result == nil {
+			result, inputCols = t, tcols
+			continue
 		}
-		if len(inputs) == 1 {
-			result = inputs[0]
-		} else {
-			result = &expr{
-				op:         innerJoinOp,
-				children:   inputs,
-				inputCount: int16(len(inputs)),
-				body:       parser.NaturalJoinCond{},
-			}
+		result = &expr{
+			op: innerJoinOp,
+			children: []*expr{
+				result,
+				t,
+			},
+			inputCount: 2,
 		}
-		if clause.Where != nil {
-			result = &expr{
-				op: selectOp,
-				children: []*expr{
-					result,
-				},
-				inputCount: 1,
-			}
-			result.addFilter(buildExpr(clause.Where.Expr))
-		}
+		result.updateProperties()
+		inputCols = buildNaturalJoin(result, state, [][]columnInfo{inputCols, tcols})
 	}
 
-	if clause.GroupBy != nil {
+	if where != nil {
 		result = &expr{
-			op:         groupByOp,
-			children:   []*expr{result},
-			inputCount: 1,
-		}
-		if clause.Having != nil {
-			result = &expr{
-				op: selectOp,
-				children: []*expr{
-					result,
-				},
-				inputCount: 1,
-			}
-			result.addFilter(buildExpr(clause.Having.Expr))
-		}
-	}
-
-	if len(clause.Exprs) > 0 {
-		result = &expr{
-			op: projectOp,
+			op: selectOp,
 			children: []*expr{
 				result,
 			},
 			inputCount: 1,
 		}
-		for _, expr := range clause.Exprs {
-			// TODO(peter): handle expr.As
-			result.addProjection(buildExpr(expr.Expr))
-		}
+		result.addFilter(buildScalar(where.Expr, state, inputCols))
+		result.updateProperties()
 	}
 
-	if clause.Distinct {
-		result = &expr{
-			op:         distinctOp,
-			children:   []*expr{result},
-			inputCount: 1,
-		}
-	}
-
-	// TODO: order by is not a relational expression, but instead a required
-	// property on the output.
-	if orderBy != nil {
-		result = &expr{
-			op:         orderByOp,
-			children:   []*expr{result},
-			inputCount: 1,
-			body:       orderBy,
-		}
-	}
-
-	return result
+	return result, inputCols
 }
 
-func buildUnion(clause *parser.UnionClause) *expr {
+func buildGroupBy(
+	input *expr,
+	groupBy parser.GroupBy,
+	having *parser.Where,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	if groupBy == nil {
+		return input, inputCols
+	}
+
+	result := &expr{
+		op:         groupByOp,
+		children:   []*expr{input},
+		inputCount: 1,
+	}
+	result.updateProperties()
+
+	if having != nil {
+		result = &expr{
+			op: selectOp,
+			children: []*expr{
+				result,
+			},
+			inputCount: 1,
+		}
+		result.addFilter(buildScalar(having.Expr, state, inputCols))
+		result.updateProperties()
+	}
+
+	return result, inputCols
+}
+
+func buildProjection(
+	pexpr parser.Expr,
+	state *queryState,
+	inputCols []columnInfo,
+) []*expr {
+	switch t := pexpr.(type) {
+	case parser.UnqualifiedStar:
+		var projections []*expr
+		for _, col := range inputCols {
+			projections = append(projections, col.newVariableExpr(""))
+		}
+		if len(projections) == 0 {
+			fatalf("failed to expand *")
+		}
+		return projections
+
+	case *parser.AllColumnsSelector:
+		tableName := t.TableName.Table()
+		var projections []*expr
+		for _, col := range inputCols {
+			if col.hasTable(tableName) {
+				projections = append(projections, col.newVariableExpr(tableName))
+			}
+		}
+		if len(projections) == 0 {
+			fatalf("unknown table %s", t)
+		}
+		return projections
+
+	case parser.UnresolvedName:
+		vn, err := t.NormalizeVarName()
+		if err != nil {
+			panic(err)
+		}
+		return buildProjection(vn, state, inputCols)
+
+	default:
+		return []*expr{buildScalar(pexpr, state, inputCols)}
+	}
+}
+
+func buildProjections(
+	input *expr,
+	exprs parser.SelectExprs,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	if len(exprs) == 0 {
+		return input, inputCols
+	}
+
+	result := &expr{
+		op: projectOp,
+		children: []*expr{
+			input,
+		},
+		inputCount: 1,
+	}
+	var resultCols []columnInfo
+
+	for _, expr := range exprs {
+		projections := buildProjection(expr.Expr, state, inputCols)
+		for _, p := range projections {
+			if p.outputVars == 0 {
+				index := bitmapIndex(len(state.columns))
+				p.outputVars.set(index)
+				state.columns = append(state.columns, columnRef{
+					index: columnIndex(result.projectCount),
+				})
+				name := string(expr.As)
+				if name == "" {
+					name = expr.Expr.String()
+				}
+				resultCols = append(resultCols, columnInfo{
+					index:  index,
+					name:   name,
+					tables: []string{},
+				})
+			} else {
+				for _, col := range inputCols {
+					if p.outputVars == (bitmap(1) << col.index) {
+						name := string(expr.As)
+						if name == "" {
+							name = col.name
+						}
+						resultCols = append(resultCols, columnInfo{
+							index:  col.index,
+							name:   name,
+							tables: col.tables,
+						})
+						break
+					}
+				}
+			}
+			result.addProjection(p)
+		}
+	}
+	result.updateProperties()
+	return result, resultCols
+}
+
+func buildDistinct(
+	input *expr,
+	distinct bool,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	if !distinct {
+		return input, inputCols
+	}
+
+	result := &expr{
+		op:         distinctOp,
+		children:   []*expr{input},
+		inputCount: 1,
+	}
+	result.updateProperties()
+	return result, inputCols
+}
+
+func buildOrderBy(
+	input *expr,
+	orderBy parser.OrderBy,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
+	if orderBy == nil {
+		return input, inputCols
+	}
+
+	// TODO(peter): order by is not a relational expression, but instead a
+	// required property on the output.
+	result := &expr{
+		op:         orderByOp,
+		children:   []*expr{input},
+		inputCount: 1,
+		body:       orderBy,
+	}
+	result.updateProperties()
+	return result, inputCols
+}
+
+func buildUnion(
+	clause *parser.UnionClause,
+	state *queryState,
+	inputCols []columnInfo,
+) (*expr, []columnInfo) {
 	op := unionOp
 	switch clause.Type {
 	case parser.UnionOp:
@@ -316,12 +729,16 @@ func buildUnion(clause *parser.UnionClause) *expr {
 	case parser.ExceptOp:
 		op = exceptOp
 	}
-	return &expr{
+	left, leftCols := buildSelect(clause.Left, state, inputCols)
+	right, _ := buildSelect(clause.Right, state, inputCols)
+	result := &expr{
 		op: op,
 		children: []*expr{
-			buildSelect(clause.Left),
-			buildSelect(clause.Right),
+			left,
+			right,
 		},
 		inputCount: 2,
 	}
+	result.updateProperties()
+	return result, leftCols
 }

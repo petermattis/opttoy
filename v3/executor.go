@@ -91,13 +91,11 @@ func (e *executor) exec(sql string) {
 }
 
 func (e *executor) prep(stmt parser.Statement) (*expr, *queryState) {
-	expr := build(stmt)
-	// Resolve names and propagate column properties.
 	state := &queryState{
 		catalog: e.catalog,
 		tables:  make(map[string]bitmapIndex),
 	}
-	resolve(expr, state)
+	expr, _ := build(stmt, state, nil)
 	return expr, state
 }
 
