@@ -77,9 +77,6 @@ func buildTable(
 ) *expr {
 	switch source := texpr.(type) {
 	case *parser.NormalizableTableName:
-		result := &expr{
-			op: scanOp,
-		}
 		tableName, err := source.Normalize()
 		if err != nil {
 			fatalf("%s", err)
@@ -90,20 +87,24 @@ func buildTable(
 			fatalf("unknown table %s", name)
 		}
 
+		result := &expr{
+			op: scanOp,
+			table: &table{
+				name:    tab.name,
+				columns: make([]column, 0, len(tab.columns)),
+			},
+		}
+
 		base, ok := state.tables[name]
 		if !ok {
 			base = bitmapIndex(len(state.columns))
 			state.tables[name] = base
 			for i := range tab.columns {
 				state.columns = append(state.columns, columnRef{
-					table: tab,
+					table: result.table,
 					index: columnIndex(i),
 				})
 			}
-		}
-		result.table = &table{
-			name:    tab.name,
-			columns: make([]column, 0, len(tab.columns)),
 		}
 		for i, col := range tab.columns {
 			index := base + bitmapIndex(i)
@@ -545,6 +546,7 @@ func buildProjections(
 				index := bitmapIndex(len(state.columns))
 				p.outputVars.set(index)
 				state.columns = append(state.columns, columnRef{
+					table: result.table,
 					index: columnIndex(result.projectCount),
 				})
 				name := string(expr.As)

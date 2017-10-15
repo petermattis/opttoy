@@ -233,13 +233,6 @@ func (e *expr) info() *operatorInfo {
 	return &operatorTab[e.op]
 }
 
-// columns returns the column indexes in the order they are output by the
-// expression. The column indexes are computed from the output vars of the
-// projections.
-func (e *expr) columns() []bitmapIndex {
-	return e.info().columns(e)
-}
-
 func (e *expr) updateProperties() {
 	e.info().updateProperties(e)
 }

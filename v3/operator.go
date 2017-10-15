@@ -88,7 +88,6 @@ const (
 
 type operatorInfo struct {
 	name             string
-	columns          func(e *expr) []bitmapIndex
 	updateProperties func(e *expr)
 }
 

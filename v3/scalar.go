@@ -1,10 +1,6 @@
 package v3
 
 func init() {
-	scalarColumns := func(expr *expr) []bitmapIndex {
-		return nil
-	}
-
 	scalarUpdateProperties := func(expr *expr) {
 		// For a scalar operation the required input variables is the union of the
 		// required input variables of its inputs. There are no output variables.
@@ -18,7 +14,6 @@ func init() {
 	scalarInfo := func(name string) operatorInfo {
 		return operatorInfo{
 			name:             name,
-			columns:          scalarColumns,
 			updateProperties: scalarUpdateProperties,
 		}
 	}

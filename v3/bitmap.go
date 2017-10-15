@@ -3,7 +3,6 @@ package v3
 import (
 	"bytes"
 	"fmt"
-	"math/bits"
 )
 
 // Bitmap used for columns. We're limited to using 64 in a query due to
@@ -47,15 +46,4 @@ func (b bitmap) get(i bitmapIndex) bool {
 
 func (b *bitmap) set(i bitmapIndex) {
 	*b |= 1 << i
-}
-
-func (b *bitmap) indexes() []bitmapIndex {
-	t := uint64(*b)
-	r := make([]bitmapIndex, 0, bits.OnesCount64(t))
-	for t != 0 {
-		i := bitmapIndex(bits.TrailingZeros64(t))
-		r = append(r, i)
-		t &= ^(1 << i)
-	}
-	return r
 }
