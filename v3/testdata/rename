@@ -63,6 +63,15 @@ projectOp ({c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1) [in=0-1,3 out=0-1,3]
             scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
+SELECT x AS e FROM a
+----
+projectOp (a.e:0) [in=0 out=0]
+  projections:
+    variable (a.x) [in=0 out=0]
+  inputs:
+    scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+	
+prep
 SELECT * FROM (SELECT x AS e FROM a)
 ----
 projectOp (a.e:0) [in=0 out=0]
