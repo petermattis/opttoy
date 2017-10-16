@@ -20,14 +20,14 @@ CREATE TABLE c (x INT UNIQUE)
 ----
 table c
   x NULL
-  (x) UNIQUE
+  (x) WEAK KEY
 
 exec
 CREATE TABLE d (x INT, UNIQUE (x))
 ----
 table d
   x NULL
-  (x) UNIQUE
+  (x) WEAK KEY
 
 exec
 CREATE TABLE e (x INT NOT NULL, UNIQUE (x))

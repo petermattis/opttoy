@@ -224,7 +224,7 @@ func (t *table) String() string {
 			if key.notNull {
 				buf.WriteString(" KEY")
 			} else {
-				buf.WriteString(" UNIQUE")
+				buf.WriteString(" WEAK KEY")
 			}
 		}
 		buf.WriteString("\n")
