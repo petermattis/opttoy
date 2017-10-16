@@ -14,8 +14,8 @@ func init() {
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
-			formatExprs(buf, "groupings", e.aux1(), level)
-			formatExprs(buf, "aggregations", e.aux2(), level)
+			formatExprs(buf, "groupings", e.groupings(), level)
+			formatExprs(buf, "aggregations", e.aggregations(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},

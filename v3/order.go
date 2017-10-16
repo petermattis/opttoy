@@ -14,7 +14,7 @@ func init() {
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
-			formatExprs(buf, "sorting", e.aux1(), level)
+			// formatExprs(buf, "sorting", e.sortings(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},

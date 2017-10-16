@@ -447,10 +447,20 @@ func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *ex
 	result := &expr{
 		op:       groupByOp,
 		children: []*expr{input},
+		table:    input.table,
 	}
+
+	exprs := make([]*expr, 0, len(groupBy))
+	for _, expr := range groupBy {
+		exprs = append(exprs, buildScalar(expr, result.table))
+	}
+	result.addGroupings(exprs)
+
 	result.updateProperties()
 
 	if having != nil {
+		// TODO(peter): Any aggregations mentioned in the having expressions need
+		// to be copied into the groupByOp. Ditto for later projections.
 		result = &expr{
 			op: selectOp,
 			children: []*expr{
@@ -526,7 +536,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 				p.outputVars.set(index)
 				state.columns = append(state.columns, columnRef{
 					table: result.table,
-					index: columnIndex(result.aux1Count),
+					index: columnIndex(len(result.projections())),
 				})
 				name := string(expr.As)
 				if name == "" {
@@ -556,7 +566,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 		}
 	}
 
-	result.addAux1(projections)
+	result.addProjections(projections)
 	result.updateProperties()
 	return result
 }

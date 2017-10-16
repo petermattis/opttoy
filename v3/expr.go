@@ -214,6 +214,48 @@ func (e *expr) addAux2(exprs []*expr) {
 	e.aux2Count += int16(len(exprs))
 }
 
+func (e *expr) projections() []*expr {
+	if e.op != projectOp {
+		fatalf("%s: invalid use of projections", e.op)
+	}
+	return e.aux1()
+}
+
+func (e *expr) addProjections(exprs []*expr) {
+	if e.op != projectOp {
+		fatalf("%s: invalid use of projections", e.op)
+	}
+	e.addAux1(exprs)
+}
+
+func (e *expr) groupings() []*expr {
+	if e.op != groupByOp {
+		fatalf("%s: invalid use of groupings", e.op)
+	}
+	return e.aux1()
+}
+
+func (e *expr) addGroupings(exprs []*expr) {
+	if e.op != groupByOp {
+		fatalf("%s: invalid use of groupings", e.op)
+	}
+	e.addAux1(exprs)
+}
+
+func (e *expr) aggregations() []*expr {
+	if e.op != groupByOp {
+		fatalf("%s: invalid use of aggregations", e.op)
+	}
+	return e.aux2()
+}
+
+func (e *expr) addAggregations(exprs []*expr) {
+	if e.op != groupByOp {
+		fatalf("%s: invalid use of aggregations", e.op)
+	}
+	e.addAux2(exprs)
+}
+
 func (e *expr) info() *operatorInfo {
 	return &operatorTab[e.op]
 }
