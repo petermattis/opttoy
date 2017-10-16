@@ -58,7 +58,7 @@ var unaryOpMap = [...]operator{
 
 func build(
 	stmt parser.Statement,
-	tab *logicalProperties) *expr {
+	tab *logicalProps) *expr {
 	switch stmt := stmt.(type) {
 	case *parser.Select:
 		return buildSelect(stmt, tab)
@@ -70,7 +70,7 @@ func build(
 	}
 }
 
-func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
+func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 	switch source := texpr.(type) {
 	case *parser.NormalizableTableName:
 		tableName, err := source.Normalize()
@@ -86,9 +86,9 @@ func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
 
 		result := &expr{
 			op: scanOp,
-			props: &logicalProperties{
+			props: &logicalProps{
 				name:    tab.name,
-				columns: make([]logicalColumn, 0, len(tab.columns)),
+				columns: make([]columnProps, 0, len(tab.columns)),
 				state:   state,
 			},
 		}
@@ -109,7 +109,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
 		for i, col := range tab.columns {
 			index := base + bitmapIndex(i)
 			result.inputVars.set(index)
-			result.props.columns = append(result.props.columns, logicalColumn{
+			result.props.columns = append(result.props.columns, columnProps{
 				index:  index,
 				name:   col.name,
 				tables: tables,
@@ -130,9 +130,9 @@ func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
 			result = &expr{
 				op:       renameOp,
 				children: []*expr{result},
-				props: &logicalProperties{
+				props: &logicalProps{
 					name:    string(source.As.Alias),
-					columns: make([]logicalColumn, 0, len(tab.columns)),
+					columns: make([]columnProps, 0, len(tab.columns)),
 					state:   tab.state,
 				},
 			}
@@ -144,7 +144,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
 					name = string(source.As.Cols[i])
 				}
 
-				result.props.columns = append(result.props.columns, logicalColumn{
+				result.props.columns = append(result.props.columns, columnProps{
 					index:  col.index,
 					name:   name,
 					tables: tables,
@@ -242,13 +242,13 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 		}
 	}
 
-	e.props = &logicalProperties{state: inputs[0].props.state}
+	e.props = &logicalProps{state: inputs[0].props.state}
 	for _, input := range inputs {
 		for _, col := range input.props.columns {
 			if idx, ok := joined[col.name]; ok {
 				if idx != -1 {
 					oldCol := e.props.columns[idx]
-					e.props.columns[idx] = logicalColumn{
+					e.props.columns[idx] = columnProps{
 						index:  oldCol.index,
 						name:   oldCol.name,
 						tables: append(oldCol.tables, col.tables[0]),
@@ -258,7 +258,7 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 				joined[col.name] = len(e.props.columns)
 			}
 
-			e.props.columns = append(e.props.columns, logicalColumn{
+			e.props.columns = append(e.props.columns, columnProps{
 				index:  col.index,
 				name:   col.name,
 				tables: []string{col.tables[0]},
@@ -267,7 +267,7 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 	}
 }
 
-func buildScalar(pexpr parser.Expr, props *logicalProperties) *expr {
+func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 	var result *expr
 	switch t := pexpr.(type) {
 	case *parser.ParenExpr:
@@ -374,7 +374,7 @@ func buildScalar(pexpr parser.Expr, props *logicalProperties) *expr {
 	return result
 }
 
-func buildSelect(stmt *parser.Select, props *logicalProperties) *expr {
+func buildSelect(stmt *parser.Select, props *logicalProps) *expr {
 	var result *expr
 
 	switch t := stmt.Select.(type) {
@@ -401,7 +401,7 @@ func buildSelect(stmt *parser.Select, props *logicalProperties) *expr {
 	return result
 }
 
-func buildFrom(from *parser.From, where *parser.Where, props *logicalProperties) *expr {
+func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *expr {
 	if from == nil {
 		return nil
 	}
@@ -476,7 +476,7 @@ func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *ex
 	return result
 }
 
-func buildProjection(pexpr parser.Expr, props *logicalProperties) []*expr {
+func buildProjection(pexpr parser.Expr, props *logicalProps) []*expr {
 	switch t := pexpr.(type) {
 	case parser.UnqualifiedStar:
 		var projections []*expr
@@ -524,7 +524,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 		children: []*expr{
 			input,
 		},
-		props: &logicalProperties{state: state},
+		props: &logicalProps{state: state},
 	}
 
 	var projections []*expr
@@ -543,7 +543,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
-				result.props.columns = append(result.props.columns, logicalColumn{
+				result.props.columns = append(result.props.columns, columnProps{
 					index:  index,
 					name:   name,
 					tables: []string{},
@@ -555,7 +555,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 						if name == "" {
 							name = col.name
 						}
-						result.props.columns = append(result.props.columns, logicalColumn{
+						result.props.columns = append(result.props.columns, columnProps{
 							index:  col.index,
 							name:   name,
 							tables: col.tables,
@@ -603,7 +603,7 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 	return result
 }
 
-func buildUnion(clause *parser.UnionClause, props *logicalProperties) *expr {
+func buildUnion(clause *parser.UnionClause, props *logicalProps) *expr {
 	op := unionOp
 	switch clause.Type {
 	case parser.UnionOp:

@@ -64,7 +64,7 @@ func (e *executor) exec(stmt parser.Statement) string {
 }
 
 func (e *executor) prep(stmt parser.Statement) *expr {
-	return build(stmt, &logicalProperties{
+	return build(stmt, &logicalProps{
 		state: &queryState{
 			catalog: e.catalog,
 			tables:  make(map[string]bitmapIndex),

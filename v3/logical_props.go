@@ -8,7 +8,7 @@ import (
 )
 
 type columnRef struct {
-	props *logicalProperties
+	props *logicalProps
 	index int
 }
 
@@ -35,7 +35,7 @@ func (s *queryState) getData(idx int32) interface{} {
 	return s.data[idx-1]
 }
 
-type logicalColumn struct {
+type columnProps struct {
 	name    string
 	tables  []string
 	index   bitmapIndex
@@ -43,7 +43,7 @@ type logicalColumn struct {
 	// TODO(peter): value constraints.
 }
 
-func (c logicalColumn) hasColumn(tableName, colName string) bool {
+func (c columnProps) hasColumn(tableName, colName string) bool {
 	if colName != c.name {
 		return false
 	}
@@ -53,7 +53,7 @@ func (c logicalColumn) hasColumn(tableName, colName string) bool {
 	return c.hasTable(tableName)
 }
 
-func (c logicalColumn) hasTable(tableName string) bool {
+func (c columnProps) hasTable(tableName string) bool {
 	for _, t := range c.tables {
 		if t == tableName {
 			return true
@@ -62,7 +62,7 @@ func (c logicalColumn) hasTable(tableName string) bool {
 	return false
 }
 
-func (c logicalColumn) resolvedName(tableName string) *parser.ColumnItem {
+func (c columnProps) resolvedName(tableName string) *parser.ColumnItem {
 	if tableName == "" {
 		if len(c.tables) > 0 {
 			tableName = c.tables[0]
@@ -77,7 +77,7 @@ func (c logicalColumn) resolvedName(tableName string) *parser.ColumnItem {
 	}
 }
 
-func (c logicalColumn) newVariableExpr(tableName string, table *logicalProperties) *expr {
+func (c columnProps) newVariableExpr(tableName string, table *logicalProps) *expr {
 	e := &expr{
 		op:        variableOp,
 		dataIndex: table.state.addData(c.resolvedName(tableName)),
@@ -88,14 +88,14 @@ func (c logicalColumn) newVariableExpr(tableName string, table *logicalPropertie
 	return e
 }
 
-type logicalProperties struct {
+type logicalProps struct {
 	name    string
-	columns []logicalColumn
+	columns []columnProps
 	keys    []tableKey // TODO(peter): unimplemented
 	state   *queryState
 }
 
-func (t *logicalProperties) String() string {
+func (t *logicalProps) String() string {
 	var buf bytes.Buffer
 	for i, col := range t.columns {
 		if i > 0 {
@@ -123,7 +123,7 @@ func (t *logicalProperties) String() string {
 	return buf.String()
 }
 
-func (t *logicalProperties) newColumnExpr(name string) *expr {
+func (t *logicalProps) newColumnExpr(name string) *expr {
 	for _, col := range t.columns {
 		if col.name == name {
 			return col.newVariableExpr(t.name, t)
@@ -132,9 +132,9 @@ func (t *logicalProperties) newColumnExpr(name string) *expr {
 	return nil
 }
 
-func concatLogicalProperties(left, right *logicalProperties) *logicalProperties {
-	t := &logicalProperties{
-		columns: make([]logicalColumn, len(left.columns)+len(right.columns)),
+func concatLogicalProperties(left, right *logicalProps) *logicalProps {
+	t := &logicalProps{
+		columns: make([]columnProps, len(left.columns)+len(right.columns)),
 		state:   left.state,
 	}
 	copy(t.columns[:], left.columns)

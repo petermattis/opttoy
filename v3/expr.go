@@ -109,7 +109,7 @@ type expr struct {
 	inputVars  bitmap
 	outputVars bitmap
 	children   []*expr
-	props      *logicalProperties
+	props      *logicalProps
 }
 
 func (e *expr) String() string {
