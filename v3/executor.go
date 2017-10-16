@@ -5,6 +5,16 @@
 // - derived columns
 // - functional dependencies
 // - column value constraints
+// - required ordering
+//
+// physical properties
+// - defined ordering
+//
+// scalar properties
+// - monotonic (ordering)
+// - not null
+// - constness
+// - type
 //
 // cost-agnostic transformations
 // - predicate push down
