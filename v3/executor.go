@@ -1,16 +1,25 @@
-// TODO:
+// TODO(peter):
 //
 // logical properties
 // - required columns
 // - derived columns
 // - functional dependencies
 // - column value constraints
+//
+// cost-agnostic transformations
+// - predicate push down
+// - join elimination
+// - unnesting
+//
+// cost-based transformations
+// - join re-ordering
+// - group-by pull-up
+// - group-by push-down
 
 package v3
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
@@ -23,21 +32,7 @@ func fatalf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
 
-type columnIndex uint
-
-type table struct {
-	name        string
-	columns     map[string]columnIndex
-	columnNames []string
-}
-
-func (t *table) String() string {
-	return fmt.Sprintf("%s (%s)", t.name, strings.Join(t.columnNames, ", "))
-}
-
 type columnRef struct {
-	// TODO(peter): rather than a table, this should be a relation so that column
-	// references can refer to intermediate results in the query.
 	table *table
 	index columnIndex
 }
@@ -50,6 +45,19 @@ type queryState struct {
 	tables  map[string]bitmapIndex
 	// query index to table and column index.
 	columns []columnRef
+	data    []interface{}
+}
+
+func (s *queryState) addData(d interface{}) int32 {
+	s.data = append(s.data, d)
+	return int32(len(s.data))
+}
+
+func (s *queryState) getData(idx int32) interface{} {
+	if idx == 0 {
+		return nil
+	}
+	return s.data[idx-1]
 }
 
 type executor struct {
@@ -73,22 +81,20 @@ func (e *executor) exec(sql string) {
 			e.createTable(stmt)
 		default:
 			fmt.Printf("%s\n", stmt)
-			expr, _ := e.prep(stmt)
+			expr := e.prep(stmt)
 			pushDownFilters(expr)
 			fmt.Printf("%s\n", expr)
 		}
 	}
 }
 
-func (e *executor) prep(stmt parser.Statement) (*expr, *queryState) {
-	expr := build(stmt)
-	// Resolve names and propagate column properties.
-	state := &queryState{
-		catalog: e.catalog,
-		tables:  make(map[string]bitmapIndex),
-	}
-	resolve(expr, state, nil)
-	return expr, state
+func (e *executor) prep(stmt parser.Statement) *expr {
+	return build(stmt, &table{
+		state: &queryState{
+			catalog: e.catalog,
+			tables:  make(map[string]bitmapIndex),
+		},
+	})
 }
 
 func (e *executor) createTable(stmt *parser.CreateTable) {
@@ -101,19 +107,23 @@ func (e *executor) createTable(stmt *parser.CreateTable) {
 		fatalf("table %s already exists", name)
 	}
 	table := &table{
-		name:    name,
-		columns: make(map[string]columnIndex),
+		name: name,
 	}
 	e.catalog[name] = table
+	tables := []string{name}
 
+	columns := make(map[string]struct{})
 	for _, def := range stmt.Defs {
 		switch def := def.(type) {
 		case *parser.ColumnTableDef:
-			if _, ok := table.columns[string(def.Name)]; ok {
+			if _, ok := columns[string(def.Name)]; ok {
 				fatalf("column %s already exists", def.Name)
 			}
-			table.columns[string(def.Name)] = columnIndex(len(table.columnNames))
-			table.columnNames = append(table.columnNames, string(def.Name))
+			columns[string(def.Name)] = struct{}{}
+			table.columns = append(table.columns, column{
+				name:   string(def.Name),
+				tables: tables,
+			})
 		default:
 			unimplemented("%T", def)
 		}

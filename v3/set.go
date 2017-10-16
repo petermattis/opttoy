@@ -1,12 +1,23 @@
 package v3
 
+import (
+	"bytes"
+	"fmt"
+)
+
 func init() {
 	operatorTab[unionOp] = operatorInfo{
 		name: "union",
-		columns: func(expr *expr) []bitmapIndex {
-			// The output columns are the same as the first input's columns.
-			return expr.inputs()[0].columns()
+
+		format: func(e *expr, buf *bytes.Buffer, level int) {
+			indent := spaces[:2*level]
+			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
+			e.formatVars(buf)
+			buf.WriteString("\n")
+			formatExprs(buf, "filters", e.filters(), level)
+			formatExprs(buf, "inputs", e.inputs(), level)
 		},
+
 		updateProperties: func(expr *expr) {
 			expr.inputVars = 0
 			for _, filter := range expr.filters() {

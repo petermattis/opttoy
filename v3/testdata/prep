@@ -5,86 +5,102 @@ exec
 CREATE TABLE b (x INT, z INT)
 
 prep
-SELECT a.y FROM a
+SELECT y FROM a
 ----
-projectOp [in=1 out=1 cols=1]
-  project:
+projectOp (a.y:1) [in=1 out=1]
+  projections:
     variable (a.y) [in=1 out=1]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+    scan (a.x:0 a.y:1) [in=0-1 out=0-1]
 
 prep
 SELECT a.* FROM a
 ----
-projectOp [in=0-1 out=0-1 cols=0,1]
-  project:
+projectOp (a.x:0 a.y:1) [in=0-1 out=0-1]
+  projections:
     variable (a.x) [in=0 out=0]
     variable (a.y) [in=1 out=1]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+    scan (a.x:0 a.y:1) [in=0-1 out=0-1]
 
 prep
 SELECT * FROM (SELECT a.x FROM a)
 ----
-projectOp [in=0 out=0 cols=0]
-  project:
+projectOp (a.x:0) [in=0 out=0]
+  projections:
     variable (a.x) [in=0 out=0]
   inputs:
-    projectOp [in=0 out=0 cols=0]
-      project:
+    projectOp (a.x:0) [in=0 out=0]
+      projections:
         variable (a.x) [in=0 out=0]
       inputs:
-        scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+
+prep
+SELECT * FROM (SELECT a.x+1 FROM a)
+----
+projectOp (.column1:2) [in=2 out=2]
+  projections:
+    variable (column1) [in=2 out=2]
+  inputs:
+    projectOp (.column1:2) [in=0 out=2]
+      projections:
+        binary (+) [in=0 out=2]
+          inputs:
+            variable (a.x) [in=0 out=0]
+            const (1)
+      inputs:
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
 
 prep
 SELECT a.y, a.x FROM a
 ----
-projectOp [in=0-1 out=0-1 cols=1,0]
-  project:
+projectOp (a.y:1 a.x:0) [in=0-1 out=0-1]
+  projections:
     variable (a.y) [in=1 out=1]
     variable (a.x) [in=0 out=0]
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+    scan (a.x:0 a.y:1) [in=0-1 out=0-1]
 
 prep
 SELECT a.y+1 FROM a
 ----
-projectOp [in=1 out=2 cols=2]
-  project:
+projectOp (.column1:2) [in=1 out=2]
+  projections:
     binary (+) [in=1 out=2]
       inputs:
         variable (a.y) [in=1 out=1]
         const (1)
   inputs:
-    scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+    scan (a.x:0 a.y:1) [in=0-1 out=0-1]
 
 prep
 SELECT * FROM b WHERE b.z > 10
 ----
-projectOp [in=0-1 out=0-1 cols=0,1]
-  project:
+projectOp (b.x:0 b.z:1) [in=0-1 out=0-1]
+  projections:
     variable (b.x) [in=0 out=0]
     variable (b.z) [in=1 out=1]
   inputs:
-    selectOp [in=0-1 out=0-1 cols=0,1]
-      filter:
+    selectOp (b.x:0 b.z:1) [in=0-1 out=0-1]
+      filters:
         comp (>) [in=1]
           inputs:
             variable (b.z) [in=1 out=1]
             const (10)
       inputs:
-        scan (b (x, z)) [in=0-1 out=0-1 cols=0,1]
+        scan (b.x:0 b.z:1) [in=0-1 out=0-1]
 
 prep
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=1,3 out=1,3 cols=1,3]
-  project:
+projectOp (a.y:1 b.z:3) [in=1,3 out=1,3]
+  projections:
     variable (a.y) [in=1 out=1]
     variable (b.z) [in=3 out=3]
   inputs:
-    selectOp [in=0-3 out=0-3 cols=0,1,2,3]
-      filter:
+    selectOp (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
+      filters:
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -94,25 +110,25 @@ projectOp [in=1,3 out=1,3 cols=1,3]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join [in=0-3 out=0-3 cols=0,1,2,3]
-          filter:
+        inner join (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
+          filters:
             comp (=) [in=0,2]
               inputs:
                 variable (a.x) [in=0 out=0]
                 variable (b.x) [in=2 out=2]
           inputs:
-            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
-            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]
+            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
-  project:
-    variable (b.x) [in=2 out=2]
+projectOp ({a,b}.x:0) [in=0 out=0]
+  projections:
+    variable (b.x) [in=0 out=0]
   inputs:
-    selectOp [in=0-3 out=0-3 cols=0,1,2,3]
-      filter:
+    selectOp ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+      filters:
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -122,25 +138,25 @@ projectOp [in=2 out=2 cols=2]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join [in=0-3 out=0-3 cols=0,1,2,3]
-          filter:
+        inner join ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+          filters:
             comp (=) [in=0,2]
               inputs:
                 variable (a.x) [in=0 out=0]
                 variable (b.x) [in=2 out=2]
           inputs:
-            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
-            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]
+            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
-  project:
-    variable (b.x) [in=2 out=2]
+projectOp ({a,b}.x:0) [in=0 out=0]
+  projections:
+    variable (b.x) [in=0 out=0]
   inputs:
-    selectOp [in=0-3 out=0-3 cols=0,1,2,3]
-      filter:
+    selectOp ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+      filters:
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -150,25 +166,25 @@ projectOp [in=2 out=2 cols=2]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join [in=0-3 out=0-3 cols=0,1,2,3]
-          filter:
+        inner join ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+          filters:
             comp (=) [in=0,2]
               inputs:
                 variable (a.x) [in=0 out=0]
                 variable (b.x) [in=2 out=2]
           inputs:
-            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
-            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]
+            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
-projectOp [in=2 out=2 cols=2]
-  project:
-    variable (b.x) [in=2 out=2]
+projectOp ({a,b}.x:0) [in=0 out=0]
+  projections:
+    variable (b.x) [in=0 out=0]
   inputs:
-    selectOp [in=0-3 out=0-3 cols=0,1,2,3]
-      filter:
+    selectOp ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+      filters:
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -178,30 +194,30 @@ projectOp [in=2 out=2 cols=2]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join [in=0-3 out=0-3 cols=0,1,2,3]
-          filter:
+        inner join ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+          filters:
             comp (=) [in=0,2]
               inputs:
                 variable (a.x) [in=0 out=0]
                 variable (b.x) [in=2 out=2]
           inputs:
-            scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
-            scan (b (x, z)) [in=2-3 out=2-3 cols=2,3]
+            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 ----
-union [in=0-1 out=0-1 cols=0,1]
+union (a.x:0 a.y:1) [in=0-1 out=0-1]
   inputs:
-    projectOp [in=0-1 out=0-1 cols=0,1]
-      project:
+    projectOp (a.x:0 a.y:1) [in=0-1 out=0-1]
+      projections:
         variable (a.x) [in=0 out=0]
         variable (a.y) [in=1 out=1]
       inputs:
-        scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
-    projectOp [in=0-1 out=0-1 cols=1,0]
-      project:
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+    projectOp (a.y:1 a.x:0) [in=0-1 out=0-1]
+      projections:
         variable (a.y) [in=1 out=1]
         variable (a.x) [in=0 out=0]
       inputs:
-        scan (a (x, y)) [in=0-1 out=0-1 cols=0,1]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]

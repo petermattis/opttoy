@@ -6,8 +6,8 @@ import (
 )
 
 func init() {
-	operatorTab[innerJoinOp] = operatorInfo{
-		name: "inner join",
+	operatorTab[renameOp] = operatorInfo{
+		name: "rename",
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
@@ -20,18 +20,10 @@ func init() {
 
 		updateProperties: func(expr *expr) {
 			expr.inputVars = 0
-			for _, filter := range expr.filters() {
-				expr.inputVars |= filter.inputVars
-			}
 			for _, input := range expr.inputs() {
-				expr.inputVars |= input.inputVars
+				expr.inputVars |= input.outputVars
 			}
 			expr.outputVars = expr.inputVars
 		},
 	}
-	operatorTab[leftJoinOp] = operatorInfo{name: "left join"}
-	operatorTab[rightJoinOp] = operatorInfo{name: "right join"}
-	operatorTab[crossJoinOp] = operatorInfo{name: "cross join"}
-	operatorTab[semiJoinOp] = operatorInfo{name: "semi join"}
-	operatorTab[antiJoinOp] = operatorInfo{name: "anti join"}
 }

@@ -1,6 +1,7 @@
 package v3
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -10,6 +11,7 @@ const (
 	unknownOp operator = iota
 
 	scanOp
+	renameOp
 
 	unionOp
 	intersectOp
@@ -87,13 +89,12 @@ const (
 
 type operatorInfo struct {
 	name             string
-	columns          func(e *expr) []bitmapIndex
+	format           func(e *expr, buf *bytes.Buffer, level int)
 	updateProperties func(e *expr)
 }
 
 var operatorTab = [numOperators]operatorInfo{
 	unknownOp: {name: "unknown"},
-	orderByOp: {name: "orderBy"},
 }
 
 func (o operator) String() string {

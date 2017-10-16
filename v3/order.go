@@ -6,22 +6,21 @@ import (
 )
 
 func init() {
-	operatorTab[variableOp] = operatorInfo{
-		name: "variable",
+	operatorTab[orderByOp] = operatorInfo{
+		name: "orderBy",
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
-			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table.state.getData(e.dataIndex))
+			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
+			formatExprs(buf, "sorting", e.aux1(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},
 
 		updateProperties: func(expr *expr) {
-			// Variables are "pass through": the output variables are the same as the
-			// input variables.
-			expr.outputVars = expr.inputVars
+			unimplemented("orderBy.updateProperties")
 		},
 	}
 }

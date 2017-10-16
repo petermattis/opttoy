@@ -1,73 +1,41 @@
 package v3
 
-import "github.com/cockroachdb/cockroach/pkg/sql/parser"
+import (
+	"bytes"
+	"fmt"
+)
 
-var comparisonOpMap = [...]operator{
-	parser.EQ:                eqOp,
-	parser.LT:                ltOp,
-	parser.GT:                gtOp,
-	parser.LE:                leOp,
-	parser.GE:                geOp,
-	parser.NE:                neOp,
-	parser.In:                inOp,
-	parser.NotIn:             notInOp,
-	parser.Like:              likeOp,
-	parser.NotLike:           notLikeOp,
-	parser.ILike:             iLikeOp,
-	parser.NotILike:          notILikeOp,
-	parser.SimilarTo:         similarToOp,
-	parser.NotSimilarTo:      notSimilarToOp,
-	parser.RegMatch:          regMatchOp,
-	parser.NotRegMatch:       notRegMatchOp,
-	parser.RegIMatch:         regIMatchOp,
-	parser.NotRegIMatch:      notRegIMatchOp,
-	parser.IsDistinctFrom:    isDistinctFromOp,
-	parser.IsNotDistinctFrom: isNotDistinctFromOp,
-	parser.Is:                isOp,
-	parser.IsNot:             isNotOp,
-	parser.Any:               anyOp,
-	parser.Some:              someOp,
-	parser.All:               allOp,
-}
-
-var binaryOpMap = [...]operator{
-	parser.Bitand:   bitandOp,
-	parser.Bitor:    bitorOp,
-	parser.Bitxor:   bitxorOp,
-	parser.Plus:     plusOp,
-	parser.Minus:    minusOp,
-	parser.Mult:     multOp,
-	parser.Div:      divOp,
-	parser.FloorDiv: floorDivOp,
-	parser.Mod:      modOp,
-	parser.Pow:      powOp,
-	parser.Concat:   concatOp,
-	parser.LShift:   lShiftOp,
-	parser.RShift:   rShiftOp,
-}
-
-var unaryOpMap = [...]operator{
-	parser.UnaryPlus:       unaryPlusOp,
-	parser.UnaryMinus:      unaryMinusOp,
-	parser.UnaryComplement: unaryComplementOp,
-}
+const spaces = "                                                                "
 
 func init() {
+	scalarFormat := func(e *expr, buf *bytes.Buffer, level int) {
+		indent := spaces[:2*level]
+		fmt.Fprintf(buf, "%s%v", indent, e.op)
+		if e.table != nil {
+			if data := e.table.state.getData(e.dataIndex); data != nil {
+				fmt.Fprintf(buf, " (%s)", data)
+			}
+		}
+		e.formatVars(buf)
+		buf.WriteString("\n")
+		formatExprs(buf, "inputs", e.inputs(), level)
+	}
+
+	scalarUpdateProperties := func(expr *expr) {
+		// For a scalar operation the required input variables is the union of the
+		// required input variables of its inputs. There are no output variables.
+		expr.inputVars = 0
+		expr.outputVars = 0
+		for _, input := range expr.inputs() {
+			expr.inputVars |= input.inputVars
+		}
+	}
+
 	scalarInfo := func(name string) operatorInfo {
 		return operatorInfo{
-			name: name,
-			columns: func(expr *expr) []bitmapIndex {
-				return nil
-			},
-			updateProperties: func(expr *expr) {
-				// For a scalar operation the required input variables is the union of the
-				// required input variables of its inputs. There are no output variables.
-				expr.inputVars = 0
-				expr.outputVars = 0
-				for _, input := range expr.inputs() {
-					expr.inputVars |= input.inputVars
-				}
-			},
+			name:             name,
+			format:           scalarFormat,
+			updateProperties: scalarUpdateProperties,
 		}
 	}
 

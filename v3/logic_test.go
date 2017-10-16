@@ -192,7 +192,7 @@ func TestLogic(t *testing.T) {
 					return ""
 				}
 
-				expr, _ := e.prep(d.stmt)
+				expr := e.prep(d.stmt)
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
 					case "prep":
