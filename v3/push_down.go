@@ -5,14 +5,13 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 		return replacement
 	}
 
-	result := *e
-	result.children = append([]*expr(nil), e.children...)
-
-	for i, input := range result.inputs() {
-		result.children[i] = substitute(input, columns, replacement)
+	result := e.clone()
+	inputs := result.inputs()
+	for i, input := range inputs {
+		inputs[i] = substitute(input, columns, replacement)
 	}
 	result.updateProperties()
-	return &result
+	return result
 }
 
 func isFilterCompatible(e *expr, filter *expr) bool {

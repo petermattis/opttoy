@@ -148,6 +148,13 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 	}
 }
 
+func (e *expr) clone() *expr {
+	t := *e
+	t.children = make([]*expr, len(e.children))
+	copy(t.children, e.children)
+	return &t
+}
+
 func (e *expr) inputCount() int {
 	return len(e.children) - int(e.filterCount+e.aux1Count+e.aux2Count)
 }
