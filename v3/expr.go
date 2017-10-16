@@ -108,14 +108,15 @@ type expr struct {
 	// The inputs, projections and filters are all stored in the children slice
 	// to minimize overhead. The projectCount and filterCount values delineate
 	// the input, projection and filter sub-slices:
-	//   inputCount == len(children) - projectCount - filterCount
+	//   inputCount == len(children) - filterCount - aux1Count - aux2Count
 	//   inputs:      children[:inputCount]
-	//   projections: children[inputCount:inputCount + projectCount]
-	//   filters:     children[inputCount + projectCount:]
-	projectCount int16
-	extraCount   int16 // TODO(peter): unimplemented
-	filterCount  int16
-	dataIndex    int32
+	//   aux1:        children[inputCount:inputCount + aux1Count]
+	//   aux2:        children[inputCount+aux1Count:inputCount + aux1Count + aux2Count]
+	//   filters:     children[inputCount + aux1Count + aux2Count + filterCount:]
+	filterCount int16
+	aux1Count   int16
+	aux2Count   int16
+	dataIndex   int32
 	// The input and output bitmaps specified required inputs and generated
 	// outputs. The indexes refer to queryState.columns which is constructed on a
 	// per-query basis by the columns required by filters, join conditions, and
@@ -162,21 +163,12 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 	}
 }
 
+func (e *expr) inputCount() int {
+	return len(e.children) - int(e.filterCount+e.aux1Count+e.aux2Count)
+}
+
 func (e *expr) inputs() []*expr {
-	return e.children[:len(e.children)-int(e.projectCount+e.filterCount)]
-}
-
-func (e *expr) projections() []*expr {
-	inputCount := len(e.children) - int(e.projectCount+e.filterCount)
-	return e.children[inputCount : inputCount+int(e.projectCount)]
-}
-
-func (e *expr) addProjections(projections []*expr) {
-	filterStart := len(e.children) - int(e.filterCount)
-	e.children = append(e.children, projections...)
-	copy(e.children[filterStart+len(projections):], e.children[filterStart:])
-	copy(e.children[filterStart:], projections)
-	e.projectCount += int16(len(projections))
+	return e.children[:e.inputCount()]
 }
 
 func (e *expr) filters() []*expr {
@@ -202,6 +194,32 @@ func (e *expr) removeFilters() {
 	filterStart := len(e.children) - int(e.filterCount)
 	e.children = e.children[:filterStart]
 	e.filterCount = 0
+}
+
+func (e *expr) aux1() []*expr {
+	aux1Start := e.inputCount()
+	return e.children[aux1Start : aux1Start+int(e.aux1Count)]
+}
+
+func (e *expr) addAux1(exprs []*expr) {
+	aux2Start := len(e.children) - int(e.filterCount+e.aux2Count)
+	e.children = append(e.children, exprs...)
+	copy(e.children[aux2Start+len(exprs):], e.children[aux2Start:])
+	copy(e.children[aux2Start:], exprs)
+	e.aux1Count += int16(len(exprs))
+}
+
+func (e *expr) aux2() []*expr {
+	aux2Start := e.inputCount() + int(e.aux1Count)
+	return e.children[aux2Start : aux2Start+int(e.aux2Count)]
+}
+
+func (e *expr) addAux2(exprs []*expr) {
+	filterStart := len(e.children) - int(e.filterCount)
+	e.children = append(e.children, exprs...)
+	copy(e.children[filterStart+len(exprs):], e.children[filterStart:])
+	copy(e.children[filterStart:], exprs)
+	e.aux2Count += int16(len(exprs))
 }
 
 func (e *expr) info() *operatorInfo {

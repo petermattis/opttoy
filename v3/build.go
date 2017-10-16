@@ -526,7 +526,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 				p.outputVars.set(index)
 				state.columns = append(state.columns, columnRef{
 					table: result.table,
-					index: columnIndex(result.projectCount),
+					index: columnIndex(result.aux1Count),
 				})
 				name := string(expr.As)
 				if name == "" {
@@ -556,7 +556,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 		}
 	}
 
-	result.addProjections(projections)
+	result.addAux1(projections)
 	result.updateProperties()
 	return result
 }

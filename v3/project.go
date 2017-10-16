@@ -14,7 +14,7 @@ func init() {
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
-			formatExprs(buf, "projections", e.projections(), level)
+			formatExprs(buf, "projections", e.aux1(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},
@@ -25,7 +25,7 @@ func init() {
 				expr.inputVars |= filter.inputVars
 			}
 			expr.outputVars = 0
-			for _, project := range expr.projections() {
+			for _, project := range expr.aux1() {
 				expr.inputVars |= project.inputVars
 				expr.outputVars |= project.outputVars
 			}
