@@ -10,11 +10,12 @@ func init() {
 		name: "groupBy",
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
-			// TODO(peter): extra = grouping expressions, projections = aggregations.
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
+			formatExprs(buf, "groupings", e.aux1(), level)
+			formatExprs(buf, "aggregations", e.aux2(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},

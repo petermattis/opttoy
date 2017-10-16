@@ -10,11 +10,11 @@ func init() {
 		name: "orderBy",
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
-			// TODO(peter): extra = sorting expressions
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
 			e.formatVars(buf)
 			buf.WriteString("\n")
+			formatExprs(buf, "sorting", e.aux1(), level)
 			formatExprs(buf, "filters", e.filters(), level)
 			formatExprs(buf, "inputs", e.inputs(), level)
 		},

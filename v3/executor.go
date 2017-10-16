@@ -33,8 +33,6 @@ func fatalf(format string, args ...interface{}) {
 }
 
 type columnRef struct {
-	// TODO(peter): rather than a table, this should be a relation so that column
-	// references can refer to intermediate results in the query.
 	table *table
 	index columnIndex
 }
