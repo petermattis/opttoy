@@ -5,27 +5,30 @@ import (
 	"fmt"
 )
 
-// TODO(peter): Rework this documentation. Invariants: only projectOp contains
-// projections. Only selectOp and *JoinOp contain filters.
-
 // expr is a unified interface for both relational and scalar expressions in a
-// query. Expressions have optional inputs, projections and
-// filters. Additionally, an expression maintains a bitmap of required input
-// variables and a bitmap of the output variables it generates.
+// query. Expressions have optional inputs and filters. Specific operators also
+// maintain additional expressions in the aux1 and aux2 slices. In particular,
+// projectOp stores the projection expressions in aux1, groupByOp stores the
+// grouping expressions in aux1 and the aggregations in aux2 and orderByOp
+// stores the sorting expressions in aux2.
+//
+// Expressions contain a pointer to a table that defines their interface and
+// logical properties. For scalar expressions, the table points the context in
+// which the scalar is defined.
 //
 // Every unique column and every projection (that is more than just a pass
 // through of a variable) is given a variable index with the query. The
-// variable indexes are global to the query (see queryState) making the bitmaps
-// easily comparable. For example, consider the query:
+// variable indexes are global to the query (see queryState). For example,
+// consider the query:
 //
 //   SELECT x FROM a WHERE y > 0
 //
 // There are 2 variables in the above query: x and y. During name resolution,
 // the above query becomes:
 //
-//   SELECT @0 FROM a WHERE @1 > 0
-//   -- @0 -> x
-//   -- @1 -> y
+//   SELECT [0] FROM a WHERE [1] > 0
+//   -- [0] -> x
+//   -- [1] -> y
 //
 // This is akin to the way parser.IndexedVar works except that we're taking
 // care to make the indexes unique across the entire statement. Because each of
@@ -39,38 +42,16 @@ import (
 // bitmap to quickly determine whether a filter can be pushed below a
 // relational operator.
 //
-// TODO(peter,knz): The bitmap determines which variables are used at each
-// level of a logical plan but it does not determine the order in which the
-// values are presented in memory, e.g. as a result row. For this each
-// expression must also carry, next to the bitmap, an (optional) reordering
-// array which maps the positions in the result row to the indexes in the
-// bitmap. For example, the two queries SELECT k,v FROM kv and SELECT v,k FROM
-// kv have the same bitmap, but the first reorders @1 -> idx 0, @2 -> idx 1
-// whereas the second reorders @1 -> idx 1, @2 -> idx 0. More exploration is
-// required to determine whether a single array is sufficient for this (indexed
-// by the output column position) or whether both backward and forward
-// associations must be maintained. Or perhaps some other representation
-// altogether.
-//
-// Relational expressions are composed of inputs, filters and projections. If
-// the projections are empty then the input variables flow directly to the
-// output after being filtered either by filters or the operation itself
-// (e.g. distinctOp). The projections and filters have required variables as
-// inputs. From the diagram below, these variables need to either be provided
-// by the inputs or be computed by the operator based on the inputs.
+// Relational expressions are composed of inputs, optional filters and optional
+// auxiliary expressions. The output columns are derived by the operator from
+// the inputs and stored in expr.table.columns.
 //
 //   +---------+---------+-------+--------+
 //   |  out 0  |  out 1  |  ...  |  out N |
 //   +---------+---------+-------+--------+
-//   |                |                   |
-//   |           projections              |
-//   |                |                   |
-//   +------------------------------------+
-//   |                |                   |
 //   |             filters                |
-//   |                |                   |
 //   +------------------------------------+
-//   |             operator               |
+//   |        operator (aux1, aux)        |
 //   +---------+---------+-------+--------+
 //   |  in 0   |  in 1   |  ...  |  in N  |
 //   +---------+---------+-------+--------+
@@ -91,7 +72,7 @@ import (
 //           +--------+
 //
 // The output variables of each expression need to be compatible with input
-// columns of its parent expression. And notice that the input variables of an
+// columns of its parent expression. Notice that the input variables of an
 // expression constrain what output variables we need from the children. That
 // constrain can be expressed by bitmap intersection. For example, consider the
 // query:
@@ -116,7 +97,11 @@ type expr struct {
 	filterCount int16
 	aux1Count   int16
 	aux2Count   int16
-	dataIndex   int32
+	// The index of a data item (interface{}) for use by this expresssion. The
+	// data is accessible via expr.table.state.getData(). Used by scalar
+	// expressions to store additional info, such as the column name of a
+	// variable or the value of a constant.
+	dataIndex int32
 	// The input and output bitmaps specified required inputs and generated
 	// outputs. The indexes refer to queryState.columns which is constructed on a
 	// per-query basis by the columns required by filters, join conditions, and
