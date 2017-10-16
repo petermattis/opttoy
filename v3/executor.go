@@ -8,7 +8,7 @@
 // - required ordering
 //
 // physical properties
-// - defined ordering
+// - provided ordering
 //
 // scalar properties
 // - monotonic (ordering)
