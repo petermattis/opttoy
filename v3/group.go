@@ -21,7 +21,19 @@ func init() {
 		},
 
 		updateProperties: func(expr *expr) {
-			unimplemented("groupBy.updateProperties")
+			// TODO(peter): I haven't thought about this carefully. It is likely
+			// incorrect.
+			expr.inputVars = 0
+			for _, filter := range expr.filters() {
+				expr.inputVars |= filter.inputVars
+			}
+			for _, aggregate := range expr.aggregations() {
+				expr.inputVars |= aggregate.inputVars
+			}
+			for _, grouping := range expr.groupings() {
+				expr.inputVars |= grouping.inputVars
+			}
+			expr.outputVars = expr.inputVars
 		},
 	}
 }
