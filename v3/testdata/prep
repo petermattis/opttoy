@@ -1,8 +1,16 @@
 exec
 CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
 
 exec
 CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
 
 prep
 SELECT y FROM a

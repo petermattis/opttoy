@@ -1,8 +1,16 @@
 exec
 CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
 
 exec
 CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
 
 push_down
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3

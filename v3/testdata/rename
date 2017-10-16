@@ -1,8 +1,16 @@
 exec
 CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
 
 exec
 CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
 
 prep
 SELECT * FROM (SELECT * FROM a) AS b
@@ -70,7 +78,7 @@ projectOp (a.e:0) [in=0 out=0]
     variable (a.x) [in=0 out=0]
   inputs:
     scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-	
+
 prep
 SELECT * FROM (SELECT x AS e FROM a)
 ----

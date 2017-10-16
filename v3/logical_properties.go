@@ -7,12 +7,40 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
-// TODO(peter): value constraints.
+type columnRef struct {
+	props *logicalProperties
+	index int
+}
+
+// queryState holds per-query state such as the tables referenced by the query
+// and the mapping from table name to the column index for those tables columns
+// within the query.
+type queryState struct {
+	catalog map[string]*table
+	tables  map[string]bitmapIndex
+	// query index to properties and column index.
+	columns []columnRef
+	data    []interface{}
+}
+
+func (s *queryState) addData(d interface{}) int32 {
+	s.data = append(s.data, d)
+	return int32(len(s.data))
+}
+
+func (s *queryState) getData(idx int32) interface{} {
+	if idx == 0 {
+		return nil
+	}
+	return s.data[idx-1]
+}
+
 type logicalColumn struct {
 	name    string
 	tables  []string
 	index   bitmapIndex
 	notNull bool // TODO(peter): unimplemented
+	// TODO(peter): value constraints.
 }
 
 func (c logicalColumn) hasColumn(tableName, colName string) bool {

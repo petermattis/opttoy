@@ -100,7 +100,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProperties) *expr {
 			for i := range tab.columns {
 				state.columns = append(state.columns, columnRef{
 					props: result.props,
-					index: columnIndex(i),
+					index: i,
 				})
 			}
 		}
@@ -537,7 +537,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 				p.outputVars.set(index)
 				state.columns = append(state.columns, columnRef{
 					props: result.props,
-					index: columnIndex(len(result.projections())),
+					index: len(result.projections()),
 				})
 				name := string(expr.As)
 				if name == "" {

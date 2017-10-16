@@ -188,8 +188,7 @@ func TestLogic(t *testing.T) {
 			runTest(t, path, func(d *testdata) string {
 				switch d.cmd {
 				case "exec":
-					e.exec(d.sql)
-					return ""
+					return e.exec(d.stmt)
 				}
 
 				expr := e.prep(d.stmt)
