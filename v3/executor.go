@@ -43,7 +43,7 @@ func fatalf(format string, args ...interface{}) {
 }
 
 type columnRef struct {
-	table *table
+	props *logicalProperties
 	index columnIndex
 }
 
@@ -99,7 +99,7 @@ func (e *executor) exec(sql string) {
 }
 
 func (e *executor) prep(stmt parser.Statement) *expr {
-	return build(stmt, &table{
+	return build(stmt, &logicalProperties{
 		state: &queryState{
 			catalog: e.catalog,
 			tables:  make(map[string]bitmapIndex),
@@ -120,7 +120,6 @@ func (e *executor) createTable(stmt *parser.CreateTable) {
 		name: name,
 	}
 	e.catalog[name] = table
-	tables := []string{name}
 
 	columns := make(map[string]struct{})
 	for _, def := range stmt.Defs {
@@ -131,8 +130,7 @@ func (e *executor) createTable(stmt *parser.CreateTable) {
 			}
 			columns[string(def.Name)] = struct{}{}
 			table.columns = append(table.columns, column{
-				name:   string(def.Name),
-				tables: tables,
+				name: string(def.Name),
 			})
 		default:
 			unimplemented("%T", def)

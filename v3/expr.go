@@ -12,9 +12,9 @@ import (
 // grouping expressions in aux1 and the aggregations in aux2 and orderByOp
 // stores the sorting expressions in aux2.
 //
-// Expressions contain a pointer to a table that defines their interface and
-// logical properties. For scalar expressions, the table points the context in
-// which the scalar is defined.
+// Expressions contain a pointer to their logical properties. For scalar
+// expressions, the logical properties points to the context in which the
+// scalar is defined.
 //
 // Every unique column and every projection (that is more than just a pass
 // through of a variable) is given a variable index with the query. The
@@ -44,7 +44,7 @@ import (
 //
 // Relational expressions are composed of inputs, optional filters and optional
 // auxiliary expressions. The output columns are derived by the operator from
-// the inputs and stored in expr.table.columns.
+// the inputs and stored in expr.props.columns.
 //
 //   +---------+---------+-------+--------+
 //   |  out 0  |  out 1  |  ...  |  out N |
@@ -98,7 +98,7 @@ type expr struct {
 	aux1Count   int16
 	aux2Count   int16
 	// The index of a data item (interface{}) for use by this expresssion. The
-	// data is accessible via expr.table.state.getData(). Used by scalar
+	// data is accessible via expr.props.state.getData(). Used by scalar
 	// expressions to store additional info, such as the column name of a
 	// variable or the value of a constant.
 	dataIndex int32
@@ -109,7 +109,7 @@ type expr struct {
 	inputVars  bitmap
 	outputVars bitmap
 	children   []*expr
-	table      *table
+	props      *logicalProperties
 }
 
 func (e *expr) String() string {

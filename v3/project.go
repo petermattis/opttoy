@@ -11,7 +11,7 @@ func init() {
 
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
-			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.table)
+			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
 			e.formatVars(buf)
 			buf.WriteString("\n")
 			formatExprs(buf, "projections", e.projections(), level)
