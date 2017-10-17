@@ -74,7 +74,7 @@ func pushDownFilters(e *expr) {
 	e.removeFilters()
 
 	for _, filter := range filters {
-		count := 0
+		var count int
 		for _, input := range e.inputs() {
 			if isFilterCompatible(input, filter) {
 				input.addFilter(filter)
@@ -91,6 +91,22 @@ func pushDownFilters(e *expr) {
 					continue
 				}
 			}
+
+			// Rewrite filters as they are pushed through projections.
+			//
+			// TODO(peter): doing something operator specific like this highlights
+			// the need for an operator-specific interface for inferring predicates
+			// from other predicates.
+			if input.op == projectOp {
+				for _, project := range input.projections() {
+					if project.outputVars == filter.inputVars {
+						newFilter := substitute(filter, filter.inputVars, project)
+						input.addFilter(newFilter)
+						count++
+						continue
+					}
+				}
+			}
 		}
 		if count == 0 {
 			e.addFilter(filter)
@@ -102,21 +118,7 @@ func pushDownFilters(e *expr) {
 		pushDownFilters(input)
 	}
 
-	// TODO(peter): This is hacky and should be generalized. If filters were
-	// added to a scanOp, lift the filters into a selectOp.
-	if e.op == scanOp && len(e.filters()) > 0 {
-		filters := e.filters()
-		t := *e
-		t.removeFilters()
-		*e = expr{
-			op:          selectOp,
-			children:    make([]*expr, len(filters)+1),
-			filterCount: int16(len(filters)),
-		}
-		e.inputs()[0] = &t
-		copy(e.children[1:], filters)
-		t.updateProperties()
-	}
+	// Remove empty select ops.
 	if e.op == selectOp && len(e.filters()) == 0 {
 		*e = *e.inputs()[0]
 	}
