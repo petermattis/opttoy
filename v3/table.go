@@ -290,14 +290,9 @@ func (t *table) newLogicalProps(state *queryState) *logicalProps {
 
 	base, ok := state.tables[t.name]
 	if !ok {
-		base = bitmapIndex(len(state.columns))
+		base = state.nextVar
 		state.tables[t.name] = base
-		for i := range t.columns {
-			state.columns = append(state.columns, columnRef{
-				props: props,
-				index: i,
-			})
-		}
+		state.nextVar += bitmapIndex(len(t.columns))
 	}
 
 	tables := []string{t.name}

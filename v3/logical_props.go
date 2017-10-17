@@ -7,19 +7,13 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
-type columnRef struct {
-	props *logicalProps
-	index int
-}
-
 // queryState holds per-query state such as the tables referenced by the query
 // and the mapping from table name to the column index for those tables columns
 // within the query.
 type queryState struct {
 	catalog map[string]*table
 	tables  map[string]bitmapIndex
-	// query index to properties and column index.
-	columns []columnRef
+	nextVar bitmapIndex
 	data    []interface{}
 }
 

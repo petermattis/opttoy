@@ -505,12 +505,9 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 		projections = append(projections, exprs...)
 		for _, p := range exprs {
 			if p.outputVars == 0 {
-				index := bitmapIndex(len(state.columns))
+				index := state.nextVar
+				state.nextVar++
 				p.outputVars.set(index)
-				state.columns = append(state.columns, columnRef{
-					props: result.props,
-					index: len(result.projections()),
-				})
 				name := string(expr.As)
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
@@ -518,7 +515,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 				result.props.columns = append(result.props.columns, columnProps{
 					index:  index,
 					name:   name,
-					tables: []string{},
+					tables: nil,
 				})
 			} else {
 				for _, col := range input.props.columns {
