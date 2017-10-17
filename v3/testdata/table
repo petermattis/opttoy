@@ -50,3 +50,17 @@ table g
   x NULL
   y NULL
   (x,y) -> b(z,y)
+
+exec
+CREATE TABLE h (x INT REFERENCES a)
+----
+table h
+  x NULL
+  (x) -> a(x)
+
+exec
+CREATE TABLE i (x INT, FOREIGN KEY (x) REFERENCES a)
+----
+table i
+  x NULL
+  (x) -> a(x)

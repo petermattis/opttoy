@@ -142,8 +142,21 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 				if !ok {
 					fatalf("unable to find referenced table %s", refTable)
 				}
-				addForeignKey(tab, ref, []int{index},
-					ref.getColumnIndexes([]string{string(def.References.Col)}))
+				var refCols []int
+				if def.References.Col != "" {
+					refCols = ref.getColumnIndexes([]string{string(def.References.Col)})
+				} else {
+					for _, key := range ref.keys {
+						if key.primary {
+							refCols = key.columns
+							break
+						}
+					}
+					if refCols == nil {
+						fatalf("%s does not contain a primary key", ref.name)
+					}
+				}
+				addForeignKey(tab, ref, []int{index}, refCols)
 			}
 
 		case *parser.UniqueConstraintTableDef:
@@ -175,10 +188,27 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 			if !ok {
 				fatalf("unable to find referenced table %s", refTable)
 			}
-
+			var toCols []int
+			if len(def.ToCols) == 0 {
+				for _, key := range ref.keys {
+					if key.primary {
+						toCols = key.columns
+						break
+					}
+				}
+				if toCols == nil {
+					fatalf("%s does not contain a primary key", ref.name)
+				}
+			} else {
+				toCols = ref.getColumnIndexes(extractNames(def.ToCols))
+			}
+			if len(def.FromCols) != len(toCols) {
+				fatalf("invalid foreign key specification: %s(%s) -> %s(%s)",
+					tab.name, def.FromCols, ref.name, def.ToCols)
+			}
 			addForeignKey(tab, ref,
 				tab.getColumnIndexes(extractNames(def.FromCols)),
-				ref.getColumnIndexes(extractNames(def.ToCols)))
+				toCols)
 
 		default:
 			unimplemented("%T", def)
