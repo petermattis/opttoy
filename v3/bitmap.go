@@ -8,7 +8,7 @@ import (
 // Bitmap used for columns. We're limited to using 64 in a query due to
 // laziness. Use FastIntSet in a real implementation.
 type bitmap uint64
-type bitmapIndex uint
+type bitmapIndex uint32
 
 func (b bitmap) String() string {
 	appendBitmapRange := func(buf *bytes.Buffer, start, end int) {

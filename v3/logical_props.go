@@ -102,13 +102,14 @@ type logicalProps struct {
 	// is a candidate key and possibly a key if all of the columns are NOT
 	// NULL. A candidate key is a key if "(candidateKeys[i] & notNullColumns) ==
 	// candidateKeys[i]".
-	candidateKeys []bitmapIndex
+	candidateKeys []bitmap
 	// The global query state.
 	state *queryState
 }
 
 func (t *logicalProps) String() string {
 	var buf bytes.Buffer
+	var outputVars bitmap
 	for i, col := range t.columns {
 		if i > 0 {
 			buf.WriteString(" ")
@@ -129,6 +130,17 @@ func (t *logicalProps) String() string {
 		buf.WriteString(col.name)
 		buf.WriteString(":")
 		fmt.Fprintf(&buf, "%d", col.index)
+		outputVars |= 1 << col.index
+	}
+	for _, key := range t.candidateKeys {
+		buf.WriteString(" ")
+		if (key & t.notNullCols) == key {
+			buf.WriteString("*")
+		}
+		fmt.Fprintf(&buf, "(%s)", key)
+	}
+	if t.notNullCols != 0 {
+		fmt.Fprintf(&buf, " ![%s]", t.notNullCols)
 	}
 	return buf.String()
 }

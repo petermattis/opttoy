@@ -56,7 +56,7 @@ projectOp ({c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1) [in=0-1,3 out=0-1,3]
     variable (c.x) [in=0 out=0]
     variable (c.y) [in=1 out=1]
   inputs:
-    inner join ({c,d}.x:0 c.y:1 d.z:3) [in=0-3 out=0-3]
+    inner join ({c,d}.x:0 c.y:1 d.z:3 ![0,2]) [in=0-3 out=0-3]
       filters:
         comp (=) [in=0,2]
           inputs:

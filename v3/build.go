@@ -85,8 +85,11 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		}
 
 		result := &expr{
-			op:    scanOp,
-			props: tab.newLogicalProps(state),
+			op:        scanOp,
+			dataIndex: state.addData(tab),
+			props: &logicalProps{
+				state: state,
+			},
 		}
 		result.updateProperties()
 		return result
@@ -392,8 +395,8 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 				t,
 			},
 		}
-		result.updateProperties()
 		buildUsingJoin(result, nil)
+		result.updateProperties()
 		props = result.props
 	}
 
@@ -403,7 +406,7 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 			children: []*expr{
 				result,
 			},
-			props: result.props,
+			props: props,
 		}
 		result.addFilter(buildScalar(where.Expr, props))
 		result.updateProperties()

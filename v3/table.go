@@ -281,29 +281,3 @@ func (t *table) getColumnIndexes(names []string) []int {
 	}
 	return res
 }
-
-func (t *table) newLogicalProps(state *queryState) *logicalProps {
-	props := &logicalProps{
-		columns: make([]columnProps, 0, len(t.columns)),
-		state:   state,
-	}
-
-	base, ok := state.tables[t.name]
-	if !ok {
-		base = state.nextVar
-		state.tables[t.name] = base
-		state.nextVar += bitmapIndex(len(t.columns))
-	}
-
-	tables := []string{t.name}
-	for i, col := range t.columns {
-		index := base + bitmapIndex(i)
-		props.columns = append(props.columns, columnProps{
-			index:  index,
-			name:   col.name,
-			tables: tables,
-		})
-	}
-
-	return props
-}

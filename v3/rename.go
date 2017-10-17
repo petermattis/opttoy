@@ -24,6 +24,8 @@ func init() {
 				expr.inputVars |= input.outputVars
 			}
 			expr.outputVars = expr.inputVars
+
+			// TODO(peter): update expr.props.
 		},
 	}
 }

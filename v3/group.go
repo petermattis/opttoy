@@ -34,6 +34,8 @@ func init() {
 				expr.inputVars |= grouping.inputVars
 			}
 			expr.outputVars = expr.inputVars
+
+			// TODO(peter): update expr.props.
 		},
 	}
 }

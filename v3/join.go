@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 )
 
 func init() {
@@ -23,10 +24,23 @@ func init() {
 			for _, filter := range expr.filters() {
 				expr.inputVars |= filter.inputVars
 			}
+			props := expr.props
+			props.notNullCols = 0
 			for _, input := range expr.inputs() {
 				expr.inputVars |= input.inputVars
+				props.notNullCols |= input.props.notNullCols
 			}
 			expr.outputVars = expr.inputVars
+
+			// TODO(peter): update expr.props
+			for _, filter := range expr.filters() {
+				// TODO(peter): !isNullTolerant(filter)
+				for v := filter.inputVars; v != 0; {
+					i := uint(bits.TrailingZeros64(uint64(v)))
+					v &^= 1 << i
+					props.notNullCols |= 1 << i
+				}
+			}
 		},
 	}
 	operatorTab[leftJoinOp] = operatorInfo{name: "left join"}

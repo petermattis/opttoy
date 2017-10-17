@@ -1,7 +1,7 @@
 package v3
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
-	if e.op == variableOp && e.outputVars == columns {
+	if e.op == variableOp && e.inputVars == columns {
 		return replacement
 	}
 
