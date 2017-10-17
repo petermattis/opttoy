@@ -87,16 +87,9 @@ type expr struct {
 	// order to reduce space wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
-	// to minimize overhead. The projectCount and filterCount values delineate
-	// the input, projection and filter sub-slices:
-	//   inputCount == len(children) - filterCount - aux1Count - aux2Count
-	//   inputs:      children[:inputCount]
-	//   aux1:        children[inputCount:inputCount + aux1Count]
-	//   aux2:        children[inputCount+aux1Count:inputCount + aux1Count + aux2Count]
-	//   filters:     children[inputCount + aux1Count + aux2Count + filterCount:]
-	filterCount int16
-	aux1Count   int16
-	aux2Count   int16
+	// to minimize overhead. auxMask indicates which of these auxiliary
+	// expressions is present.
+	auxMask uint16
 	// The index of a data item (interface{}) for use by this expresssion. The
 	// data is accessible via expr.props.state.getData(). Used by scalar
 	// expressions to store additional info, such as the column name of a
@@ -156,16 +149,33 @@ func (e *expr) clone() *expr {
 }
 
 func (e *expr) inputCount() int {
-	return len(e.children) - int(e.filterCount+e.aux1Count+e.aux2Count)
+	return len(e.children) - (e.filterPresent() + e.aux1Present() + e.aux2Present())
 }
 
 func (e *expr) inputs() []*expr {
 	return e.children[:e.inputCount()]
 }
 
+const (
+	auxFilterBit = iota
+	aux1Bit
+	aux2Bit
+)
+
+func (e *expr) filterPresent() int {
+	return int((e.auxMask >> auxFilterBit) & 1)
+}
+
 func (e *expr) filters() []*expr {
-	filterStart := len(e.children) - int(e.filterCount)
-	return e.children[filterStart:]
+	if e.filterPresent() == 0 {
+		return nil
+	}
+	i := len(e.children) - 1
+	f := e.children[i:]
+	if f[0].op == andOp {
+		return f[0].children
+	}
+	return f
 }
 
 func (e *expr) addFilter(f *expr) {
@@ -178,40 +188,102 @@ func (e *expr) addFilter(f *expr) {
 		}
 		return
 	}
-	e.children = append(e.children, f)
-	e.filterCount++
+
+	if e.filterPresent() == 0 {
+		e.auxMask |= 1 << auxFilterBit
+		e.children = append(e.children, f)
+	} else {
+		i := len(e.children) - 1
+		if t := e.children[i]; t.op != andOp {
+			e.children[i] = &expr{
+				op:       andOp,
+				children: []*expr{t, f},
+				props:    t.props,
+			}
+		} else {
+			t.children = append(t.children, f)
+		}
+	}
 }
 
 func (e *expr) removeFilters() {
-	filterStart := len(e.children) - int(e.filterCount)
+	filterStart := len(e.children) - e.filterPresent()
 	e.children = e.children[:filterStart]
-	e.filterCount = 0
+	e.auxMask &^= 1 << auxFilterBit
+}
+
+func (e *expr) aux1Present() int {
+	return int((e.auxMask >> aux1Bit) & 1)
+}
+
+func (e *expr) aux1Index() int {
+	if e.aux1Present() == 0 {
+		return -1
+	}
+	return len(e.children) - 1 - e.filterPresent()
 }
 
 func (e *expr) aux1() []*expr {
-	aux1Start := e.inputCount()
-	return e.children[aux1Start : aux1Start+int(e.aux1Count)]
+	i := e.aux1Index()
+	if i < 0 {
+		return nil
+	}
+	return e.children[i].children
 }
 
 func (e *expr) addAux1(exprs []*expr) {
-	aux2Start := len(e.children) - int(e.filterCount+e.aux2Count)
-	e.children = append(e.children, exprs...)
-	copy(e.children[aux2Start+len(exprs):], e.children[aux2Start:])
-	copy(e.children[aux2Start:], exprs)
-	e.aux1Count += int16(len(exprs))
+	if e.aux1Present() == 0 {
+		e.auxMask |= 1 << aux1Bit
+		e.children = append(e.children, nil)
+		i := e.aux1Index()
+		copy(e.children[i+1:], e.children[i:])
+		e.children[i] = &expr{
+			op:       andOp,
+			children: exprs,
+			props:    e.props,
+		}
+	} else {
+		i := e.aux1Index()
+		aux1 := e.children[i]
+		aux1.children = append(aux1.children, exprs...)
+	}
+}
+
+func (e *expr) aux2Present() int {
+	return int((e.auxMask >> aux2Bit) & 1)
+}
+
+func (e *expr) aux2Index() int {
+	if e.aux2Present() == 0 {
+		return -1
+	}
+	return len(e.children) - 1 - int(e.filterPresent()+e.aux1Present())
 }
 
 func (e *expr) aux2() []*expr {
-	aux2Start := e.inputCount() + int(e.aux1Count)
-	return e.children[aux2Start : aux2Start+int(e.aux2Count)]
+	i := e.aux2Index()
+	if i < 0 {
+		return nil
+	}
+	return e.children[i].children
 }
 
 func (e *expr) addAux2(exprs []*expr) {
-	filterStart := len(e.children) - int(e.filterCount)
-	e.children = append(e.children, exprs...)
-	copy(e.children[filterStart+len(exprs):], e.children[filterStart:])
-	copy(e.children[filterStart:], exprs)
-	e.aux2Count += int16(len(exprs))
+	if e.aux2Present() == 0 {
+		e.auxMask |= 1 << aux2Bit
+		e.children = append(e.children, nil)
+		i := e.aux2Index()
+		copy(e.children[i+1:], e.children[i:])
+		e.children[i] = &expr{
+			op:       andOp,
+			children: exprs,
+			props:    e.props,
+		}
+	} else {
+		i := e.aux2Index()
+		aux2 := e.children[i]
+		aux2.children = append(aux2.children, exprs...)
+	}
 }
 
 func (e *expr) projections() []*expr {
