@@ -85,34 +85,8 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		}
 
 		result := &expr{
-			op: scanOp,
-			props: &logicalProps{
-				columns: make([]columnProps, 0, len(tab.columns)),
-				state:   state,
-			},
-		}
-
-		base, ok := state.tables[name]
-		if !ok {
-			base = bitmapIndex(len(state.columns))
-			state.tables[name] = base
-			for i := range tab.columns {
-				state.columns = append(state.columns, columnRef{
-					props: result.props,
-					index: i,
-				})
-			}
-		}
-
-		tables := []string{tab.name}
-		for i, col := range tab.columns {
-			index := base + bitmapIndex(i)
-			result.inputVars.set(index)
-			result.props.columns = append(result.props.columns, columnProps{
-				index:  index,
-				name:   col.name,
-				tables: tables,
-			})
+			op:    scanOp,
+			props: tab.newLogicalProps(state),
 		}
 		result.updateProperties()
 		return result

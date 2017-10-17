@@ -89,7 +89,9 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 
 type logicalProps struct {
 	columns []columnProps
-	// Bitmap indicating which output columns cannot be NULL.
+	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
+	// columns flows from the inputs and can also be derived from filters that
+	// are NULL-intolerant.
 	notNullCols bitmap
 	// TODO(peter): Bitmap indicating which output columns are constant.
 	// constCols bitmap

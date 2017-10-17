@@ -19,6 +19,10 @@ func init() {
 		},
 
 		updateProperties: func(expr *expr) {
+			expr.inputVars = 0
+			for _, col := range expr.props.columns {
+				expr.inputVars.set(col.index)
+			}
 			expr.outputVars = expr.inputVars
 		},
 	}
