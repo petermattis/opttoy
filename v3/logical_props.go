@@ -99,7 +99,9 @@ type logicalProps struct {
 	//
 	// A candidate key is a set of columns where no two rows containing non-NULL
 	// values are equal after projection onto that set. A UNIQUE index on a table
-	// is a candidate key and possibly a key if all of the columns are NOT NULL.
+	// is a candidate key and possibly a key if all of the columns are NOT
+	// NULL. A candidate key is a key if "(candidateKeys[i] & notNullColumns) ==
+	// candidateKeys[i]".
 	candidateKeys []bitmapIndex
 	// The global query state.
 	state *queryState
