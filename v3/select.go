@@ -6,9 +6,7 @@ import (
 )
 
 func init() {
-	operatorTab[selectOp] = operatorInfo{
-		name: "selectOp",
-
+	registerOperator(selectOp, "selectOp", operatorInfo{
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
@@ -30,5 +28,5 @@ func init() {
 
 			// TODO(peter): update expr.props.
 		},
-	}
+	})
 }

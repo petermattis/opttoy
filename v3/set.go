@@ -6,9 +6,7 @@ import (
 )
 
 func init() {
-	operatorTab[unionOp] = operatorInfo{
-		name: "union",
-
+	registerOperator(unionOp, "union", operatorInfo{
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
@@ -30,12 +28,8 @@ func init() {
 
 			// TODO(peter): update expr.props.
 		},
-	}
+	})
 
-	operatorTab[intersectOp] = operatorInfo{
-		name: "intersect",
-	}
-	operatorTab[exceptOp] = operatorInfo{
-		name: "except",
-	}
+	registerOperator(intersectOp, "intersect", operatorInfo{})
+	registerOperator(exceptOp, "except", operatorInfo{})
 }

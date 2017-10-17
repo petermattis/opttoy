@@ -87,19 +87,28 @@ const (
 	numOperators
 )
 
+// TODO(peter): convert this to an interface.
 type operatorInfo struct {
-	name             string
 	format           func(e *expr, buf *bytes.Buffer, level int)
 	updateProperties func(e *expr)
 }
 
-var operatorTab = [numOperators]operatorInfo{
-	unknownOp: {name: "unknown"},
-}
+var (
+	operatorTab = [numOperators]operatorInfo{}
+
+	operatorNames = [numOperators]string{
+		unknownOp: "unknown",
+	}
+)
 
 func (o operator) String() string {
-	if o < 0 || o > operator(len(operatorTab)-1) {
+	if o < 0 || o > operator(len(operatorNames)-1) {
 		return fmt.Sprintf("operator(%d)", o)
 	}
-	return operatorTab[o].name
+	return operatorNames[o]
+}
+
+func registerOperator(op operator, name string, info operatorInfo) {
+	operatorNames[op] = name
+	operatorTab[op] = info
 }

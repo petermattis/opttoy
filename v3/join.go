@@ -7,9 +7,7 @@ import (
 )
 
 func init() {
-	operatorTab[innerJoinOp] = operatorInfo{
-		name: "inner join",
-
+	registerOperator(innerJoinOp, "inner join", operatorInfo{
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
@@ -42,10 +40,10 @@ func init() {
 				}
 			}
 		},
-	}
-	operatorTab[leftJoinOp] = operatorInfo{name: "left join"}
-	operatorTab[rightJoinOp] = operatorInfo{name: "right join"}
-	operatorTab[fullJoinOp] = operatorInfo{name: "full join"}
-	operatorTab[semiJoinOp] = operatorInfo{name: "semi join"}
-	operatorTab[antiJoinOp] = operatorInfo{name: "anti join"}
+	})
+	registerOperator(leftJoinOp, "left join", operatorInfo{})
+	registerOperator(rightJoinOp, "right join", operatorInfo{})
+	registerOperator(fullJoinOp, "full join", operatorInfo{})
+	registerOperator(semiJoinOp, "semi join", operatorInfo{})
+	registerOperator(antiJoinOp, "anti join", operatorInfo{})
 }

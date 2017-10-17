@@ -6,9 +6,7 @@ import (
 )
 
 func init() {
-	operatorTab[groupByOp] = operatorInfo{
-		name: "groupBy",
-
+	registerOperator(groupByOp, "groupBy", operatorInfo{
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
@@ -37,5 +35,5 @@ func init() {
 
 			// TODO(peter): update expr.props.
 		},
-	}
+	})
 }

@@ -6,9 +6,7 @@ import (
 )
 
 func init() {
-	operatorTab[distinctOp] = operatorInfo{
-		name: "distinct",
-
+	registerOperator(distinctOp, "distinct", operatorInfo{
 		format: func(e *expr, buf *bytes.Buffer, level int) {
 			indent := spaces[:2*level]
 			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
@@ -21,5 +19,5 @@ func init() {
 		updateProperties: func(expr *expr) {
 			unimplemented("distinct.updateProperties")
 		},
-	}
+	})
 }
