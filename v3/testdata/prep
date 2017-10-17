@@ -131,11 +131,11 @@ projectOp (a.y:1 b.z:3) [in=1,3 out=1,3]
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
-projectOp ({a,b}.x:0) [in=0 out=0]
+projectOp (b.x:2) [in=2 out=2]
   projections:
-    variable (b.x) [in=0 out=0]
+    variable (b.x) [in=2 out=2]
   inputs:
-    selectOp ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
+    selectOp (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
       filters:
         comp (>) [in=0]
           inputs:
@@ -146,16 +146,11 @@ projectOp ({a,b}.x:0) [in=0 out=0]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join ({a,b}.x:0 a.y:1 b.z:3) [in=0-3 out=0-3]
-          filters:
-            comp (=) [in=0,2]
-              inputs:
-                variable (a.x) [in=0 out=0]
-                variable (b.x) [in=2 out=2]
+        inner join (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
           inputs:
             scan (a.x:0 a.y:1) [in=0-1 out=0-1]
             scan (b.x:2 b.z:3) [in=2-3 out=2-3]
-
+			    
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----

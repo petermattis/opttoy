@@ -31,7 +31,7 @@ func init() {
 	}
 	operatorTab[leftJoinOp] = operatorInfo{name: "left join"}
 	operatorTab[rightJoinOp] = operatorInfo{name: "right join"}
-	operatorTab[crossJoinOp] = operatorInfo{name: "cross join"}
+	operatorTab[fullJoinOp] = operatorInfo{name: "full join"}
 	operatorTab[semiJoinOp] = operatorInfo{name: "semi join"}
 	operatorTab[antiJoinOp] = operatorInfo{name: "anti join"}
 }

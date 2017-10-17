@@ -421,7 +421,7 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 			},
 		}
 		result.updateProperties()
-		buildNaturalJoin(result)
+		buildUsingJoin(result, nil)
 		props = result.props
 	}
 

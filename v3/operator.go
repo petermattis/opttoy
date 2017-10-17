@@ -20,7 +20,7 @@ const (
 	innerJoinOp
 	leftJoinOp
 	rightJoinOp
-	crossJoinOp
+	fullJoinOp
 	semiJoinOp
 	antiJoinOp
 
