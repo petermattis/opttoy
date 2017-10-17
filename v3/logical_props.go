@@ -88,6 +88,24 @@ func (c columnProps) newVariableExpr(tableName string, table *logicalProps) *exp
 	return e
 }
 
+// TODO(peter): determine representation of functional dependencies and column
+// constraints. For every column, we need to track nullability. This can be
+// done using a bitmap.
+//
+// We also need to identify keys which are a set of columns and thus can also
+// be represented by a bitmap. A "strong key" is one in which each column is
+// NOT NULL. A "weak key" is one on which at least one column can be NULL.
+//
+// A functional dependency implies an associated function. For a key, the
+// function is a database lookup. Given a key, we can determine the other
+// columns in the table. Functional dependencies also arise in projections. For
+// a given set of columns, we need to maintain an expression (the projection)
+// which computes another column. If the function is invertible, we can also
+// have the inverse dependency.
+//
+// Note that only projectOp contains projections. So we can hold a pointer to
+// the projection expression. [An additional scalar property is
+// invertibility. "a = b + 1" is invertible, "a = lower(b)" is not].
 type logicalProps struct {
 	name    string
 	columns []columnProps
