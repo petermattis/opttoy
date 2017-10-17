@@ -87,7 +87,6 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		result := &expr{
 			op: scanOp,
 			props: &logicalProps{
-				name:    tab.name,
 				columns: make([]columnProps, 0, len(tab.columns)),
 				state:   state,
 			},
@@ -131,7 +130,6 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 				op:       renameOp,
 				children: []*expr{result},
 				props: &logicalProps{
-					name:    string(source.As.Alias),
 					columns: make([]columnProps, 0, len(tab.columns)),
 					state:   tab.state,
 				},

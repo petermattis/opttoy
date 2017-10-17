@@ -36,10 +36,9 @@ func (s *queryState) getData(idx int32) interface{} {
 }
 
 type columnProps struct {
-	name    string
-	tables  []string
-	index   bitmapIndex
-	notNull bool // TODO(peter): unimplemented
+	name   string
+	tables []string
+	index  bitmapIndex
 	// TODO(peter): value constraints.
 }
 
@@ -77,40 +76,37 @@ func (c columnProps) resolvedName(tableName string) *parser.ColumnItem {
 	}
 }
 
-func (c columnProps) newVariableExpr(tableName string, table *logicalProps) *expr {
+func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *expr {
 	e := &expr{
 		op:        variableOp,
-		dataIndex: table.state.addData(c.resolvedName(tableName)),
-		props:     table,
+		dataIndex: props.state.addData(c.resolvedName(tableName)),
+		props:     props,
 	}
 	e.inputVars.set(c.index)
 	e.updateProperties()
 	return e
 }
 
-// TODO(peter): determine representation of functional dependencies and column
-// constraints. For every column, we need to track nullability. This can be
-// done using a bitmap.
-//
-// We also need to identify keys which are a set of columns and thus can also
-// be represented by a bitmap. A "strong key" is one in which each column is
-// NOT NULL. A "weak key" is one on which at least one column can be NULL.
-//
-// A functional dependency implies an associated function. For a key, the
-// function is a database lookup. Given a key, we can determine the other
-// columns in the table. Functional dependencies also arise in projections. For
-// a given set of columns, we need to maintain an expression (the projection)
-// which computes another column. If the function is invertible, we can also
-// have the inverse dependency.
-//
-// Note that only projectOp contains projections. So we can hold a pointer to
-// the projection expression. [An additional scalar property is
-// invertibility. "a = b + 1" is invertible, "a = lower(b)" is not].
 type logicalProps struct {
-	name    string
 	columns []columnProps
-	keys    []tableKey // TODO(peter): unimplemented
-	state   *queryState
+	// Bitmap indicating which output columns cannot be NULL.
+	notNullCols bitmap
+	// TODO(peter): Bitmap indicating which output columns are constant.
+	// constCols bitmap
+
+	// A column set is a key if no two rows are equal after projection onto that
+	// set. A requirement for a column set to be a key is for no columns in the
+	// set to be NULL-able. This requirement stems from the property of NULL
+	// where NULL != NULL. The simplest example of a key is the primary key for a
+	// table (recall that all of the columns of the primary key are defined to be
+	// NOT NULL).
+	//
+	// A candidate key is a set of columns where no two rows containing non-NULL
+	// values are equal after projection onto that set. A UNIQUE index on a table
+	// is a candidate key and possibly a key if all of the columns are NOT NULL.
+	candidateKeys []bitmapIndex
+	// The global query state.
+	state *queryState
 }
 
 func (t *logicalProps) String() string {
@@ -130,8 +126,6 @@ func (t *logicalProps) String() string {
 			buf.WriteString("}")
 		} else if len(tables) == 1 {
 			buf.WriteString(tables[0])
-		} else {
-			buf.WriteString(t.name)
 		}
 		buf.WriteString(".")
 		buf.WriteString(col.name)
@@ -144,7 +138,7 @@ func (t *logicalProps) String() string {
 func (t *logicalProps) newColumnExpr(name string) *expr {
 	for _, col := range t.columns {
 		if col.name == name {
-			return col.newVariableExpr(t.name, t)
+			return col.newVariableExpr(col.tables[0], t)
 		}
 	}
 	return nil
