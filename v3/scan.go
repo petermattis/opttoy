@@ -3,7 +3,6 @@ package v3
 import (
 	"bytes"
 	"fmt"
-	"math/bits"
 )
 
 func init() {
@@ -63,15 +62,7 @@ func (scan) updateProperties(e *expr) {
 		}
 	}
 
-	// Add additional not-NULL columns based on filters.
-	for _, filter := range e.filters() {
-		// TODO(peter): !isNullTolerant(filter)
-		for v := filter.inputVars; v != 0; {
-			i := uint(bits.TrailingZeros64(uint64(v)))
-			v &^= 1 << i
-			props.notNullCols |= 1 << i
-		}
-	}
+	props.applyFilters(e.filters())
 
 	e.inputVars = 0
 	for _, col := range e.props.columns {

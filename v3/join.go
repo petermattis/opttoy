@@ -3,7 +3,6 @@ package v3
 import (
 	"bytes"
 	"fmt"
-	"math/bits"
 )
 
 func init() {
@@ -39,13 +38,5 @@ func (innerJoin) updateProperties(e *expr) {
 	}
 	e.outputVars = e.inputVars
 
-	// TODO(peter): update expr.props
-	for _, filter := range e.filters() {
-		// TODO(peter): !isNullTolerant(filter)
-		for v := filter.inputVars; v != 0; {
-			i := uint(bits.TrailingZeros64(uint64(v)))
-			v &^= 1 << i
-			props.notNullCols |= 1 << i
-		}
-	}
+	props.applyFilters(e.filters())
 }

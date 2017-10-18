@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
@@ -107,10 +108,10 @@ type logicalProps struct {
 	state *queryState
 }
 
-func (t *logicalProps) String() string {
+func (p *logicalProps) String() string {
 	var buf bytes.Buffer
 	var outputVars bitmap
-	for i, col := range t.columns {
+	for i, col := range p.columns {
 		if i > 0 {
 			buf.WriteString(" ")
 		}
@@ -132,26 +133,38 @@ func (t *logicalProps) String() string {
 		fmt.Fprintf(&buf, "%d", col.index)
 		outputVars |= 1 << col.index
 	}
-	for _, key := range t.candidateKeys {
+	for _, key := range p.candidateKeys {
 		buf.WriteString(" ")
-		if (key & t.notNullCols) == key {
+		if (key & p.notNullCols) == key {
 			buf.WriteString("*")
 		}
 		fmt.Fprintf(&buf, "(%s)", key)
 	}
-	if t.notNullCols != 0 {
-		fmt.Fprintf(&buf, " ![%s]", t.notNullCols)
+	if p.notNullCols != 0 {
+		fmt.Fprintf(&buf, " ![%s]", p.notNullCols)
 	}
 	return buf.String()
 }
 
-func (t *logicalProps) newColumnExpr(name string) *expr {
-	for _, col := range t.columns {
+func (p *logicalProps) newColumnExpr(name string) *expr {
+	for _, col := range p.columns {
 		if col.name == name {
-			return col.newVariableExpr(col.tables[0], t)
+			return col.newVariableExpr(col.tables[0], p)
 		}
 	}
 	return nil
+}
+
+// Add additional not-NULL columns based on the filtering expressions.
+func (p *logicalProps) applyFilters(filters []*expr) {
+	for _, filter := range filters {
+		// TODO(peter): !isNullTolerant(filter)
+		for v := filter.inputVars; v != 0; {
+			i := uint(bits.TrailingZeros64(uint64(v)))
+			v &^= 1 << i
+			p.notNullCols |= 1 << i
+		}
+	}
 }
 
 func concatLogicalProperties(left, right *logicalProps) *logicalProps {
