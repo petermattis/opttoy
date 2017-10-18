@@ -118,10 +118,5 @@ func pushDownFilters(e *expr) {
 		pushDownFilters(input)
 	}
 
-	// Remove empty select ops.
-	if e.op == selectOp && len(e.filters()) == 0 {
-		*e = *e.inputs()[0]
-	}
-
 	e.updateProperties()
 }

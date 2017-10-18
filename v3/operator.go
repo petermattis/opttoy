@@ -25,7 +25,6 @@ const (
 	antiJoinOp
 
 	projectOp
-	selectOp
 
 	groupByOp
 	orderByOp

@@ -90,14 +90,12 @@ project (b.x:0 b.z:1) [in=0-1 out=0-1]
     variable (b.x) [in=0 out=0]
     variable (b.z) [in=1 out=1]
   inputs:
-    select (b.x:0 b.z:1) [in=0-1 out=0-1]
+    scan (b.x:0 b.z:1 ![1]) [in=0-1 out=0-1]
       filters:
         comp (>) [in=1]
           inputs:
             variable (b.z) [in=1 out=1]
             const (10)
-      inputs:
-        scan (b.x:0 b.z:1) [in=0-1 out=0-1]
 
 prep
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
@@ -107,8 +105,12 @@ project (a.y:1 b.z:3) [in=1,3 out=1,3]
     variable (a.y) [in=1 out=1]
     variable (b.z) [in=3 out=3]
   inputs:
-    select (a.x:0 a.y:1 b.x:2 b.z:3 ![0,2]) [in=0-3 out=0-3]
+    inner join (a.x:0 a.y:1 b.x:2 b.z:3 ![0,2-3]) [in=0-3 out=0-3]
       filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0 out=0]
+            variable (b.x) [in=2 out=2]
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -118,15 +120,8 @@ project (a.y:1 b.z:3) [in=1,3 out=1,3]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join (a.x:0 a.y:1 b.x:2 b.z:3 ![0,2]) [in=0-3 out=0-3]
-          filters:
-            comp (=) [in=0,2]
-              inputs:
-                variable (a.x) [in=0 out=0]
-                variable (b.x) [in=2 out=2]
-          inputs:
-            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
@@ -135,7 +130,7 @@ project (b.x:2) [in=2 out=2]
   projections:
     variable (b.x) [in=2 out=2]
   inputs:
-    select (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
+    inner join (a.x:0 a.y:1 b.x:2 b.z:3 ![0,3]) [in=0-3 out=0-3]
       filters:
         comp (>) [in=0]
           inputs:
@@ -146,10 +141,8 @@ project (b.x:2) [in=2 out=2]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
-          inputs:
-            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
@@ -158,8 +151,12 @@ project ({a,b}.x:0) [in=0 out=0]
   projections:
     variable (b.x) [in=0 out=0]
   inputs:
-    select ({a,b}.x:0 a.y:1 b.z:3 ![0,2]) [in=0-3 out=0-3]
+    inner join ({a,b}.x:0 a.y:1 b.z:3 ![0,2-3]) [in=0-3 out=0-3]
       filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0 out=0]
+            variable (b.x) [in=2 out=2]
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -169,15 +166,8 @@ project ({a,b}.x:0) [in=0 out=0]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join ({a,b}.x:0 a.y:1 b.z:3 ![0,2]) [in=0-3 out=0-3]
-          filters:
-            comp (=) [in=0,2]
-              inputs:
-                variable (a.x) [in=0 out=0]
-                variable (b.x) [in=2 out=2]
-          inputs:
-            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
@@ -186,8 +176,12 @@ project ({a,b}.x:0) [in=0 out=0]
   projections:
     variable (b.x) [in=0 out=0]
   inputs:
-    select ({a,b}.x:0 a.y:1 b.z:3 ![0,2]) [in=0-3 out=0-3]
+    inner join ({a,b}.x:0 a.y:1 b.z:3 ![0,2-3]) [in=0-3 out=0-3]
       filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0 out=0]
+            variable (b.x) [in=2 out=2]
         comp (>) [in=0]
           inputs:
             variable (a.x) [in=0 out=0]
@@ -197,15 +191,8 @@ project ({a,b}.x:0) [in=0 out=0]
             variable (b.z) [in=3 out=3]
             const (3)
       inputs:
-        inner join ({a,b}.x:0 a.y:1 b.z:3 ![0,2]) [in=0-3 out=0-3]
-          filters:
-            comp (=) [in=0,2]
-              inputs:
-                variable (a.x) [in=0 out=0]
-                variable (b.x) [in=2 out=2]
-          inputs:
-            scan (a.x:0 a.y:1) [in=0-1 out=0-1]
-            scan (b.x:2 b.z:3) [in=2-3 out=2-3]
+        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan (b.x:2 b.z:3) [in=2-3 out=2-3]
 
 prep
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a

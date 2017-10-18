@@ -401,13 +401,6 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 	}
 
 	if where != nil {
-		result = &expr{
-			op: selectOp,
-			children: []*expr{
-				result,
-			},
-			props: props,
-		}
 		result.addFilter(buildScalar(where.Expr, props))
 		result.updateProperties()
 	}
@@ -437,13 +430,6 @@ func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *ex
 	if having != nil {
 		// TODO(peter): Any aggregations mentioned in the having expressions need
 		// to be copied into the groupByOp. Ditto for later projections.
-		result = &expr{
-			op: selectOp,
-			children: []*expr{
-				result,
-			},
-			props: result.props,
-		}
 		result.addFilter(buildScalar(having.Expr, result.props))
 		result.updateProperties()
 	}
