@@ -20,7 +20,7 @@ func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scan) updateProperties(e *expr) {
+func (scan) updateProps(e *expr) {
 	tab := e.props.state.getData(e.dataIndex).(*table)
 	props := e.props
 	if props.columns == nil {

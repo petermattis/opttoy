@@ -88,7 +88,7 @@ const (
 
 type operatorInfo interface {
 	format(e *expr, buf *bytes.Buffer, level int)
-	updateProperties(e *expr)
+	updateProps(e *expr)
 }
 
 var (

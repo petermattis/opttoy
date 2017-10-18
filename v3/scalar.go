@@ -71,7 +71,7 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scalar) updateProperties(e *expr) {
+func (scalar) updateProps(e *expr) {
 	// For a scalar operation the required input variables is the union of the
 	// required input variables of its inputs. There are no output variables.
 	e.inputVars = 0

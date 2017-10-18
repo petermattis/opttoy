@@ -332,6 +332,6 @@ func (e *expr) info() operatorInfo {
 	return operatorTab[e.op]
 }
 
-func (e *expr) updateProperties() {
-	e.info().updateProperties(e)
+func (e *expr) updateProps() {
+	e.info().updateProps(e)
 }

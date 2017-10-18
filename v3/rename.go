@@ -20,7 +20,7 @@ func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (rename) updateProperties(e *expr) {
+func (rename) updateProps(e *expr) {
 	e.inputVars = 0
 	for _, input := range e.inputs() {
 		e.inputVars |= input.outputVars

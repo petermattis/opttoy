@@ -10,7 +10,7 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	for i, input := range inputs {
 		inputs[i] = substitute(input, columns, replacement)
 	}
-	result.updateProperties()
+	result.updateProps()
 	return result
 }
 
@@ -114,9 +114,9 @@ func pushDownFilters(e *expr) {
 	}
 
 	for _, input := range e.inputs() {
-		input.updateProperties()
+		input.updateProps()
 		pushDownFilters(input)
 	}
 
-	e.updateProperties()
+	e.updateProps()
 }

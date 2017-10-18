@@ -91,7 +91,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 				state: state,
 			},
 		}
-		result.updateProperties()
+		result.updateProps()
 		return result
 
 	case *parser.AliasedTableExpr:
@@ -126,7 +126,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 				})
 			}
 
-			result.updateProperties()
+			result.updateProps()
 			return result
 		}
 		return result
@@ -158,7 +158,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 			unimplemented("%T", source.Cond)
 		}
 
-		result.updateProperties()
+		result.updateProps()
 		return result
 
 	case *parser.Subquery:
@@ -212,7 +212,7 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 					right,
 				},
 			}
-			f.updateProperties()
+			f.updateProps()
 			e.addFilter(f)
 		}
 	}
@@ -311,7 +311,7 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 					props:     props,
 				}
 				result.inputVars.set(col.index)
-				result.updateProperties()
+				result.updateProps()
 				return result
 			}
 		}
@@ -345,7 +345,7 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 	default:
 		unimplemented("%T", pexpr)
 	}
-	result.updateProperties()
+	result.updateProps()
 	return result
 }
 
@@ -396,13 +396,13 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 			},
 		}
 		buildUsingJoin(result, nil)
-		result.updateProperties()
+		result.updateProps()
 		props = result.props
 	}
 
 	if where != nil {
 		result.addFilter(buildScalar(where.Expr, props))
-		result.updateProperties()
+		result.updateProps()
 	}
 
 	return result
@@ -425,13 +425,13 @@ func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *ex
 	}
 	result.addGroupings(exprs)
 
-	result.updateProperties()
+	result.updateProps()
 
 	if having != nil {
 		// TODO(peter): Any aggregations mentioned in the having expressions need
 		// to be copied into the groupByOp. Ditto for later projections.
 		result.addFilter(buildScalar(having.Expr, result.props))
-		result.updateProperties()
+		result.updateProps()
 	}
 
 	return result
@@ -526,7 +526,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 	}
 
 	result.addProjections(projections)
-	result.updateProperties()
+	result.updateProps()
 	return result
 }
 
@@ -540,7 +540,7 @@ func buildDistinct(input *expr, distinct bool) *expr {
 		children: []*expr{input},
 		props:    input.props,
 	}
-	result.updateProperties()
+	result.updateProps()
 	return result
 }
 
@@ -557,7 +557,7 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 		children:  []*expr{input},
 		props:     input.props,
 	}
-	result.updateProperties()
+	result.updateProps()
 	return result
 }
 
@@ -580,6 +580,6 @@ func buildUnion(clause *parser.UnionClause, props *logicalProps) *expr {
 		},
 		props: left.props,
 	}
-	result.updateProperties()
+	result.updateProps()
 	return result
 }

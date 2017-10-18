@@ -22,7 +22,7 @@ func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (groupBy) updateProperties(e *expr) {
+func (groupBy) updateProps(e *expr) {
 	// TODO(peter): I haven't thought about this carefully. It is likely
 	// incorrect.
 	e.inputVars = 0

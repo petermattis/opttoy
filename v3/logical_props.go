@@ -78,7 +78,7 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 		props:     props,
 	}
 	e.inputVars.set(c.index)
-	e.updateProperties()
+	e.updateProps()
 	return e
 }
 

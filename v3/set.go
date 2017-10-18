@@ -22,7 +22,7 @@ func (union) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (union) updateProperties(e *expr) {
+func (union) updateProps(e *expr) {
 	e.inputVars = 0
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars

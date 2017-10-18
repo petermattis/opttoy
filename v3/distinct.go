@@ -20,6 +20,6 @@ func (distinct) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (distinct) updateProperties(e *expr) {
+func (distinct) updateProps(e *expr) {
 	unimplemented("distinct.updateProperties")
 }

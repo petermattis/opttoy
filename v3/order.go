@@ -21,6 +21,6 @@ func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (orderBy) updateProperties(e *expr) {
+func (orderBy) updateProps(e *expr) {
 	unimplemented("%s.updateProperties", e.op)
 }
