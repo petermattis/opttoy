@@ -22,20 +22,20 @@ func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (groupBy) updateProperties(expr *expr) {
+func (groupBy) updateProperties(e *expr) {
 	// TODO(peter): I haven't thought about this carefully. It is likely
 	// incorrect.
-	expr.inputVars = 0
-	for _, filter := range expr.filters() {
-		expr.inputVars |= filter.inputVars
+	e.inputVars = 0
+	for _, filter := range e.filters() {
+		e.inputVars |= filter.inputVars
 	}
-	for _, aggregate := range expr.aggregations() {
-		expr.inputVars |= aggregate.inputVars
+	for _, aggregate := range e.aggregations() {
+		e.inputVars |= aggregate.inputVars
 	}
-	for _, grouping := range expr.groupings() {
-		expr.inputVars |= grouping.inputVars
+	for _, grouping := range e.groupings() {
+		e.inputVars |= grouping.inputVars
 	}
-	expr.outputVars = expr.inputVars
+	e.outputVars = e.inputVars
 
 	// TODO(peter): update expr.props.
 }

@@ -21,15 +21,15 @@ func (project) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (project) updateProperties(expr *expr) {
-	expr.inputVars = 0
-	for _, filter := range expr.filters() {
-		expr.inputVars |= filter.inputVars
+func (project) updateProperties(e *expr) {
+	e.inputVars = 0
+	for _, filter := range e.filters() {
+		e.inputVars |= filter.inputVars
 	}
-	expr.outputVars = 0
-	for _, project := range expr.projections() {
-		expr.inputVars |= project.inputVars
-		expr.outputVars |= project.outputVars
+	e.outputVars = 0
+	for _, project := range e.projections() {
+		e.inputVars |= project.inputVars
+		e.outputVars |= project.outputVars
 	}
 
 	// TODO(peter): update expr.props.

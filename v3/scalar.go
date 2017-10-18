@@ -71,12 +71,12 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scalar) updateProperties(expr *expr) {
+func (scalar) updateProperties(e *expr) {
 	// For a scalar operation the required input variables is the union of the
 	// required input variables of its inputs. There are no output variables.
-	expr.inputVars = 0
-	expr.outputVars = 0
-	for _, input := range expr.inputs() {
-		expr.inputVars |= input.inputVars
+	e.inputVars = 0
+	e.outputVars = 0
+	for _, input := range e.inputs() {
+		e.inputVars |= input.inputVars
 	}
 }

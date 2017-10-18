@@ -21,9 +21,9 @@ func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scan) updateProperties(expr *expr) {
-	tab := expr.props.state.getData(expr.dataIndex).(*table)
-	props := expr.props
+func (scan) updateProperties(e *expr) {
+	tab := e.props.state.getData(e.dataIndex).(*table)
+	props := e.props
 	if props.columns == nil {
 		props.columns = make([]columnProps, 0, len(tab.columns))
 
@@ -64,7 +64,7 @@ func (scan) updateProperties(expr *expr) {
 	}
 
 	// Add additional not-NULL columns based on filters.
-	for _, filter := range expr.filters() {
+	for _, filter := range e.filters() {
 		// TODO(peter): !isNullTolerant(filter)
 		for v := filter.inputVars; v != 0; {
 			i := uint(bits.TrailingZeros64(uint64(v)))
@@ -73,9 +73,9 @@ func (scan) updateProperties(expr *expr) {
 		}
 	}
 
-	expr.inputVars = 0
-	for _, col := range expr.props.columns {
-		expr.inputVars.set(col.index)
+	e.inputVars = 0
+	for _, col := range e.props.columns {
+		e.inputVars.set(col.index)
 	}
-	expr.outputVars = expr.inputVars
+	e.outputVars = e.inputVars
 }

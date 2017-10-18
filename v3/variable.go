@@ -20,8 +20,8 @@ func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (variable) updateProperties(expr *expr) {
+func (variable) updateProperties(e *expr) {
 	// Variables are "pass through": the output variables are the same as the
 	// input variables.
-	expr.outputVars = expr.inputVars
+	e.outputVars = e.inputVars
 }

@@ -99,11 +99,11 @@ var (
 	}
 )
 
-func (o operator) String() string {
-	if o < 0 || o > operator(len(operatorNames)-1) {
-		return fmt.Sprintf("operator(%d)", o)
+func (op operator) String() string {
+	if op < 0 || op > operator(len(operatorNames)-1) {
+		return fmt.Sprintf("operator(%d)", op)
 	}
-	return operatorNames[o]
+	return operatorNames[op]
 }
 
 func registerOperator(op operator, name string, info operatorInfo) {
