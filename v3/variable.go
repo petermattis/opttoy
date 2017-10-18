@@ -6,20 +6,22 @@ import (
 )
 
 func init() {
-	registerOperator(variableOp, "variable", operatorInfo{
-		format: func(e *expr, buf *bytes.Buffer, level int) {
-			indent := spaces[:2*level]
-			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props.state.getData(e.dataIndex))
-			e.formatVars(buf)
-			buf.WriteString("\n")
-			formatExprs(buf, "filters", e.filters(), level)
-			formatExprs(buf, "inputs", e.inputs(), level)
-		},
+	registerOperator(variableOp, "variable", variable{})
+}
 
-		updateProperties: func(expr *expr) {
-			// Variables are "pass through": the output variables are the same as the
-			// input variables.
-			expr.outputVars = expr.inputVars
-		},
-	})
+type variable struct{}
+
+func (variable) format(e *expr, buf *bytes.Buffer, level int) {
+	indent := spaces[:2*level]
+	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props.state.getData(e.dataIndex))
+	e.formatVars(buf)
+	buf.WriteString("\n")
+	formatExprs(buf, "filters", e.filters(), level)
+	formatExprs(buf, "inputs", e.inputs(), level)
+}
+
+func (variable) updateProperties(expr *expr) {
+	// Variables are "pass through": the output variables are the same as the
+	// input variables.
+	expr.outputVars = expr.inputVars
 }

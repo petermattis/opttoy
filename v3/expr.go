@@ -328,8 +328,8 @@ func (e *expr) addAggregations(exprs []*expr) {
 	e.addAux2(exprs)
 }
 
-func (e *expr) info() *operatorInfo {
-	return &operatorTab[e.op]
+func (e *expr) info() operatorInfo {
+	return operatorTab[e.op]
 }
 
 func (e *expr) updateProperties() {

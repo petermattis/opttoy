@@ -6,18 +6,20 @@ import (
 )
 
 func init() {
-	registerOperator(distinctOp, "distinct", operatorInfo{
-		format: func(e *expr, buf *bytes.Buffer, level int) {
-			indent := spaces[:2*level]
-			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
-			e.formatVars(buf)
-			buf.WriteString("\n")
-			formatExprs(buf, "filters", e.filters(), level)
-			formatExprs(buf, "inputs", e.inputs(), level)
-		},
+	registerOperator(distinctOp, "distinct", distinct{})
+}
 
-		updateProperties: func(expr *expr) {
-			unimplemented("distinct.updateProperties")
-		},
-	})
+type distinct struct{}
+
+func (distinct) format(e *expr, buf *bytes.Buffer, level int) {
+	indent := spaces[:2*level]
+	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
+	e.formatVars(buf)
+	buf.WriteString("\n")
+	formatExprs(buf, "filters", e.filters(), level)
+	formatExprs(buf, "inputs", e.inputs(), level)
+}
+
+func (distinct) updateProperties(expr *expr) {
+	unimplemented("distinct.updateProperties")
 }

@@ -15,14 +15,14 @@ table b
 prep
 SELECT * FROM (SELECT * FROM a) AS b
 ----
-projectOp (b.x:0 b.y:1) [in=0-1 out=0-1]
+project (b.x:0 b.y:1) [in=0-1 out=0-1]
   projections:
     variable (b.x) [in=0 out=0]
     variable (b.y) [in=1 out=1]
   inputs:
     rename (b.x:0 b.y:1) [in=0-1 out=0-1]
       inputs:
-        projectOp (a.x:0 a.y:1) [in=0-1 out=0-1]
+        project (a.x:0 a.y:1) [in=0-1 out=0-1]
           projections:
             variable (a.x) [in=0 out=0]
             variable (a.y) [in=1 out=1]
@@ -32,14 +32,14 @@ projectOp (b.x:0 b.y:1) [in=0-1 out=0-1]
 prep
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
-projectOp (b.e:0 b.f:1) [in=0-1 out=0-1]
+project (b.e:0 b.f:1) [in=0-1 out=0-1]
   projections:
     variable (b.e) [in=0 out=0]
     variable (b.f) [in=1 out=1]
   inputs:
     rename (b.e:0 b.f:1) [in=0-1 out=0-1]
       inputs:
-        projectOp (a.x:0 a.y:1) [in=0-1 out=0-1]
+        project (a.x:0 a.y:1) [in=0-1 out=0-1]
           projections:
             variable (a.x) [in=0 out=0]
             variable (a.y) [in=1 out=1]
@@ -49,7 +49,7 @@ projectOp (b.e:0 b.f:1) [in=0-1 out=0-1]
 prep
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
 ----
-projectOp ({c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1) [in=0-1,3 out=0-1,3]
+project ({c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1) [in=0-1,3 out=0-1,3]
   projections:
     variable (d.x) [in=0 out=0]
     variable (d.z) [in=3 out=3]
@@ -73,7 +73,7 @@ projectOp ({c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1) [in=0-1,3 out=0-1,3]
 prep
 SELECT x AS e FROM a
 ----
-projectOp (a.e:0) [in=0 out=0]
+project (a.e:0) [in=0 out=0]
   projections:
     variable (a.x) [in=0 out=0]
   inputs:
@@ -82,11 +82,11 @@ projectOp (a.e:0) [in=0 out=0]
 prep
 SELECT * FROM (SELECT x AS e FROM a)
 ----
-projectOp (a.e:0) [in=0 out=0]
+project (a.e:0) [in=0 out=0]
   projections:
     variable (a.e) [in=0 out=0]
   inputs:
-    projectOp (a.e:0) [in=0 out=0]
+    project (a.e:0) [in=0 out=0]
       projections:
         variable (a.x) [in=0 out=0]
       inputs:

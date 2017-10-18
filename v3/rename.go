@@ -6,24 +6,26 @@ import (
 )
 
 func init() {
-	registerOperator(renameOp, "rename", operatorInfo{
-		format: func(e *expr, buf *bytes.Buffer, level int) {
-			indent := spaces[:2*level]
-			fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
-			e.formatVars(buf)
-			buf.WriteString("\n")
-			formatExprs(buf, "filters", e.filters(), level)
-			formatExprs(buf, "inputs", e.inputs(), level)
-		},
+	registerOperator(renameOp, "rename", rename{})
+}
 
-		updateProperties: func(expr *expr) {
-			expr.inputVars = 0
-			for _, input := range expr.inputs() {
-				expr.inputVars |= input.outputVars
-			}
-			expr.outputVars = expr.inputVars
+type rename struct{}
 
-			// TODO(peter): update expr.props.
-		},
-	})
+func (rename) format(e *expr, buf *bytes.Buffer, level int) {
+	indent := spaces[:2*level]
+	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
+	e.formatVars(buf)
+	buf.WriteString("\n")
+	formatExprs(buf, "filters", e.filters(), level)
+	formatExprs(buf, "inputs", e.inputs(), level)
+}
+
+func (rename) updateProperties(expr *expr) {
+	expr.inputVars = 0
+	for _, input := range expr.inputs() {
+		expr.inputVars |= input.outputVars
+	}
+	expr.outputVars = expr.inputVars
+
+	// TODO(peter): update expr.props.
 }

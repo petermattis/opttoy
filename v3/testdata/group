@@ -8,7 +8,7 @@ table a
 prep
 SELECT y FROM a GROUP BY x
 ----
-projectOp (a.y:1) [in=1 out=1]
+project (a.y:1) [in=1 out=1]
   projections:
     variable (a.y) [in=1 out=1]
   inputs:
@@ -21,7 +21,7 @@ projectOp (a.y:1) [in=1 out=1]
 prep
 SELECT y FROM a GROUP BY y, x
 ----
-projectOp (a.y:1) [in=1 out=1]
+project (a.y:1) [in=1 out=1]
   projections:
     variable (a.y) [in=1 out=1]
   inputs:

@@ -15,7 +15,7 @@ table b
 push_down
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
-projectOp (a.y:1 b.z:3) [in=1,3 out=1,3]
+project (a.y:1 b.z:3) [in=1,3 out=1,3]
   projections:
     variable (a.y) [in=1 out=1]
     variable (b.z) [in=3 out=3]
@@ -47,7 +47,7 @@ projectOp (a.y:1 b.z:3) [in=1,3 out=1,3]
 push_down
 SELECT * FROM a JOIN b ON (a.x = b.x) WHERE a.y + b.z > 1
 ----
-projectOp (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
+project (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
   projections:
     variable (a.x) [in=0 out=0]
     variable (a.y) [in=1 out=1]
@@ -74,13 +74,13 @@ projectOp (a.x:0 a.y:1 b.x:2 b.z:3) [in=0-3 out=0-3]
 push_down
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
 ----
-projectOp (b.x:2) [in=2 out=2]
+project (b.x:2) [in=2 out=2]
   projections:
     variable (b.x) [in=2 out=2]
   inputs:
     rename (b.x:2) [in=2 out=2]
       inputs:
-        projectOp (.column1:2) [in=0 out=2]
+        project (.column1:2) [in=0 out=2]
           projections:
             binary (+) [in=0 out=2]
               inputs:

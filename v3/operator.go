@@ -87,10 +87,9 @@ const (
 	numOperators
 )
 
-// TODO(peter): convert this to an interface.
-type operatorInfo struct {
-	format           func(e *expr, buf *bytes.Buffer, level int)
-	updateProperties func(e *expr)
+type operatorInfo interface {
+	format(e *expr, buf *bytes.Buffer, level int)
+	updateProperties(e *expr)
 }
 
 var (
