@@ -71,9 +71,9 @@ SELECT * FROM b
 project [in=0-2 out=0-2]
   columns: b.x:0 b.y:1 b.z:2
   projections:
-    variable (b.x) [in=0 out=0]
-    variable (b.y) [in=1 out=1]
-    variable (b.z) [in=2 out=2]
+    variable (b.x) [in=0]
+    variable (b.y) [in=1]
+    variable (b.z) [in=2]
   inputs:
     scan [in=0-2 out=0-2]
       columns: b.x:0* b.y:1 b.z:2*

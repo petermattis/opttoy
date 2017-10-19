@@ -21,7 +21,4 @@ func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 }
 
 func (variable) updateProps(e *expr) {
-	// Variables are "pass through": the output variables are the same as the
-	// input variables.
-	e.outputVars = e.inputVars
 }

@@ -75,7 +75,6 @@ func (scalar) updateProps(e *expr) {
 	// For a scalar operation the required input variables is the union of the
 	// required input variables of its inputs. There are no output variables.
 	e.inputVars = 0
-	e.outputVars = 0
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
 	}

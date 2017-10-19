@@ -99,7 +99,7 @@ func pushDownFilters(e *expr) {
 			// from other predicates.
 			if input.op == projectOp {
 				for _, project := range input.projections() {
-					if project.outputVars == filter.inputVars {
+					if filter.inputVars == 1<<project.varIndex {
 						newFilter := substitute(filter, filter.inputVars, project)
 						input.addFilter(newFilter)
 						count++

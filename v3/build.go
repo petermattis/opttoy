@@ -310,6 +310,7 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 					dataIndex: props.state.addData(t),
 					props:     props,
 				}
+				result.setVarIndex(col.index)
 				result.inputVars.set(col.index)
 				result.updateProps()
 				return result
@@ -492,36 +493,33 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 	for _, expr := range sexprs {
 		exprs := buildProjection(expr.Expr, input.props)
 		projections = append(projections, exprs...)
+
 		for _, p := range exprs {
-			if p.outputVars == 0 {
-				index := state.nextVar
+			name := string(expr.As)
+			var tables []string
+
+			if !p.hasVarIndex() {
+				p.setVarIndex(state.nextVar)
 				state.nextVar++
-				p.outputVars.set(index)
-				name := string(expr.As)
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
-				result.props.columns = append(result.props.columns, columnProps{
-					index:  index,
-					name:   name,
-					tables: nil,
-				})
 			} else {
 				for _, col := range input.props.columns {
-					if p.outputVars == (bitmap(1) << col.index) {
-						name := string(expr.As)
+					if p.varIndex == col.index {
 						if name == "" {
 							name = col.name
 						}
-						result.props.columns = append(result.props.columns, columnProps{
-							index:  col.index,
-							name:   name,
-							tables: col.tables,
-						})
-						break
+						tables = col.tables
 					}
 				}
 			}
+
+			result.props.columns = append(result.props.columns, columnProps{
+				index:  p.varIndex,
+				name:   name,
+				tables: tables,
+			})
 		}
 	}
 

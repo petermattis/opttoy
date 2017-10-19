@@ -95,6 +95,9 @@ type expr struct {
 	// expressions to store additional info, such as the column name of a
 	// variable or the value of a constant.
 	dataIndex int32
+	// For scalar expressions, the variable index if the expression is a
+	// variableOp or a projected expression.
+	varIndex bitmapIndex
 	// The input and output bitmaps specified required inputs and generated
 	// outputs. The indexes refer to queryState.columns which is constructed on a
 	// per-query basis by the columns required by filters, join conditions, and
@@ -167,6 +170,7 @@ const (
 	auxFilterBit = iota
 	aux1Bit
 	aux2Bit
+	auxHasVarIndexBit
 )
 
 func (e *expr) filterPresent() int {
@@ -333,6 +337,15 @@ func (e *expr) addAggregations(exprs []*expr) {
 		fatalf("%s: invalid use of aggregations", e.op)
 	}
 	e.addAux2(exprs)
+}
+
+func (e *expr) hasVarIndex() bool {
+	return (e.auxMask & (1 << auxHasVarIndexBit)) != 0
+}
+
+func (e *expr) setVarIndex(v bitmapIndex) {
+	e.auxMask |= 1 << auxHasVarIndexBit
+	e.varIndex = v
 }
 
 func (e *expr) info() operatorInfo {
