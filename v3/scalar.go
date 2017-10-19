@@ -66,7 +66,7 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 			fmt.Fprintf(buf, " (%s)", data)
 		}
 	}
-	e.formatVars(buf)
+	e.formatVars(buf, 0)
 	buf.WriteString("\n")
 	formatExprs(buf, "inputs", e.inputs(), level)
 }

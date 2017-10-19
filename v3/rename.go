@@ -19,9 +19,10 @@ func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 func (rename) updateProps(e *expr) {
 	e.inputVars = 0
 	for _, input := range e.inputs() {
-		e.inputVars |= input.outputVars
+		for _, col := range input.props.columns {
+			e.inputVars.set(col.index)
+		}
 	}
-	e.outputVars = e.inputVars
 
 	// TODO(peter): update expr.props.
 }

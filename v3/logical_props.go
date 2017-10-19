@@ -243,6 +243,14 @@ func (p *logicalProps) applyFilters(filters []*expr) {
 	}
 }
 
+func (p *logicalProps) outputVars() bitmap {
+	var b bitmap
+	for _, col := range p.columns {
+		b.set(col.index)
+	}
+	return b
+}
+
 func concatLogicalProperties(left, right *logicalProps) *logicalProps {
 	t := &logicalProps{
 		columns: make([]columnProps, len(left.columns)+len(right.columns)),

@@ -22,10 +22,8 @@ func (project) updateProps(e *expr) {
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars
 	}
-	e.outputVars = 0
 	for _, project := range e.projections() {
 		e.inputVars |= project.inputVars
-		e.outputVars.set(project.varIndex)
 	}
 
 	// TODO(peter): update expr.props.

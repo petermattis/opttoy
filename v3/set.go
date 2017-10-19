@@ -26,7 +26,6 @@ func (union) updateProps(e *expr) {
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
 	}
-	e.outputVars = e.inputVars
 
 	// TODO(peter): update expr.props.
 }

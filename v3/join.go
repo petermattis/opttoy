@@ -32,7 +32,6 @@ func (innerJoin) updateProps(e *expr) {
 		e.inputVars |= input.inputVars
 		props.notNullCols |= input.props.notNullCols
 	}
-	e.outputVars = e.inputVars
 
 	props.applyFilters(e.filters())
 }

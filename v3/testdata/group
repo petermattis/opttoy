@@ -13,7 +13,7 @@ project [in=1 out=1]
   projections:
     variable (a.y) [in=1]
   inputs:
-    groupBy [in=0 out=0]
+    groupBy [in=0 out=0-1]
       columns: a.x:0 a.y:1
       groupings:
         variable (a.x) [in=0]

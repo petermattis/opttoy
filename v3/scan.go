@@ -64,5 +64,4 @@ func (scan) updateProps(e *expr) {
 	for _, col := range e.props.columns {
 		e.inputVars.set(col.index)
 	}
-	e.outputVars = e.inputVars
 }
