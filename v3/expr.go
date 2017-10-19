@@ -117,25 +117,15 @@ func (e *expr) format(buf *bytes.Buffer, level int) {
 	e.info().format(e, buf, level)
 }
 
-func (e *expr) formatVars(buf *bytes.Buffer, outputVars bitmap) {
-	if e.inputVars != 0 || outputVars != 0 {
-		buf.WriteString(" [")
-		sep := ""
-		if e.inputVars != 0 {
-			fmt.Fprintf(buf, "in=%s", e.inputVars)
-			sep = " "
-		}
-		if outputVars != 0 {
-			sep = " "
-			fmt.Fprintf(buf, "%sout=%s", sep, outputVars)
-		}
-		buf.WriteString("]")
+func (e *expr) formatVars(buf *bytes.Buffer) {
+	if e.inputVars != 0 {
+		fmt.Fprintf(buf, " [in=%s]", e.inputVars)
 	}
 }
 
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
-	e.formatVars(buf, e.props.outputVars())
+	e.formatVars(buf)
 	buf.WriteString("\n")
 	e.props.format(buf, level+1)
 }
