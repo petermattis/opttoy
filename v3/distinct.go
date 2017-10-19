@@ -2,7 +2,6 @@ package v3
 
 import (
 	"bytes"
-	"fmt"
 )
 
 func init() {
@@ -12,10 +11,7 @@ func init() {
 type distinct struct{}
 
 func (distinct) format(e *expr, buf *bytes.Buffer, level int) {
-	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props)
-	e.formatVars(buf)
-	buf.WriteString("\n")
+	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }

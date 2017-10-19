@@ -131,6 +131,13 @@ func (e *expr) formatVars(buf *bytes.Buffer) {
 	}
 }
 
+func formatRelational(e *expr, buf *bytes.Buffer, level int) {
+	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
+	e.formatVars(buf)
+	buf.WriteString("\n")
+	e.props.format(buf, level+1)
+}
+
 func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 	if len(exprs) > 0 {
 		indent := spaces[:2*level]

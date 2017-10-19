@@ -8,26 +8,32 @@ table a
 prep
 SELECT y FROM a GROUP BY x
 ----
-project (a.y:1) [in=1 out=1]
+project [in=1 out=1]
+  columns: a.y:1
   projections:
     variable (a.y) [in=1 out=1]
   inputs:
-    groupBy (a.x:0 a.y:1) [in=0 out=0]
+    groupBy [in=0 out=0]
+      columns: a.x:0 a.y:1
       groupings:
         variable (a.x) [in=0 out=0]
       inputs:
-        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan [in=0-1 out=0-1]
+          columns: a.x:0 a.y:1
 
 prep
 SELECT y FROM a GROUP BY y, x
 ----
-project (a.y:1) [in=1 out=1]
+project [in=1 out=1]
+  columns: a.y:1
   projections:
     variable (a.y) [in=1 out=1]
   inputs:
-    groupBy (a.x:0 a.y:1) [in=0-1 out=0-1]
+    groupBy [in=0-1 out=0-1]
+      columns: a.x:0 a.y:1
       groupings:
         variable (a.y) [in=1 out=1]
         variable (a.x) [in=0 out=0]
       inputs:
-        scan (a.x:0 a.y:1) [in=0-1 out=0-1]
+        scan [in=0-1 out=0-1]
+          columns: a.x:0 a.y:1

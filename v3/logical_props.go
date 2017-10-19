@@ -82,6 +82,47 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 	return e
 }
 
+// TODO(peter): Track foreign key constraints for join elimination. Consider
+// the schema:
+//
+//   CREATE TABLE departments (
+//     dept_id INT PRIMARY KEY,
+//     name STRING
+//   );
+//
+//   CREATE TABLE employees (
+//     emp_id INT PRIMARY KEY,
+//     dept_id INT REFERENCES d (dept_id),
+//     name STRING,
+//     salary INT
+//   );
+//
+// And the query:
+//
+//   SELECT e.name, e.salary
+//   FROM employees e, departments d
+//   WHERE e.dept_id = d.dept_id
+//
+// The foreign key constraint specifies that employees.dept_id must match a
+// value in departments.dept_id or be NULL. Because departments.dept_id is NOT
+// NULL (due to being part of the primary key), we know the only rows from
+// employees that will not be in the join are those with a NULL dept_id. So we
+// can transform the query into:
+//
+//   SELECT e.name, e.salary
+//   FROM employees e
+//   WHERE e.dept_id IS NOT NULL
+//
+// Foreign keys are represented by src and dest bitmaps.
+//
+// type foreignKeyProps struct {
+//   src  bitmap
+//   dest bitmap
+// }
+//
+// Note that this can be seen as a generalization of candidateKeys where he
+// dependent vars are explicit instead of being implicit in the columns.
+
 type logicalProps struct {
 	columns []columnProps
 	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
@@ -110,7 +151,6 @@ type logicalProps struct {
 
 func (p *logicalProps) String() string {
 	var buf bytes.Buffer
-	var outputVars bitmap
 	for i, col := range p.columns {
 		if i > 0 {
 			buf.WriteString(" ")
@@ -131,7 +171,6 @@ func (p *logicalProps) String() string {
 		buf.WriteString(col.name)
 		buf.WriteString(":")
 		fmt.Fprintf(&buf, "%d", col.index)
-		outputVars |= 1 << col.index
 	}
 	for _, key := range p.candidateKeys {
 		buf.WriteString(" ")
@@ -144,6 +183,42 @@ func (p *logicalProps) String() string {
 		fmt.Fprintf(&buf, " ![%s]", p.notNullCols)
 	}
 	return buf.String()
+}
+
+func (p *logicalProps) format(buf *bytes.Buffer, level int) {
+	indent := spaces[:2*level]
+	fmt.Fprintf(buf, "%scolumns:", indent)
+	for _, col := range p.columns {
+		buf.WriteString(" ")
+		if tables := col.tables; len(tables) > 1 {
+			buf.WriteString("{")
+			for j, table := range tables {
+				if j > 0 {
+					buf.WriteString(",")
+				}
+				buf.WriteString(table)
+			}
+			buf.WriteString("}")
+		} else if len(tables) == 1 {
+			buf.WriteString(tables[0])
+		}
+		buf.WriteString(".")
+		buf.WriteString(col.name)
+		buf.WriteString(":")
+		fmt.Fprintf(buf, "%d", col.index)
+		if p.notNullCols.get(col.index) {
+			buf.WriteString("*")
+		}
+	}
+	buf.WriteString("\n")
+	for _, key := range p.candidateKeys {
+		var prefix string
+		if (key & p.notNullCols) != key {
+			prefix = "weak "
+		}
+		fmt.Fprintf(buf, "%s%skey: %s", indent, prefix, key)
+		buf.WriteString("\n")
+	}
 }
 
 func (p *logicalProps) newColumnExpr(name string) *expr {
