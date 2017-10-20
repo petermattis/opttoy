@@ -29,14 +29,14 @@ project [in=1,3]
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan [in=0-1]
+        scan
           columns: +a.x:0* +a.y:1
           filters:
             comp (>) [in=0]
               inputs:
                 variable (a.x) [in=0]
                 const (7)
-        scan [in=2-3]
+        scan
           columns: +b.x:2* +b.z:3*
           filters:
             comp (>) [in=2]
@@ -74,9 +74,9 @@ project [in=0-3]
                 variable (b.z) [in=3]
             const (1)
       inputs:
-        scan [in=0-1]
+        scan
           columns: +a.x:0 +a.y:1
-        scan [in=2-3]
+        scan
           columns: +b.x:2 +b.z:3
 
 push_down
@@ -98,7 +98,7 @@ project [in=2]
                 variable (a.x) [in=0]
                 const (1)
           inputs:
-            scan [in=0-1]
+            scan
               columns: +a.x:0* a.y:1
               filters:
                 comp (>) [in=0]

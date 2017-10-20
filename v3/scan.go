@@ -59,9 +59,4 @@ func (scan) updateProps(e *expr) {
 	}
 
 	props.applyFilters(e.filters())
-
-	e.inputVars = 0
-	for _, col := range e.props.columns {
-		e.inputVars.set(col.index)
-	}
 }

@@ -18,7 +18,7 @@ project [in=1]
       groupings:
         variable (a.x) [in=0]
       inputs:
-        scan [in=0-1]
+        scan
           columns: a.x:0 +a.y:1
 
 prep
@@ -35,7 +35,7 @@ project [in=1]
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
-        scan [in=0-1]
+        scan
           columns: a.x:0 +a.y:1
 
 prep
@@ -53,5 +53,5 @@ groupBy [in=0-1]
         variable (a.x) [in=0]
         variable (a.y) [in=1]
       inputs:
-        scan [in=0-1]
+        scan
           columns: +a.x:0 +a.y:1

@@ -44,9 +44,9 @@ project [in=2-3]
             variable (e.dept_id) [in=1]
             variable (d.dept_id) [in=4]
       inputs:
-        scan [in=0-3]
+        scan
           columns: +e.emp_id:0* +e.dept_id:1 +e.name:2 +e.salary:3
           key: 0
-        scan [in=4-5]
+        scan
           columns: +d.dept_id:4* +d.name:5
           key: 4
