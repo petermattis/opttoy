@@ -83,59 +83,22 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 	return e
 }
 
-// TODO(peter): Track foreign key constraints for join elimination. Consider
-// the schema:
-//
-//   CREATE TABLE departments (
-//     dept_id INT PRIMARY KEY,
-//     name STRING
-//   );
-//
-//   CREATE TABLE employees (
-//     emp_id INT PRIMARY KEY,
-//     dept_id INT REFERENCES d (dept_id),
-//     name STRING,
-//     salary INT
-//   );
-//
-// And the query:
-//
-//   SELECT e.name, e.salary
-//   FROM employees e, departments d
-//   WHERE e.dept_id = d.dept_id
-//
-// The foreign key constraint specifies that employees.dept_id must match a
-// value in departments.dept_id or be NULL. Because departments.dept_id is NOT
-// NULL (due to being part of the primary key), we know the only rows from
-// employees that will not be in the join are those with a NULL dept_id. So we
-// can transform the query into:
-//
-//   SELECT e.name, e.salary
-//   FROM employees e
-//   WHERE e.dept_id IS NOT NULL
-//
-// Foreign keys are represented by src and dest bitmaps.
-//
-// type foreignKeyProps struct {
-//   src  bitmap
-//   dest bitmap
-// }
-//
-// Note that this can be seen as a generalization of candidateKeys where he
-// dependent vars are explicit instead of being implicit in the columns.
+type foreignKeyProps struct {
+	src  bitmap
+	dest bitmap
+}
 
 type logicalProps struct {
 	columns []columnProps
+
 	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
 	// columns flows from the inputs and can also be derived from filters that
 	// are NULL-intolerant.
 	notNullCols bitmap
+
 	// Required output vars is the set of output variables that parent expression
 	// requires. This must be a subset of logicalProperties.outputVars.
 	requiredOutputVars bitmap
-
-	// TODO(peter): Bitmap indicating which output columns are constant.
-	// constCols bitmap
 
 	// A column set is a key if no two rows are equal after projection onto that
 	// set. A requirement for a column set to be a key is for no columns in the
@@ -150,6 +113,48 @@ type logicalProps struct {
 	// NULL. A candidate key is a key if "(candidateKeys[i] & notNullColumns) ==
 	// candidateKeys[i]".
 	candidateKeys []bitmap
+
+	// TODO(peter): When to initialize foreign keys? In order to know the
+	// destination columns we have to have encountered all of the tables in the
+	// query. Perhaps as a first prep pass. How to propagate keys and foreign
+	// keys through groupBy, join, orderBy, project, rename and set operations?
+	//
+	// A foreign key is a set of columns in the source table that uniquely
+	// identify a single row in the destination table. A foreign key thus refers
+	// to a primary key or unique key in the destination table. If the source
+	// columns are NOT NULL a foreign key can prove the existence of a row in the
+	// destination table and can also be used to infer the cardinality of joins
+	// when joining on the foreign key. Consider the schema:
+	//
+	//   CREATE TABLE departments (
+	//     dept_id INT PRIMARY KEY,
+	//     name STRING
+	//   );
+	//
+	//   CREATE TABLE employees (
+	//     emp_id INT PRIMARY KEY,
+	//     dept_id INT REFERENCES d (dept_id),
+	//     name STRING,
+	//     salary INT
+	//   );
+	//
+	// And the query:
+	//
+	//   SELECT e.name, e.salary
+	//   FROM employees e, departments d
+	//   WHERE e.dept_id = d.dept_id
+	//
+	// The foreign key constraint specifies that employees.dept_id must match a
+	// value in departments.dept_id or be NULL. Because departments.dept_id is NOT
+	// NULL (due to being part of the primary key), we know the only rows from
+	// employees that will not be in the join are those with a NULL dept_id. So we
+	// can transform the query into:
+	//
+	//   SELECT e.name, e.salary
+	//   FROM employees e
+	//   WHERE e.dept_id IS NOT NULL
+	foreignKeys []foreignKeyProps
+
 	// The global query state.
 	state *queryState
 }
