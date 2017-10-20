@@ -184,14 +184,14 @@ func TestLogic(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			e := newExecutor()
+			p := newPlanner()
 			runTest(t, path, func(d *testdata) string {
 				switch d.cmd {
 				case "exec":
-					return e.exec(d.stmt)
+					return p.exec(d.stmt)
 				}
 
-				expr := e.prep(d.stmt)
+				expr := p.prep(d.stmt)
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
 					case "prep":

@@ -42,20 +42,20 @@ func fatalf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
 
-type executor struct {
+type planner struct {
 	catalog map[string]*table
 }
 
-func newExecutor() *executor {
-	return &executor{
+func newPlanner() *planner {
+	return &planner{
 		catalog: make(map[string]*table),
 	}
 }
 
-func (e *executor) exec(stmt parser.Statement) string {
+func (p *planner) exec(stmt parser.Statement) string {
 	switch stmt := stmt.(type) {
 	case *parser.CreateTable:
-		tab := createTable(e.catalog, stmt)
+		tab := createTable(p.catalog, stmt)
 		return tab.String()
 	default:
 		unimplemented("%T", stmt)
@@ -63,10 +63,10 @@ func (e *executor) exec(stmt parser.Statement) string {
 	return ""
 }
 
-func (e *executor) prep(stmt parser.Statement) *expr {
+func (p *planner) prep(stmt parser.Statement) *expr {
 	return build(stmt, &logicalProps{
 		state: &queryState{
-			catalog: e.catalog,
+			catalog: p.catalog,
 			tables:  make(map[string]bitmapIndex),
 		},
 	})
