@@ -1,0 +1,52 @@
+exec
+CREATE TABLE d (
+  dept_id INT PRIMARY KEY,
+  name STRING
+)
+----
+table d
+  dept_id NOT NULL
+  name NULL
+  (dept_id) KEY
+
+exec
+CREATE TABLE e (
+  emp_id INT PRIMARY KEY,
+  dept_id INT REFERENCES d (dept_id),
+  name STRING,
+  salary INT
+)
+----
+table e
+  emp_id NOT NULL
+  dept_id NULL
+  name NULL
+  salary NULL
+  (emp_id) KEY
+  (dept_id) -> d(dept_id)
+
+prep
+SELECT e.name, e.salary
+FROM e, d
+WHERE e.dept_id = d.dept_id
+----
+project [in=2-3]
+  columns: e.name:2 e.salary:3
+  projections:
+    variable (e."name") [in=2]
+    variable (e.salary) [in=3]
+  inputs:
+    inner join [in=0-5]
+      columns: e.emp_id:0* e.dept_id:1* +e.name:2 +e.salary:3 d.dept_id:4* d.name:5
+      filters:
+        comp (=) [in=1,4]
+          inputs:
+            variable (e.dept_id) [in=1]
+            variable (d.dept_id) [in=4]
+      inputs:
+        scan [in=0-3]
+          columns: +e.emp_id:0* +e.dept_id:1 +e.name:2 +e.salary:3
+          key: 0
+        scan [in=4-5]
+          columns: +d.dept_id:4* +d.name:5
+          key: 4
