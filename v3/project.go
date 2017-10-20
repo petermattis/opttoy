@@ -25,6 +25,9 @@ func (project) updateProps(e *expr) {
 	for _, project := range e.projections() {
 		e.inputVars |= project.inputVars
 	}
+	for _, input := range e.inputs() {
+		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+	}
 
 	// TODO(peter): update expr.props.
 }

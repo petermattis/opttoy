@@ -14,12 +14,12 @@ project [in=1]
     variable (a.y) [in=1]
   inputs:
     groupBy [in=0]
-      columns: a.x:0 a.y:1
+      columns: a.x:0 +a.y:1
       groupings:
         variable (a.x) [in=0]
       inputs:
         scan [in=0-1]
-          columns: a.x:0 a.y:1
+          columns: a.x:0 +a.y:1
 
 prep
 SELECT y FROM a GROUP BY y, x
@@ -30,28 +30,28 @@ project [in=1]
     variable (a.y) [in=1]
   inputs:
     groupBy [in=0-1]
-      columns: a.x:0 a.y:1
+      columns: a.x:0 +a.y:1
       groupings:
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
         scan [in=0-1]
-          columns: a.x:0 a.y:1
+          columns: a.x:0 +a.y:1
 
 prep
 SELECT DISTINCT * FROM a
 ----
 groupBy [in=0-1]
-  columns: a.x:0 a.y:1
+  columns: +a.x:0 +a.y:1
   groupings:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
     project [in=0-1]
-      columns: a.x:0 a.y:1
+      columns: +a.x:0 +a.y:1
       projections:
         variable (a.x) [in=0]
         variable (a.y) [in=1]
       inputs:
         scan [in=0-1]
-          columns: a.x:0 a.y:1
+          columns: +a.x:0 +a.y:1

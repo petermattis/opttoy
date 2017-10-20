@@ -130,6 +130,10 @@ type logicalProps struct {
 	// columns flows from the inputs and can also be derived from filters that
 	// are NULL-intolerant.
 	notNullCols bitmap
+	// Required output vars is the set of output variables that parent expression
+	// requires. This must be a subset of logicalProperties.outputVars.
+	requiredOutputVars bitmap
+
 	// TODO(peter): Bitmap indicating which output columns are constant.
 	// constCols bitmap
 
@@ -161,6 +165,9 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
+		if p.requiredOutputVars.get(col.index) {
+			buf.WriteString("+")
+		}
 		if tables := col.tables; len(tables) > 1 {
 			buf.WriteString("{")
 			for j, table := range tables {
@@ -211,6 +218,14 @@ func (p *logicalProps) applyFilters(filters []*expr) {
 			p.notNullCols |= 1 << i
 		}
 	}
+}
+
+func (p *logicalProps) outputVars() bitmap {
+	var b bitmap
+	for _, col := range p.columns {
+		b.set(col.index)
+	}
+	return b
 }
 
 func concatLogicalProperties(left, right *logicalProps) *logicalProps {

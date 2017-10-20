@@ -33,5 +33,8 @@ func (innerJoin) updateProps(e *expr) {
 		}
 		e.props.notNullCols |= input.props.notNullCols
 	}
+	for _, input := range e.inputs() {
+		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+	}
 	e.props.applyFilters(e.filters())
 }

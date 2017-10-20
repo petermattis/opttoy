@@ -31,6 +31,9 @@ func (groupBy) updateProps(e *expr) {
 	for _, grouping := range e.groupings() {
 		e.inputVars |= grouping.inputVars
 	}
+	for _, input := range e.inputs() {
+		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+	}
 
 	// TODO(peter): update expr.props.
 }

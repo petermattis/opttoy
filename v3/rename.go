@@ -19,9 +19,12 @@ func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 func (rename) updateProps(e *expr) {
 	e.inputVars = 0
 	for _, input := range e.inputs() {
+		var inputVars bitmap
 		for _, col := range input.props.columns {
-			e.inputVars.set(col.index)
+			inputVars.set(col.index)
 		}
+		input.props.requiredOutputVars = inputVars
+		e.inputVars |= inputVars
 	}
 
 	// TODO(peter): update expr.props.

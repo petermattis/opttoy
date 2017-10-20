@@ -76,5 +76,5 @@ project [in=0-2]
     variable (b.z) [in=2]
   inputs:
     scan [in=0-2]
-      columns: b.x:0* b.y:1 b.z:2*
+      columns: +b.x:0* +b.y:1 +b.z:2*
       key: 0,2

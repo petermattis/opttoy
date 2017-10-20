@@ -20,11 +20,13 @@ func (union) format(e *expr, buf *bytes.Buffer, level int) {
 
 func (union) updateProps(e *expr) {
 	e.inputVars = 0
-	for _, filter := range e.filters() {
-		e.inputVars |= filter.inputVars
-	}
 	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
+		var inputVars bitmap
+		for _, col := range input.props.columns {
+			inputVars.set(col.index)
+		}
+		input.props.requiredOutputVars = inputVars
+		e.inputVars |= inputVars
 	}
 
 	// TODO(peter): update expr.props.
