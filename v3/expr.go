@@ -31,10 +31,7 @@ import (
 //   -- [1] -> y
 //
 // This is akin to the way parser.IndexedVar works except that we're taking
-// care to make the indexes unique across the entire statement. Because each of
-// the relational expression nodes maintains a bitmap of the variables it
-// outputs we can quickly determine if a scalar expression can be handled using
-// bitmap intersection.
+// care to make the indexes unique across the entire statement.
 //
 // For scalar expressions the input variables bitmap allows an easy
 // determination of whether the expression is constant (the bitmap is empty)
@@ -71,19 +68,10 @@ import (
 //      +----| scan a |
 //           +--------+
 //
-// The output variables of each expression need to be compatible with input
-// columns of its parent expression. Notice that the input variables of an
-// expression constrain what output variables we need from the children. That
-// constrain can be expressed by bitmap intersection. For example, consider the
-// query:
-//
-//   SELECT a.x FROM a JOIN b USING (x)
-//
-// The only column from "a" that is required is "x". This is expressed in the
-// code by the inputs required by the projection ("a.x") and the inputs
-// required by the join condition (also "a.x").
+// The output columns of each expression need to be compatible with input
+// columns of its parent expression.
 type expr struct {
-	// NB: op, projectCount and filterCount are placed next to each other in
+	// NB: op, auxMask, dataIndex and varIndex are placed next to each other in
 	// order to reduce space wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
@@ -97,6 +85,10 @@ type expr struct {
 	dataIndex int32
 	// For scalar expressions, the variable index if the expression is a
 	// variableOp or a projected expression.
+	//
+	// TODO(peter): Like dataIndex, varIndex is only used by scalar and variable
+	// expressions. Is there a more compact way to model this? For example, we
+	// could store the varIndex in the data.
 	varIndex bitmapIndex
 	// The input vars bitmap specified required inputs. The indexes refer to
 	// queryState.columns which is constructed on a per-query basis by the
