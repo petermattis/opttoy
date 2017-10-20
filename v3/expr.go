@@ -48,7 +48,7 @@ import (
 //   +---------+---------+-------+--------+
 //   |             filters                |
 //   +------------------------------------+
-//   |        operator (aux1, aux)        |
+//   |        operator (aux1, aux2)       |
 //   +---------+---------+-------+--------+
 //   |  in 0   |  in 1   |  ...  |  in N  |
 //   +---------+---------+-------+--------+
@@ -75,9 +75,9 @@ type expr struct {
 	// order to reduce space wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
-	// to minimize overhead. auxMask indicates which of these auxiliary
+	// to minimize overhead. auxBits indicates which of these auxiliary
 	// expressions is present.
-	auxMask uint16
+	auxBits uint16
 	// The index of a data item (interface{}) for use by this expresssion. The
 	// data is accessible via expr.props.state.getData(). Used by scalar
 	// expressions to store additional info, such as the column name of a
@@ -155,7 +155,7 @@ const (
 )
 
 func (e *expr) filterPresent() int {
-	return int((e.auxMask >> auxFilterBit) & 1)
+	return int((e.auxBits >> auxFilterBit) & 1)
 }
 
 func (e *expr) filters() []*expr {
@@ -182,7 +182,7 @@ func (e *expr) addFilter(f *expr) {
 	}
 
 	if e.filterPresent() == 0 {
-		e.auxMask |= 1 << auxFilterBit
+		e.auxBits |= 1 << auxFilterBit
 		e.children = append(e.children, f)
 	} else {
 		i := len(e.children) - 1
@@ -201,11 +201,11 @@ func (e *expr) addFilter(f *expr) {
 func (e *expr) removeFilters() {
 	filterStart := len(e.children) - e.filterPresent()
 	e.children = e.children[:filterStart]
-	e.auxMask &^= 1 << auxFilterBit
+	e.auxBits &^= 1 << auxFilterBit
 }
 
 func (e *expr) aux1Present() int {
-	return int((e.auxMask >> aux1Bit) & 1)
+	return int((e.auxBits >> aux1Bit) & 1)
 }
 
 func (e *expr) aux1Index() int {
@@ -225,7 +225,7 @@ func (e *expr) aux1() []*expr {
 
 func (e *expr) addAux1(exprs []*expr) {
 	if e.aux1Present() == 0 {
-		e.auxMask |= 1 << aux1Bit
+		e.auxBits |= 1 << aux1Bit
 		e.children = append(e.children, nil)
 		i := e.aux1Index()
 		copy(e.children[i+1:], e.children[i:])
@@ -242,7 +242,7 @@ func (e *expr) addAux1(exprs []*expr) {
 }
 
 func (e *expr) aux2Present() int {
-	return int((e.auxMask >> aux2Bit) & 1)
+	return int((e.auxBits >> aux2Bit) & 1)
 }
 
 func (e *expr) aux2Index() int {
@@ -262,7 +262,7 @@ func (e *expr) aux2() []*expr {
 
 func (e *expr) addAux2(exprs []*expr) {
 	if e.aux2Present() == 0 {
-		e.auxMask |= 1 << aux2Bit
+		e.auxBits |= 1 << aux2Bit
 		e.children = append(e.children, nil)
 		i := e.aux2Index()
 		copy(e.children[i+1:], e.children[i:])
@@ -321,11 +321,11 @@ func (e *expr) addAggregations(exprs []*expr) {
 }
 
 func (e *expr) hasVarIndex() bool {
-	return (e.auxMask & (1 << auxHasVarIndexBit)) != 0
+	return (e.auxBits & (1 << auxHasVarIndexBit)) != 0
 }
 
 func (e *expr) setVarIndex(v bitmapIndex) {
-	e.auxMask |= 1 << auxHasVarIndexBit
+	e.auxBits |= 1 << auxHasVarIndexBit
 	e.varIndex = v
 }
 

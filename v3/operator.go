@@ -10,6 +10,7 @@ type operator int16
 const (
 	unknownOp operator = iota
 
+	// Relational operators
 	scanOp
 	renameOp
 
@@ -29,6 +30,7 @@ const (
 	groupByOp
 	orderByOp
 
+	// Scalar operators
 	variableOp
 	constOp
 
@@ -81,6 +83,26 @@ const (
 	unaryPlusOp
 	unaryMinusOp
 	unaryComplementOp
+
+	// TODO(peter): Pattern operators. The idea here is to define patterns in
+	// terms of the expression structure. patternLeaf allows the extraction of an
+	// expression tree for which we only care about the logical properties of the
+	// node. patternTree allows for the recursive extraction of the full
+	// subtree. Any other operator must match precisely.
+	//
+	// Consider a transformation that wants to match on groupByOp ->
+	// innerJoinOp. This would be expressed as:
+	//
+	//   groupByOp
+	//     groupings:     patternTree
+	//     aggregations:  patternTree
+	//     filters:       patternTree
+	//     inputs:
+	//       innerJoinOp
+	//         filters:   patternTree
+	//       inputs:      patternLeaf
+	patternLeaf
+	patternTree
 
 	numOperators
 )
