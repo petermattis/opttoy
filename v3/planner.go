@@ -3,7 +3,7 @@
 // logical properties
 // - required columns
 // - derived columns
-// - keys, candidate keys and foreign keys
+// - keys, weak keys and foreign keys
 // - column value constraints
 // - required ordering
 //

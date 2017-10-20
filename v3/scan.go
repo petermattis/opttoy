@@ -57,14 +57,14 @@ func (scan) updateKeys(e *expr) {
 	tab := e.props.state.getData(e.dataIndex).(*table)
 	props := e.props
 
-	if props.candidateKeys == nil {
+	if props.weakKeys == nil {
 		for _, k := range tab.keys {
 			if k.fkey == nil && (k.primary || k.unique) {
 				var key bitmap
 				for _, i := range k.columns {
 					key.set(props.columns[i].index)
 				}
-				props.candidateKeys = append(props.candidateKeys, key)
+				props.weakKeys = append(props.weakKeys, key)
 			}
 		}
 	}

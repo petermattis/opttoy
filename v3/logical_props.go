@@ -106,12 +106,11 @@ type logicalProps struct {
 	// table (recall that all of the columns of the primary key are defined to be
 	// NOT NULL).
 	//
-	// A candidate key is a set of columns where no two rows containing non-NULL
+	// A weak key is a set of columns where no two rows containing non-NULL
 	// values are equal after projection onto that set. A UNIQUE index on a table
-	// is a candidate key and possibly a key if all of the columns are NOT
-	// NULL. A candidate key is a key if "(candidateKeys[i] & notNullColumns) ==
-	// candidateKeys[i]".
-	candidateKeys []bitmap
+	// is a weak key and possibly a key if all of the columns are NOT NULL. A
+	// weak key is a key if "(weakKeys[i] & notNullColumns) == weakKeys[i]".
+	weakKeys []bitmap
 
 	// TODO(peter): When to initialize foreign keys? In order to know the
 	// destination columns we have to have encountered all of the tables in the
@@ -193,7 +192,7 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 		}
 	}
 	buf.WriteString("\n")
-	for _, key := range p.candidateKeys {
+	for _, key := range p.weakKeys {
 		var prefix string
 		if (key & p.notNullCols) != key {
 			prefix = "weak "
