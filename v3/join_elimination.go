@@ -52,6 +52,9 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 	// the left hand side of the join.
 	filters := e.filters()
 	for _, filter := range filters {
+		// TODO(peter): pushDownFilters() should ensure we only have join
+		// conditions here making this test and the one for the left output vars
+		// unnecessary.
 		if (filter.inputVars & rightOutputVars) == filter.inputVars {
 			// The filter only utilizes variables from the right hand side of the
 			// join.
@@ -78,6 +81,9 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 
 	// The source columns for the foreign key might be NULL-able. Construct a
 	// filter to ensure rows containing NULLs are removed.
+	//
+	// TODO(peter): Rather than generating the filter here, it would be better to
+	// have pushDownFilters generate IS NOT NULL filters on the join conditions.
 	var notNull []*expr
 	for v := fkey.src & ^left.props.notNullCols; v != 0; {
 		i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
