@@ -198,8 +198,10 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 		if (key & p.notNullCols) != key {
 			prefix = "weak "
 		}
-		fmt.Fprintf(buf, "%s%skey: %s", indent, prefix, key)
-		buf.WriteString("\n")
+		fmt.Fprintf(buf, "%s%skey: %s\n", indent, prefix, key)
+	}
+	for _, fkey := range p.foreignKeys {
+		fmt.Fprintf(buf, "%sforeign key: %s -> %s\n", indent, fkey.src, fkey.dest)
 	}
 }
 
@@ -240,4 +242,11 @@ func (p *logicalProps) outputVars() bitmap {
 		b.set(col.index)
 	}
 	return b
+}
+
+func updateProps(e *expr) {
+	for _, input := range e.inputs() {
+		updateProps(input)
+	}
+	e.updateProps()
 }

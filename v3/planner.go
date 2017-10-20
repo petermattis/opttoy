@@ -64,10 +64,12 @@ func (p *planner) exec(stmt parser.Statement) string {
 }
 
 func (p *planner) prep(stmt parser.Statement) *expr {
-	return build(stmt, &logicalProps{
+	e := build(stmt, &logicalProps{
 		state: &queryState{
 			catalog: p.catalog,
 			tables:  make(map[string]bitmapIndex),
 		},
 	})
+	updateProps(e)
+	return e
 }

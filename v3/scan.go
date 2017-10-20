@@ -16,7 +16,7 @@ func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scan) updateProps(e *expr) {
+func (s scan) updateProps(e *expr) {
 	tab := e.props.state.getData(e.dataIndex).(*table)
 	props := e.props
 	if props.columns == nil {
@@ -39,17 +39,9 @@ func (scan) updateProps(e *expr) {
 				tables: tables,
 			})
 		}
-
-		for _, k := range tab.keys {
-			if k.primary || k.unique {
-				var key bitmap
-				for _, i := range k.columns {
-					key |= 1 << props.columns[i].index
-				}
-				props.candidateKeys = append(props.candidateKeys, key)
-			}
-		}
 	}
+
+	s.updateKeys(e)
 
 	// Initialize not-NULL columns from the table schema.
 	for i, col := range tab.columns {
@@ -59,4 +51,46 @@ func (scan) updateProps(e *expr) {
 	}
 
 	props.applyFilters(e.filters())
+}
+
+func (scan) updateKeys(e *expr) {
+	tab := e.props.state.getData(e.dataIndex).(*table)
+	props := e.props
+
+	if props.candidateKeys == nil {
+		for _, k := range tab.keys {
+			if k.fkey == nil && (k.primary || k.unique) {
+				var key bitmap
+				for _, i := range k.columns {
+					key.set(props.columns[i].index)
+				}
+				props.candidateKeys = append(props.candidateKeys, key)
+			}
+		}
+	}
+
+	props.foreignKeys = nil
+	for _, k := range tab.keys {
+		if k.fkey != nil {
+			base, ok := props.state.tables[k.fkey.referenced.name]
+			if !ok {
+				// The referenced table is not part of the query.
+				continue
+			}
+
+			var src bitmap
+			for _, i := range k.columns {
+				src.set(props.columns[i].index)
+			}
+			var dest bitmap
+			for _, i := range k.fkey.columns {
+				dest.set(base + bitmapIndex(i))
+			}
+
+			props.foreignKeys = append(props.foreignKeys, foreignKeyProps{
+				src:  src,
+				dest: dest,
+			})
+		}
+	}
 }
