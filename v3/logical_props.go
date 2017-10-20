@@ -227,13 +227,3 @@ func (p *logicalProps) outputVars() bitmap {
 	}
 	return b
 }
-
-func concatLogicalProperties(left, right *logicalProps) *logicalProps {
-	t := &logicalProps{
-		columns: make([]columnProps, len(left.columns)+len(right.columns)),
-		state:   left.state,
-	}
-	copy(t.columns[:], left.columns)
-	copy(t.columns[len(left.columns):], right.columns)
-	return t
-}

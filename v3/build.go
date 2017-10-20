@@ -145,8 +145,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 
 		switch cond := source.Cond.(type) {
 		case *parser.OnJoinCond:
-			result.props = concatLogicalProperties(result.inputs()[0].props, result.inputs()[1].props)
-			result.addFilter(buildScalar(cond.Expr, result.props))
+			buildOnJoin(result, cond.Expr)
 
 		case parser.NaturalJoinCond:
 			buildNaturalJoin(result)
@@ -168,6 +167,18 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		unimplemented("%T", texpr)
 		return nil
 	}
+}
+
+func buildOnJoin(result *expr, on parser.Expr) {
+	left := result.inputs()[0].props
+	right := result.inputs()[1].props
+	result.props = &logicalProps{
+		columns: make([]columnProps, len(left.columns)+len(right.columns)),
+		state:   left.state,
+	}
+	copy(result.props.columns[:], left.columns)
+	copy(result.props.columns[len(left.columns):], right.columns)
+	result.addFilter(buildScalar(on, result.props))
 }
 
 func buildNaturalJoin(e *expr) {
