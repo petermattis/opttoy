@@ -26,12 +26,12 @@ func (innerJoin) updateProps(e *expr) {
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars
 	}
-	props := e.props
-	props.notNullCols = 0
+	e.props.notNullCols = 0
 	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
-		props.notNullCols |= input.props.notNullCols
+		for _, col := range input.props.columns {
+			e.inputVars.set(col.index)
+		}
+		e.props.notNullCols |= input.props.notNullCols
 	}
-
-	props.applyFilters(e.filters())
+	e.props.applyFilters(e.filters())
 }
