@@ -533,11 +533,19 @@ func buildDistinct(input *expr, distinct bool) *expr {
 		return input
 	}
 
+	// Distint is equivalent to group by without any aggregations.
 	result := &expr{
-		op:       distinctOp,
+		op:       groupByOp,
 		children: []*expr{input},
 		props:    input.props,
 	}
+
+	exprs := make([]*expr, 0, len(input.props.columns))
+	for _, col := range input.props.columns {
+		exprs = append(exprs, col.newVariableExpr("", input.props))
+	}
+	result.addGroupings(exprs)
+
 	result.updateProps()
 	return result
 }
