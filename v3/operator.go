@@ -28,7 +28,6 @@ const (
 
 	groupByOp
 	orderByOp
-	distinctOp
 
 	variableOp
 	constOp
