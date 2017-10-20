@@ -218,9 +218,9 @@ func (p *logicalProps) applyFilters(filters []*expr) {
 	for _, filter := range filters {
 		// TODO(peter): !isNullTolerant(filter)
 		for v := filter.inputVars; v != 0; {
-			i := uint(bits.TrailingZeros64(uint64(v)))
-			v &^= 1 << i
-			p.notNullCols |= 1 << i
+			i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
+			v.clear(i)
+			p.notNullCols.set(i)
 		}
 	}
 }
