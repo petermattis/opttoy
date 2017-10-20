@@ -225,6 +225,16 @@ func (p *logicalProps) applyFilters(filters []*expr) {
 	}
 }
 
+// A filter is compatible with the logical properties for an expression if all
+// of the input variables used by the filter are provided by the columns.
+func (p *logicalProps) isFilterCompatible(filter *expr) bool {
+	v := filter.inputVars
+	for i := 0; v != 0 && i < len(p.columns); i++ {
+		v.clear(p.columns[i].index)
+	}
+	return v == 0
+}
+
 func (p *logicalProps) outputVars() bitmap {
 	var b bitmap
 	for _, col := range p.columns {

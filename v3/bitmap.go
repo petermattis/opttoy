@@ -47,3 +47,7 @@ func (b bitmap) get(i bitmapIndex) bool {
 func (b *bitmap) set(i bitmapIndex) {
 	*b |= 1 << i
 }
+
+func (b *bitmap) clear(i bitmapIndex) {
+	*b &^= 1 << i
+}

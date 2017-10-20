@@ -14,13 +14,6 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	return result
 }
 
-func isFilterCompatible(e *expr, filter *expr) bool {
-	// NB: when pushing down a filter, the filter applies before the projection
-	// and thus needs to be compatible with the input variables, not the output
-	// variables.
-	return (filter.inputVars & e.inputVars) == filter.inputVars
-}
-
 func findEquivalency(filters []*expr, e *expr) *expr {
 	for _, filter := range filters {
 		if filter.op == eqOp {
@@ -74,40 +67,22 @@ func pushDownFilters(e *expr) {
 	e.removeFilters()
 
 	for _, filter := range filters {
-		var count int
-		for _, input := range e.inputs() {
-			if isFilterCompatible(input, filter) {
-				input.addFilter(filter)
-				count++
-				continue
-			}
+		count := maybePushDownFilter(e, filter, filters)
 
-			// Check to see if creating a new filter by substitution could be pushed down.
-			if replacement := findEquivalency(filters, filter); replacement != nil {
-				if isFilterCompatible(input, replacement) {
-					newFilter := substitute(filter, filter.inputVars, replacement)
-					input.addFilter(newFilter)
-					count++
-					continue
-				}
-			}
-
-			// Rewrite filters as they are pushed through projections.
-			//
-			// TODO(peter): doing something operator specific like this highlights
-			// the need for an operator-specific interface for inferring predicates
-			// from other predicates.
-			if input.op == projectOp {
-				for _, project := range input.projections() {
-					if filter.inputVars == 1<<project.varIndex {
-						newFilter := substitute(filter, filter.inputVars, project)
-						input.addFilter(newFilter)
-						count++
-						continue
-					}
+		// Rewrite filters as they are pushed through projections.
+		//
+		// TODO(peter): doing something operator specific like this highlights
+		// the need for an operator-specific interface for inferring predicates
+		// from other predicates.
+		if e.op == projectOp {
+			for _, project := range e.projections() {
+				if filter.inputVars == 1<<project.varIndex {
+					newFilter := substitute(filter, filter.inputVars, project)
+					count += maybePushDownFilter(e, newFilter, filters)
 				}
 			}
 		}
+
 		if count == 0 {
 			e.addFilter(filter)
 		}
@@ -119,4 +94,26 @@ func pushDownFilters(e *expr) {
 	}
 
 	e.updateProps()
+}
+
+func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
+	var count int
+	for _, input := range e.inputs() {
+		if input.props.isFilterCompatible(filter) {
+			input.addFilter(filter)
+			count++
+			continue
+		}
+
+		// Check to see if creating a new filter by substitution could be pushed down.
+		if replacement := findEquivalency(filters, filter); replacement != nil {
+			if input.props.isFilterCompatible(replacement) {
+				newFilter := substitute(filter, filter.inputVars, replacement)
+				input.addFilter(newFilter)
+				count++
+				continue
+			}
+		}
+	}
+	return count
 }
