@@ -355,7 +355,17 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		return build(t.Select, props)
 
 	default:
-		unimplemented("%T", pexpr)
+		// NB: we can't type assert on parser.dNull because the type is not
+		// exported.
+		if pexpr == parser.DNull {
+			result = &expr{
+				op:        constOp,
+				dataIndex: props.state.addData(pexpr),
+				props:     props,
+			}
+		} else {
+			unimplemented("%T", pexpr)
+		}
 	}
 	result.updateProps()
 	return result

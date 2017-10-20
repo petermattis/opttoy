@@ -191,18 +191,20 @@ func TestLogic(t *testing.T) {
 					return p.exec(d.stmt)
 				}
 
-				expr := p.prep(d.stmt)
+				e := p.prep(d.stmt)
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
 					case "prep":
 						// Already done.
 					case "push_down":
-						pushDownFilters(expr)
+						pushDownFilters(e)
+					case "join_elimination":
+						joinElimination(e)
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}
 				}
-				return expr.String()
+				return e.String()
 			})
 		})
 	}

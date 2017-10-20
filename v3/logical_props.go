@@ -213,6 +213,15 @@ func (p *logicalProps) newColumnExpr(name string) *expr {
 	return nil
 }
 
+func (p *logicalProps) newColumnExprByIndex(index bitmapIndex) *expr {
+	for _, col := range p.columns {
+		if col.index == index {
+			return col.newVariableExpr(col.tables[0], p)
+		}
+	}
+	return nil
+}
+
 // Add additional not-NULL columns based on the filtering expressions.
 func (p *logicalProps) applyFilters(filters []*expr) {
 	for _, filter := range filters {
