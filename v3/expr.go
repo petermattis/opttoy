@@ -71,8 +71,8 @@ import (
 // The output columns of each expression need to be compatible with input
 // columns of its parent expression.
 type expr struct {
-	// NB: op, auxMask, dataIndex and varIndex are placed next to each other in
-	// order to reduce space wastage due to padding.
+	// NB: op, auxMask and dataIndex are placed next to each other in order to
+	// reduce space wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
 	// to minimize overhead. auxBits indicates which of these auxiliary
@@ -83,13 +83,6 @@ type expr struct {
 	// expressions to store additional info, such as the column name of a
 	// variable or the value of a constant.
 	dataIndex int32
-	// For scalar expressions, the variable index if the expression is a
-	// variableOp or a projected expression.
-	//
-	// TODO(peter): Like dataIndex, varIndex is only used by scalar and variable
-	// expressions. Is there a more compact way to model this? For example, we
-	// could store the varIndex in the data.
-	varIndex bitmapIndex
 	// The input vars bitmap specified required inputs. The indexes refer to
 	// queryState.columns which is constructed on a per-query basis by the
 	// columns required by filters, join conditions, and projections and the new
@@ -151,7 +144,6 @@ const (
 	auxFilterBit = iota
 	aux1Bit
 	aux2Bit
-	auxHasVarIndexBit
 )
 
 func (e *expr) filterPresent() int {
@@ -318,15 +310,6 @@ func (e *expr) addAggregations(exprs []*expr) {
 		fatalf("%s: invalid use of aggregations", e.op)
 	}
 	e.addAux2(exprs)
-}
-
-func (e *expr) hasVarIndex() bool {
-	return (e.auxBits & (1 << auxHasVarIndexBit)) != 0
-}
-
-func (e *expr) setVarIndex(v bitmapIndex) {
-	e.auxBits |= 1 << auxHasVarIndexBit
-	e.varIndex = v
 }
 
 func (e *expr) info() operatorInfo {

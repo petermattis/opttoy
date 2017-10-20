@@ -75,8 +75,9 @@ func pushDownFilters(e *expr) {
 		// the need for an operator-specific interface for inferring predicates
 		// from other predicates.
 		if e.op == projectOp {
-			for _, project := range e.projections() {
-				if filter.inputVars == 1<<project.varIndex {
+			for i, project := range e.projections() {
+				col := &e.props.columns[i]
+				if filter.inputVars == 1<<col.index {
 					newFilter := substitute(filter, filter.inputVars, project)
 					count += maybePushDownFilter(e, newFilter, filters)
 				}

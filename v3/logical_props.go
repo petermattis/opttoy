@@ -77,7 +77,6 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 		dataIndex: props.state.addData(c.resolvedName(tableName)),
 		props:     props,
 	}
-	e.setVarIndex(c.index)
 	e.inputVars.set(c.index)
 	e.updateProps()
 	return e

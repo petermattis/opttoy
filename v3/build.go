@@ -2,6 +2,7 @@ package v3
 
 import (
 	"fmt"
+	"math/bits"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
@@ -321,7 +322,6 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 					dataIndex: props.state.addData(t),
 					props:     props,
 				}
-				result.setVarIndex(col.index)
 				result.inputVars.set(col.index)
 				result.updateProps()
 				return result
@@ -509,25 +509,28 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 			name := string(expr.As)
 			var tables []string
 
-			if !p.hasVarIndex() {
-				p.setVarIndex(state.nextVar)
+			var index bitmapIndex
+			if p.op != variableOp {
+				index = state.nextVar
 				state.nextVar++
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
 			} else {
+				index = bitmapIndex(bits.TrailingZeros64(uint64(p.inputVars)))
 				for _, col := range input.props.columns {
-					if p.varIndex == col.index {
+					if index == col.index {
 						if name == "" {
 							name = col.name
 						}
 						tables = col.tables
+						break
 					}
 				}
 			}
 
 			result.props.columns = append(result.props.columns, columnProps{
-				index:  p.varIndex,
+				index:  index,
 				name:   name,
 				tables: tables,
 			})
