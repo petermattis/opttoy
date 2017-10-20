@@ -152,37 +152,7 @@ type logicalProps struct {
 
 func (p *logicalProps) String() string {
 	var buf bytes.Buffer
-	for i, col := range p.columns {
-		if i > 0 {
-			buf.WriteString(" ")
-		}
-		if tables := col.tables; len(tables) > 1 {
-			buf.WriteString("{")
-			for j, table := range tables {
-				if j > 0 {
-					buf.WriteString(",")
-				}
-				buf.WriteString(table)
-			}
-			buf.WriteString("}")
-		} else if len(tables) == 1 {
-			buf.WriteString(tables[0])
-		}
-		buf.WriteString(".")
-		buf.WriteString(col.name)
-		buf.WriteString(":")
-		fmt.Fprintf(&buf, "%d", col.index)
-	}
-	for _, key := range p.candidateKeys {
-		buf.WriteString(" ")
-		if (key & p.notNullCols) == key {
-			buf.WriteString("*")
-		}
-		fmt.Fprintf(&buf, "(%s)", key)
-	}
-	if p.notNullCols != 0 {
-		fmt.Fprintf(&buf, " ![%s]", p.notNullCols)
-	}
+	p.format(&buf, 0)
 	return buf.String()
 }
 
