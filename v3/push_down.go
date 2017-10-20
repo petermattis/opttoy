@@ -1,19 +1,5 @@
 package v3
 
-func substitute(e *expr, columns bitmap, replacement *expr) *expr {
-	if e.op == variableOp && e.inputVars == columns {
-		return replacement
-	}
-
-	result := e.clone()
-	inputs := result.inputs()
-	for i, input := range inputs {
-		inputs[i] = substitute(input, columns, replacement)
-	}
-	result.updateProps()
-	return result
-}
-
 func findEquivalency(filters []*expr, e *expr) *expr {
 	for _, filter := range filters {
 		if filter.op == eqOp {

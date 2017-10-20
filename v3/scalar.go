@@ -79,3 +79,17 @@ func (scalar) updateProps(e *expr) {
 		e.inputVars |= input.inputVars
 	}
 }
+
+func substitute(e *expr, columns bitmap, replacement *expr) *expr {
+	if e.op == variableOp && e.inputVars == columns {
+		return replacement
+	}
+
+	result := e.clone()
+	inputs := result.inputs()
+	for i, input := range inputs {
+		inputs[i] = substitute(input, columns, replacement)
+	}
+	result.updateProps()
+	return result
+}
