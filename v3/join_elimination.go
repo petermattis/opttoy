@@ -93,9 +93,9 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 			children: []*expr{
 				left.props.newColumnExprByIndex(i),
 				&expr{
-					op:        constOp,
-					dataIndex: left.props.state.addData(parser.DNull),
-					props:     left.props,
+					op:      constOp,
+					props:   left.props,
+					private: parser.DNull,
 				},
 			},
 		}

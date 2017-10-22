@@ -61,10 +61,8 @@ type scalar struct{}
 func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
 	fmt.Fprintf(buf, "%s%v", indent, e.op)
-	if e.props != nil {
-		if data := e.props.state.getData(e.dataIndex); data != nil {
-			fmt.Fprintf(buf, " (%s)", data)
-		}
+	if e.private != nil {
+		fmt.Fprintf(buf, " (%s)", e.private)
 	}
 	e.formatVars(buf)
 	buf.WriteString("\n")

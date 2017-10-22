@@ -15,19 +15,6 @@ type queryState struct {
 	catalog map[string]*table
 	tables  map[string]bitmapIndex
 	nextVar bitmapIndex
-	data    []interface{}
-}
-
-func (s *queryState) addData(d interface{}) int32 {
-	s.data = append(s.data, d)
-	return int32(len(s.data))
-}
-
-func (s *queryState) getData(idx int32) interface{} {
-	if idx == 0 {
-		return nil
-	}
-	return s.data[idx-1]
 }
 
 type columnProps struct {
@@ -73,9 +60,9 @@ func (c columnProps) resolvedName(tableName string) *parser.ColumnItem {
 
 func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *expr {
 	e := &expr{
-		op:        variableOp,
-		dataIndex: props.state.addData(c.resolvedName(tableName)),
-		props:     props,
+		op:      variableOp,
+		props:   props,
+		private: c.resolvedName(tableName),
 	}
 	e.inputVars.set(c.index)
 	e.updateProps()

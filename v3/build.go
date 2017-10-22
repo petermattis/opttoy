@@ -86,11 +86,11 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		}
 
 		result := &expr{
-			op:        scanOp,
-			dataIndex: state.addData(tab),
+			op: scanOp,
 			props: &logicalProps{
 				state: state,
 			},
+			private: tab,
 		}
 		result.updateProps()
 		return result
@@ -318,9 +318,9 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 					t.TableName.DBNameOriginallyOmitted = true
 				}
 				result = &expr{
-					op:        variableOp,
-					dataIndex: props.state.addData(t),
-					props:     props,
+					op:      variableOp,
+					props:   props,
+					private: t,
 				}
 				result.inputVars.set(col.index)
 				result.updateProps()
@@ -338,9 +338,9 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 
 	case *parser.NumVal:
 		result = &expr{
-			op:        constOp,
-			dataIndex: props.state.addData(t),
-			props:     props,
+			op:      constOp,
+			props:   props,
+			private: t,
 		}
 
 	case *parser.ExistsExpr:
@@ -359,9 +359,9 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		// exported.
 		if pexpr == parser.DNull {
 			result = &expr{
-				op:        constOp,
-				dataIndex: props.state.addData(pexpr),
-				props:     props,
+				op:      constOp,
+				props:   props,
+				private: pexpr,
 			}
 		} else {
 			unimplemented("%T", pexpr)
@@ -582,10 +582,10 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 	// TODO(peter): order by is not a relational expression, but instead a
 	// required property on the output.
 	result := &expr{
-		op:        orderByOp,
-		dataIndex: input.props.state.addData(orderBy),
-		children:  []*expr{input},
-		props:     input.props,
+		op:       orderByOp,
+		children: []*expr{input},
+		props:    input.props,
+		private:  orderBy,
 	}
 	result.updateProps()
 	return result

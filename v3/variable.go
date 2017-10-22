@@ -13,7 +13,7 @@ type variable struct{}
 
 func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.props.state.getData(e.dataIndex))
+	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.private)
 	e.formatVars(buf)
 	buf.WriteString("\n")
 	formatExprs(buf, "filters", e.filters(), level)

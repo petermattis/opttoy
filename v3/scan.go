@@ -17,7 +17,7 @@ func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 }
 
 func (s scan) updateProps(e *expr) {
-	tab := e.props.state.getData(e.dataIndex).(*table)
+	tab := e.private.(*table)
 	props := e.props
 	if props.columns == nil {
 		props.columns = make([]columnProps, 0, len(tab.columns))
@@ -54,7 +54,7 @@ func (s scan) updateProps(e *expr) {
 }
 
 func (scan) updateKeys(e *expr) {
-	tab := e.props.state.getData(e.dataIndex).(*table)
+	tab := e.private.(*table)
 	props := e.props
 
 	if props.weakKeys == nil {

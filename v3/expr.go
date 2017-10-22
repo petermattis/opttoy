@@ -71,18 +71,13 @@ import (
 // The output columns of each expression need to be compatible with input
 // columns of its parent expression.
 type expr struct {
-	// NB: op, auxMask and dataIndex are placed next to each other in order to
-	// reduce space wastage due to padding.
+	// NB: op and auxBits are placed next to each other in order to reduce space
+	// wastage due to padding.
 	op operator
 	// The inputs, projections and filters are all stored in the children slice
 	// to minimize overhead. auxBits indicates which of these auxiliary
 	// expressions is present.
 	auxBits uint16
-	// The index of a data item (interface{}) for use by this expresssion. The
-	// data is accessible via expr.props.state.getData(). Used by scalar
-	// expressions to store additional info, such as the column name of a
-	// variable or the value of a constant.
-	dataIndex int32
 	// The input vars bitmap specified required inputs. The indexes refer to
 	// queryState.columns which is constructed on a per-query basis by the
 	// columns required by filters, join conditions, and projections and the new
@@ -90,6 +85,8 @@ type expr struct {
 	inputVars bitmap
 	children  []*expr
 	props     *logicalProps
+	// Private data used by this expression.
+	private interface{}
 }
 
 func (e *expr) String() string {
