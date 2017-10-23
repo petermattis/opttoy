@@ -26,14 +26,8 @@ project
 prep
 SELECT a.* FROM a
 ----
-project
+scan
   columns: a.x:0 a.y:1
-  projections:
-    variable (a.x) [in=0]
-    variable (a.y) [in=1]
-  inputs:
-    scan
-      columns: +a.x:0 +a.y:1
 
 prep
 SELECT * FROM (SELECT a.x FROM a)
@@ -43,13 +37,8 @@ project
   projections:
     variable (a.x) [in=0]
   inputs:
-    project
-      columns: +a.x:0
-      projections:
-        variable (a.x) [in=0]
-      inputs:
-        scan
-          columns: +a.x:0 a.y:1
+    scan
+      columns: +a.x:0 a.y:1
 
 prep
 SELECT * FROM (SELECT a.x+1 FROM a)
@@ -57,18 +46,13 @@ SELECT * FROM (SELECT a.x+1 FROM a)
 project
   columns: .column1:2
   projections:
-    variable (column1) [in=2]
-  inputs:
-    project
-      columns: +.column1:2
-      projections:
-        binary (+) [in=0]
-          inputs:
-            variable (a.x) [in=0]
-            const (1)
+    binary (+) [in=0]
       inputs:
-        scan
-          columns: +a.x:0 a.y:1
+        variable (a.x) [in=0]
+        const (1)
+  inputs:
+    scan
+      columns: +a.x:0 a.y:1
 
 prep
 SELECT a.y, a.x FROM a
@@ -99,19 +83,13 @@ project
 prep
 SELECT * FROM b WHERE b.z > 10
 ----
-project
-  columns: b.x:0 b.z:1
-  projections:
-    variable (b.x) [in=0]
-    variable (b.z) [in=1]
-  inputs:
-    scan
-      columns: +b.x:0 +b.z:1*
-      filters:
-        comp (>) [in=1]
-          inputs:
-            variable (b.z) [in=1]
-            const (10)
+scan
+  columns: b.x:0 b.z:1*
+  filters:
+    comp (>) [in=1]
+      inputs:
+        variable (b.z) [in=1]
+        const (10)
 
 prep
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
@@ -232,14 +210,8 @@ SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 union
   columns: +a.x:0 +a.y:1
   inputs:
-    project
+    scan
       columns: +a.x:0 +a.y:1
-      projections:
-        variable (a.x) [in=0]
-        variable (a.y) [in=1]
-      inputs:
-        scan
-          columns: +a.x:0 +a.y:1
     project
       columns: +a.y:1 +a.x:0
       projections:

@@ -15,44 +15,20 @@ table b
 prep
 SELECT * FROM (SELECT * FROM a) AS b
 ----
-project
+rename
   columns: b.x:0 b.y:1
-  projections:
-    variable (b.x) [in=0]
-    variable (b.y) [in=1]
   inputs:
-    rename
-      columns: +b.x:0 +b.y:1
-      inputs:
-        project
-          columns: +a.x:0 +a.y:1
-          projections:
-            variable (a.x) [in=0]
-            variable (a.y) [in=1]
-          inputs:
-            scan
-              columns: +a.x:0 +a.y:1
+    scan
+      columns: +a.x:0 +a.y:1
 
 prep
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
-project
+rename
   columns: b.e:0 b.f:1
-  projections:
-    variable (b.e) [in=0]
-    variable (b.f) [in=1]
   inputs:
-    rename
-      columns: +b.e:0 +b.f:1
-      inputs:
-        project
-          columns: +a.x:0 +a.y:1
-          projections:
-            variable (a.x) [in=0]
-            variable (a.y) [in=1]
-          inputs:
-            scan
-              columns: +a.x:0 +a.y:1
+    scan
+      columns: +a.x:0 +a.y:1
 
 prep
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
@@ -101,12 +77,7 @@ SELECT * FROM (SELECT x AS e FROM a)
 project
   columns: a.e:0
   projections:
-    variable (a.e) [in=0]
+    variable (a.x) [in=0]
   inputs:
-    project
-      columns: +a.e:0
-      projections:
-        variable (a.x) [in=0]
-      inputs:
-        scan
-          columns: +a.x:0 a.y:1
+    scan
+      columns: +a.x:0 a.y:1

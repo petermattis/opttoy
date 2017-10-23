@@ -536,6 +536,7 @@ func buildProjections(
 	}
 
 	var projections []*expr
+	passthru := true
 	for _, expr := range sexprs {
 		exprs := buildProjection(expr.Expr, scope)
 		projections = append(projections, exprs...)
@@ -553,10 +554,13 @@ func buildProjections(
 				}
 			} else {
 				index = bitmapIndex(bits.TrailingZeros64(uint64(p.inputVars)))
-				for _, col := range input.props.columns {
+				for j, col := range input.props.columns {
 					if index == col.index {
 						if name == "" {
 							name = col.name
+							passthru = passthru && j == len(result.props.columns)
+						} else {
+							passthru = false
 						}
 						tables = col.tables
 						break
@@ -570,6 +574,11 @@ func buildProjections(
 				tables: tables,
 			})
 		}
+	}
+
+	// Don't add an unnecessary "pass through" project expression.
+	if len(result.props.columns) == len(input.props.columns) && passthru {
+		return input, scope
 	}
 
 	result.addProjections(projections)

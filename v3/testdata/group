@@ -47,11 +47,5 @@ groupBy
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
-    project
+    scan
       columns: +a.x:0 +a.y:1
-      projections:
-        variable (a.x) [in=0]
-        variable (a.y) [in=1]
-      inputs:
-        scan
-          columns: +a.x:0 +a.y:1

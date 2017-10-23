@@ -68,13 +68,13 @@ table i
 prep
 SELECT * FROM b
 ----
-project
-  columns: b.x:0 b.y:1 b.z:2
-  projections:
-    variable (b.x) [in=0]
-    variable (b.y) [in=1]
-    variable (b.z) [in=2]
-  inputs:
-    scan
-      columns: +b.x:0* +b.y:1 +b.z:2*
-      key: 0,2
+scan
+  columns: b.x:0* b.y:1 b.z:2*
+  key: 0,2
+
+prep
+SELECT b.* FROM b
+----
+scan
+  columns: b.x:0* b.y:1 b.z:2*
+  key: 0,2
