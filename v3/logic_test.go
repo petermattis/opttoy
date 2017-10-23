@@ -200,6 +200,8 @@ func TestLogic(t *testing.T) {
 						pushDownFilters(e)
 					case "join_elimination":
 						joinElimination(e)
+					case "decorrelate":
+						decorrelate(e)
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}

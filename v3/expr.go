@@ -112,6 +112,9 @@ func (e *expr) formatVars(buf *bytes.Buffer) {
 
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
+	if e.hasApply() {
+		buf.WriteString(" (apply)")
+	}
 	e.formatVars(buf)
 	buf.WriteString("\n")
 	e.props.format(buf, level+1)
@@ -146,6 +149,7 @@ const (
 	auxFilterBit = iota
 	aux1Bit
 	aux2Bit
+	auxApplyBit
 )
 
 func (e *expr) filterPresent() int {
@@ -190,6 +194,21 @@ func (e *expr) addFilter(f *expr) {
 			t.children = append(t.children, f)
 		}
 	}
+}
+
+func (e *expr) removeFilter(f *expr) {
+	filters := e.filters()
+	for i := range filters {
+		if filters[i] == f {
+			copy(filters[i:], filters[i+1:])
+			filters = filters[:len(filters)-1]
+			if len(filters) == 0 {
+				e.removeFilters()
+			}
+			return
+		}
+	}
+	fatalf("filter not found!")
 }
 
 func (e *expr) removeFilters() {
@@ -312,6 +331,18 @@ func (e *expr) addAggregations(exprs []*expr) {
 		fatalf("%s: invalid use of aggregations", e.op)
 	}
 	e.addAux2(exprs)
+}
+
+func (e *expr) setApply() {
+	e.auxBits |= 1 << auxApplyBit
+}
+
+func (e *expr) clearApply() {
+	e.auxBits &^= 1 << auxApplyBit
+}
+
+func (e *expr) hasApply() bool {
+	return (e.auxBits & (1 << auxApplyBit)) != 0
 }
 
 func (e *expr) info() operatorInfo {

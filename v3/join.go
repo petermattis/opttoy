@@ -9,8 +9,8 @@ func init() {
 	registerOperator(leftJoinOp, "left join", nil)
 	registerOperator(rightJoinOp, "right join", nil)
 	registerOperator(fullJoinOp, "full join", nil)
-	registerOperator(semiJoinOp, "semi join", nil)
-	registerOperator(antiJoinOp, "anti join", nil)
+	registerOperator(semiJoinOp, "semi-join", innerJoin{})
+	registerOperator(antiJoinOp, "anti-join", innerJoin{})
 }
 
 type innerJoin struct{}

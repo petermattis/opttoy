@@ -1,0 +1,77 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+decorrelate
+SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
+----
+semi-join
+  columns: +a.x:0* +a.y:1
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0* +a.y:1
+    scan
+      columns: +b.x:2* +b.z:3
+
+decorrelate
+SELECT * FROM a WHERE EXISTS (SELECT 1 FROM b WHERE a.x = b.x)
+----
+semi-join
+  columns: +a.x:0* +a.y:1
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0* +a.y:1
+    scan
+      columns: +b.x:2* +b.z:3
+
+decorrelate
+SELECT * FROM a WHERE NOT EXISTS (SELECT * FROM b WHERE a.x = b.x)
+----
+anti-join
+  columns: +a.x:0* +a.y:1
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0* +a.y:1
+    scan
+      columns: +b.x:2* +b.z:3
+
+decorrelate
+SELECT * FROM a, (SELECT * FROM b WHERE a.x = b.x)
+----
+inner join
+  columns: a.x:0* a.y:1 b.x:2* b.z:3
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0 +a.y:1
+    scan
+      columns: +b.x:2* +b.z:3
