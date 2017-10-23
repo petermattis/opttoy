@@ -15,16 +15,16 @@ table b
 prep
 SELECT * FROM (SELECT * FROM a) AS b
 ----
-project [in=0-1]
+project
   columns: b.x:0 b.y:1
   projections:
     variable (b.x) [in=0]
     variable (b.y) [in=1]
   inputs:
-    rename [in=0-1]
+    rename
       columns: +b.x:0 +b.y:1
       inputs:
-        project [in=0-1]
+        project
           columns: +a.x:0 +a.y:1
           projections:
             variable (a.x) [in=0]
@@ -36,16 +36,16 @@ project [in=0-1]
 prep
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
-project [in=0-1]
+project
   columns: b.e:0 b.f:1
   projections:
     variable (b.e) [in=0]
     variable (b.f) [in=1]
   inputs:
-    rename [in=0-1]
+    rename
       columns: +b.e:0 +b.f:1
       inputs:
-        project [in=0-1]
+        project
           columns: +a.x:0 +a.y:1
           projections:
             variable (a.x) [in=0]
@@ -57,7 +57,7 @@ project [in=0-1]
 prep
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
 ----
-project [in=0-1,3]
+project
   columns: {c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1
   projections:
     variable (d.x) [in=0]
@@ -65,7 +65,7 @@ project [in=0-1,3]
     variable (c.x) [in=0]
     variable (c.y) [in=1]
   inputs:
-    inner join [in=0-3]
+    inner join
       columns: +{c,d}.x:0* +c.y:1 +d.z:3
       filters:
         comp (=) [in=0,2]
@@ -73,12 +73,12 @@ project [in=0-1,3]
             variable (c.x) [in=0]
             variable (d.x) [in=2]
       inputs:
-        rename [in=0-1]
+        rename
           columns: +c.x:0 +c.y:1
           inputs:
             scan
               columns: +a.x:0 +a.y:1
-        rename [in=2-3]
+        rename
           columns: +d.x:2 +d.z:3
           inputs:
             scan
@@ -87,7 +87,7 @@ project [in=0-1,3]
 prep
 SELECT x AS e FROM a
 ----
-project [in=0]
+project
   columns: a.e:0
   projections:
     variable (a.x) [in=0]
@@ -98,12 +98,12 @@ project [in=0]
 prep
 SELECT * FROM (SELECT x AS e FROM a)
 ----
-project [in=0]
+project
   columns: a.e:0
   projections:
     variable (a.e) [in=0]
   inputs:
-    project [in=0]
+    project
       columns: +a.e:0
       projections:
         variable (a.x) [in=0]

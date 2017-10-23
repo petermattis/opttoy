@@ -8,12 +8,12 @@ table a
 prep
 SELECT y FROM a GROUP BY x
 ----
-project [in=1]
+project
   columns: a.y:1
   projections:
     variable (a.y) [in=1]
   inputs:
-    groupBy [in=0]
+    groupBy
       columns: a.x:0 +a.y:1
       groupings:
         variable (a.x) [in=0]
@@ -24,12 +24,12 @@ project [in=1]
 prep
 SELECT y FROM a GROUP BY y, x
 ----
-project [in=1]
+project
   columns: a.y:1
   projections:
     variable (a.y) [in=1]
   inputs:
-    groupBy [in=0-1]
+    groupBy
       columns: a.x:0 +a.y:1
       groupings:
         variable (a.y) [in=1]
@@ -41,13 +41,13 @@ project [in=1]
 prep
 SELECT DISTINCT * FROM a
 ----
-groupBy [in=0-1]
+groupBy
   columns: +a.x:0 +a.y:1
   groupings:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
-    project [in=0-1]
+    project
       columns: +a.x:0 +a.y:1
       projections:
         variable (a.x) [in=0]

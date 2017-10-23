@@ -25,6 +25,8 @@ const (
 	semiJoinOp
 	antiJoinOp
 
+	applyOp
+
 	projectOp
 
 	groupByOp

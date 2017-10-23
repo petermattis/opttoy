@@ -26,15 +26,20 @@ func (innerJoin) updateProps(e *expr) {
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars
 	}
+
 	e.props.notNullCols = 0
+	var providedInputVars bitmap
 	for _, input := range e.inputs() {
-		for _, col := range input.props.columns {
-			e.inputVars.set(col.index)
-		}
 		e.props.notNullCols |= input.props.notNullCols
+		outputVars := input.props.outputVars()
+		input.props.requiredOutputVars = outputVars
+		providedInputVars |= outputVars
 	}
+
+	e.inputVars &^= (e.props.outputVars() | providedInputVars)
 	for _, input := range e.inputs() {
-		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+		e.inputVars |= input.inputVars
 	}
+
 	e.props.applyFilters(e.filters())
 }

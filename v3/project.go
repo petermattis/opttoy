@@ -25,8 +25,16 @@ func (project) updateProps(e *expr) {
 	for _, project := range e.projections() {
 		e.inputVars |= project.inputVars
 	}
+	var providedInputVars bitmap
 	for _, input := range e.inputs() {
-		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+		outputVars := input.props.outputVars()
+		providedInputVars |= outputVars
+		input.props.requiredOutputVars = e.inputVars & outputVars
+	}
+
+	e.inputVars &^= (e.props.outputVars() | providedInputVars)
+	for _, input := range e.inputs() {
+		e.inputVars |= input.inputVars
 	}
 
 	// TODO(peter): update expr.props.

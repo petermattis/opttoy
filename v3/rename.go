@@ -17,14 +17,12 @@ func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 }
 
 func (rename) updateProps(e *expr) {
+	// Rename is pass through and requires any input variables that its inputs
+	// require.
 	e.inputVars = 0
 	for _, input := range e.inputs() {
-		var inputVars bitmap
-		for _, col := range input.props.columns {
-			inputVars.set(col.index)
-		}
-		input.props.requiredOutputVars = inputVars
-		e.inputVars |= inputVars
+		e.inputVars |= input.inputVars
+		input.props.requiredOutputVars = input.props.outputVars()
 	}
 
 	// TODO(peter): update expr.props.

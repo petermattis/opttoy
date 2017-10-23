@@ -68,7 +68,7 @@ table i
 prep
 SELECT * FROM b
 ----
-project [in=0-2]
+project
   columns: b.x:0 b.y:1 b.z:2
   projections:
     variable (b.x) [in=0]

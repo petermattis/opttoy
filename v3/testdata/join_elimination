@@ -30,7 +30,7 @@ SELECT e.name, e.salary
 FROM e, d
 WHERE e.dept_id = d.dept_id
 ----
-project [in=2-3]
+project
   columns: e.name:2 e.salary:3
   projections:
     variable (e."name") [in=2]
@@ -51,7 +51,7 @@ SELECT e.name, e.salary
 FROM d, e
 WHERE e.dept_id = d.dept_id AND e.dept_id != 0
 ----
-project [in=4-5]
+project
   columns: e.name:4 e.salary:5
   projections:
     variable (e."name") [in=4]
@@ -72,14 +72,14 @@ SELECT e.name, e.salary, d.name
 FROM e, d
 WHERE e.dept_id = d.dept_id
 ----
-project [in=2-3,5]
+project
   columns: e.name:2 e.salary:3 d.name:5
   projections:
     variable (e."name") [in=2]
     variable (e.salary) [in=3]
     variable (d."name") [in=5]
   inputs:
-    inner join [in=0-5]
+    inner join
       columns: e.emp_id:0* e.dept_id:1* +e.name:2 +e.salary:3 d.dept_id:4* +d.name:5
       filters:
         comp (=) [in=1,4]

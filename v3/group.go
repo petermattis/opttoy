@@ -19,8 +19,6 @@ func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 }
 
 func (groupBy) updateProps(e *expr) {
-	// TODO(peter): I haven't thought about this carefully. It is likely
-	// incorrect.
 	e.inputVars = 0
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars
@@ -31,8 +29,16 @@ func (groupBy) updateProps(e *expr) {
 	for _, grouping := range e.groupings() {
 		e.inputVars |= grouping.inputVars
 	}
+	var providedInputVars bitmap
 	for _, input := range e.inputs() {
-		input.props.requiredOutputVars = e.inputVars & input.props.outputVars()
+		outputVars := input.props.outputVars()
+		providedInputVars |= outputVars
+		input.props.requiredOutputVars = e.inputVars & outputVars
+	}
+
+	e.inputVars &^= (e.props.outputVars() | providedInputVars)
+	for _, input := range e.inputs() {
+		e.inputVars |= input.inputVars
 	}
 
 	// TODO(peter): update expr.props.

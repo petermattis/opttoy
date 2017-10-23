@@ -50,6 +50,12 @@ func (s scan) updateProps(e *expr) {
 		}
 	}
 
+	e.inputVars = 0
+	for _, filter := range e.filters() {
+		e.inputVars |= filter.inputVars
+	}
+	e.inputVars &^= e.props.outputVars()
+
 	props.applyFilters(e.filters())
 }
 
