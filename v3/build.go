@@ -57,21 +57,31 @@ var unaryOpMap = [...]operator{
 	parser.UnaryComplement: unaryComplementOp,
 }
 
-func build(
-	stmt parser.Statement,
-	tab *logicalProps) *expr {
+type scope struct {
+	parent *scope
+	props  *logicalProps
+}
+
+func (s *scope) push(props *logicalProps) *scope {
+	return &scope{
+		parent: s,
+		props:  props,
+	}
+}
+
+func build(stmt parser.Statement, scope *scope) *expr {
 	switch stmt := stmt.(type) {
 	case *parser.Select:
-		return buildSelect(stmt, tab)
+		return buildSelect(stmt, scope)
 	case *parser.ParenSelect:
-		return buildSelect(stmt.Select, tab)
+		return buildSelect(stmt.Select, scope)
 	default:
 		unimplemented("%T", stmt)
 		return nil
 	}
 }
 
-func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
+func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 	switch source := texpr.(type) {
 	case *parser.NormalizableTableName:
 		tableName, err := source.Normalize()
@@ -79,7 +89,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 			fatalf("%s", err)
 		}
 		name := tableName.Table()
-		state := props.state
+		state := scope.props.state
 		tab, ok := state.catalog[name]
 		if !ok {
 			fatalf("unknown table %s", name)
@@ -96,7 +106,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		return result
 
 	case *parser.AliasedTableExpr:
-		result := buildTable(source.Expr, props)
+		result := buildTable(source.Expr, scope)
 		if source.As.Alias != "" {
 			if n := len(source.As.Cols); n > 0 && n != len(result.props.columns) {
 				fatalf("rename specified %d columns, but table contains %d",
@@ -133,20 +143,22 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		return result
 
 	case *parser.ParenTableExpr:
-		return buildTable(source.Expr, props)
+		return buildTable(source.Expr, scope)
 
 	case *parser.JoinTableExpr:
+		left := buildTable(source.Left, scope)
+		right := buildTable(source.Right, scope.push(left.props))
 		result := &expr{
 			op: innerJoinOp,
 			children: []*expr{
-				buildTable(source.Left, props),
-				buildTable(source.Right, props),
+				left,
+				right,
 			},
 		}
 
 		switch cond := source.Cond.(type) {
 		case *parser.OnJoinCond:
-			buildOnJoin(result, cond.Expr)
+			buildOnJoin(result, cond.Expr, scope)
 
 		case parser.NaturalJoinCond:
 			buildNaturalJoin(result)
@@ -162,7 +174,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 		return result
 
 	case *parser.Subquery:
-		return build(source.Select, props)
+		return build(source.Select, scope)
 
 	default:
 		unimplemented("%T", texpr)
@@ -170,7 +182,7 @@ func buildTable(texpr parser.TableExpr, props *logicalProps) *expr {
 	}
 }
 
-func buildOnJoin(result *expr, on parser.Expr) {
+func buildOnJoin(result *expr, on parser.Expr, scope *scope) {
 	left := result.inputs()[0].props
 	right := result.inputs()[1].props
 	result.props = &logicalProps{
@@ -179,7 +191,7 @@ func buildOnJoin(result *expr, on parser.Expr) {
 	}
 	copy(result.props.columns[:], left.columns)
 	copy(result.props.columns[len(left.columns):], right.columns)
-	result.addFilter(buildScalar(on, result.props))
+	result.addFilter(buildScalar(on, scope.push(result.props)))
 }
 
 func buildNaturalJoin(e *expr) {
@@ -254,33 +266,33 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 	}
 }
 
-func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
+func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 	var result *expr
 	switch t := pexpr.(type) {
 	case *parser.ParenExpr:
-		return buildScalar(t.Expr, props)
+		return buildScalar(t.Expr, scope)
 
 	case *parser.AndExpr:
 		result = &expr{
 			op: andOp,
 			children: []*expr{
-				buildScalar(t.Left, props),
-				buildScalar(t.Right, props),
+				buildScalar(t.Left, scope),
+				buildScalar(t.Right, scope),
 			},
 		}
 	case *parser.OrExpr:
 		result = &expr{
 			op: orOp,
 			children: []*expr{
-				buildScalar(t.Left, props),
-				buildScalar(t.Right, props),
+				buildScalar(t.Left, scope),
+				buildScalar(t.Right, scope),
 			},
 		}
 	case *parser.NotExpr:
 		result = &expr{
 			op: notOp,
 			children: []*expr{
-				buildScalar(t.Expr, props),
+				buildScalar(t.Expr, scope),
 			},
 		}
 
@@ -288,43 +300,46 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		result = &expr{
 			op: binaryOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Left, props),
-				buildScalar(t.Right, props),
+				buildScalar(t.Left, scope),
+				buildScalar(t.Right, scope),
 			},
 		}
 	case *parser.ComparisonExpr:
 		result = &expr{
 			op: comparisonOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Left, props),
-				buildScalar(t.Right, props),
+				buildScalar(t.Left, scope),
+				buildScalar(t.Right, scope),
 			},
 		}
 	case *parser.UnaryExpr:
 		result = &expr{
 			op: unaryOpMap[t.Operator],
 			children: []*expr{
-				buildScalar(t.Expr, props),
+				buildScalar(t.Expr, scope),
 			},
 		}
 
 	case *parser.ColumnItem:
 		tableName := t.TableName.Table()
 		colName := string(t.ColumnName)
-		for _, col := range props.columns {
-			if col.hasColumn(tableName, colName) {
-				if tableName == "" && len(col.tables) > 0 {
-					t.TableName.TableName = parser.Name(col.tables[0])
-					t.TableName.DBNameOriginallyOmitted = true
+
+		for s := scope; s != nil; s = s.parent {
+			for _, col := range s.props.columns {
+				if col.hasColumn(tableName, colName) {
+					if tableName == "" && len(col.tables) > 0 {
+						t.TableName.TableName = parser.Name(col.tables[0])
+						t.TableName.DBNameOriginallyOmitted = true
+					}
+					result = &expr{
+						op:      variableOp,
+						props:   s.props,
+						private: t,
+					}
+					result.inputVars.set(col.index)
+					result.updateProps()
+					return result
 				}
-				result = &expr{
-					op:      variableOp,
-					props:   props,
-					private: t,
-				}
-				result.inputVars.set(col.index)
-				result.updateProps()
-				return result
 			}
 		}
 		fatalf("unknown column %s", t)
@@ -334,12 +349,12 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		if err != nil {
 			panic(err)
 		}
-		return buildScalar(vn, props)
+		return buildScalar(vn, scope)
 
 	case *parser.NumVal:
 		result = &expr{
 			op:      constOp,
-			props:   props,
+			props:   scope.props,
 			private: t,
 		}
 
@@ -347,12 +362,12 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		result = &expr{
 			op: existsOp,
 			children: []*expr{
-				buildScalar(t.Subquery, props),
+				buildScalar(t.Subquery, scope),
 			},
 		}
 
 	case *parser.Subquery:
-		return build(t.Select, props)
+		return build(t.Select, scope)
 
 	default:
 		// NB: we can't type assert on parser.dNull because the type is not
@@ -360,7 +375,7 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 		if pexpr == parser.DNull {
 			result = &expr{
 				op:      constOp,
-				props:   props,
+				props:   scope.props,
 				private: pexpr,
 			}
 		} else {
@@ -371,21 +386,21 @@ func buildScalar(pexpr parser.Expr, props *logicalProps) *expr {
 	return result
 }
 
-func buildSelect(stmt *parser.Select, props *logicalProps) *expr {
+func buildSelect(stmt *parser.Select, scope *scope) *expr {
 	var result *expr
 
 	switch t := stmt.Select.(type) {
 	case *parser.SelectClause:
-		result = buildFrom(t.From, t.Where, props)
-		result = buildGroupBy(result, t.GroupBy, t.Having)
-		result = buildProjections(result, t.Exprs)
-		result = buildDistinct(result, t.Distinct)
+		result, scope = buildFrom(t.From, t.Where, scope)
+		result, scope = buildGroupBy(result, t.GroupBy, t.Having, scope)
+		result, scope = buildProjections(result, t.Exprs, scope)
+		result, scope = buildDistinct(result, t.Distinct, scope)
 
 	case *parser.UnionClause:
-		result = buildUnion(t, props)
+		result = buildUnion(t, scope)
 
 	case *parser.ParenSelect:
-		result = buildSelect(t.Select, props)
+		result = buildSelect(t.Select, scope)
 
 	// TODO(peter): case *parser.ValuesClause:
 
@@ -398,16 +413,17 @@ func buildSelect(stmt *parser.Select, props *logicalProps) *expr {
 	return result
 }
 
-func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *expr {
+func buildFrom(from *parser.From, where *parser.Where, scope *scope) (*expr, *scope) {
 	if from == nil {
-		return nil
+		return nil, scope
 	}
 
 	var result *expr
 	for _, table := range from.Tables {
-		t := buildTable(table, props)
+		t := buildTable(table, scope)
 		if result == nil {
-			result, props = t, t.props
+			result = t
+			scope = scope.push(result.props)
 			continue
 		}
 		result = &expr{
@@ -419,31 +435,36 @@ func buildFrom(from *parser.From, where *parser.Where, props *logicalProps) *exp
 		}
 		buildUsingJoin(result, nil)
 		result.updateProps()
-		props = result.props
+		scope = scope.push(result.props)
 	}
 
 	if where != nil {
-		result.addFilter(buildScalar(where.Expr, props))
+		result.addFilter(buildScalar(where.Expr, scope))
 		result.updateProps()
 	}
 
-	return result
+	return result, scope
 }
 
-func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *expr {
+func buildGroupBy(
+	input *expr,
+	groupBy parser.GroupBy,
+	having *parser.Where,
+	scope *scope,
+) (*expr, *scope) {
 	if groupBy == nil {
-		return input
+		return input, scope
 	}
 
 	result := &expr{
 		op:       groupByOp,
 		children: []*expr{input},
-		props:    input.props,
+		props:    scope.props,
 	}
 
 	exprs := make([]*expr, 0, len(groupBy))
 	for _, expr := range groupBy {
-		exprs = append(exprs, buildScalar(expr, result.props))
+		exprs = append(exprs, buildScalar(expr, scope))
 	}
 	result.addGroupings(exprs)
 
@@ -452,19 +473,19 @@ func buildGroupBy(input *expr, groupBy parser.GroupBy, having *parser.Where) *ex
 	if having != nil {
 		// TODO(peter): Any aggregations mentioned in the having expressions need
 		// to be copied into the groupByOp. Ditto for later projections.
-		result.addFilter(buildScalar(having.Expr, result.props))
+		result.addFilter(buildScalar(having.Expr, scope))
 		result.updateProps()
 	}
 
-	return result
+	return result, scope
 }
 
-func buildProjection(pexpr parser.Expr, props *logicalProps) []*expr {
+func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
 	switch t := pexpr.(type) {
 	case parser.UnqualifiedStar:
 		var projections []*expr
-		for _, col := range props.columns {
-			projections = append(projections, col.newVariableExpr("", props))
+		for _, col := range scope.props.columns {
+			projections = append(projections, col.newVariableExpr("", scope.props))
 		}
 		if len(projections) == 0 {
 			fatalf("failed to expand *")
@@ -474,9 +495,9 @@ func buildProjection(pexpr parser.Expr, props *logicalProps) []*expr {
 	case *parser.AllColumnsSelector:
 		tableName := t.TableName.Table()
 		var projections []*expr
-		for _, col := range props.columns {
+		for _, col := range scope.props.columns {
 			if col.hasTable(tableName) {
-				projections = append(projections, col.newVariableExpr(tableName, props))
+				projections = append(projections, col.newVariableExpr(tableName, scope.props))
 			}
 		}
 		if len(projections) == 0 {
@@ -489,16 +510,20 @@ func buildProjection(pexpr parser.Expr, props *logicalProps) []*expr {
 		if err != nil {
 			panic(err)
 		}
-		return buildProjection(vn, props)
+		return buildProjection(vn, scope)
 
 	default:
-		return []*expr{buildScalar(pexpr, props)}
+		return []*expr{buildScalar(pexpr, scope)}
 	}
 }
 
-func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
+func buildProjections(
+	input *expr,
+	sexprs parser.SelectExprs,
+	scope *scope,
+) (*expr, *scope) {
 	if len(sexprs) == 0 {
-		return input
+		return input, scope
 	}
 
 	state := input.props.state
@@ -512,7 +537,7 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 
 	var projections []*expr
 	for _, expr := range sexprs {
-		exprs := buildProjection(expr.Expr, input.props)
+		exprs := buildProjection(expr.Expr, scope)
 		projections = append(projections, exprs...)
 
 		for _, p := range exprs {
@@ -549,12 +574,12 @@ func buildProjections(input *expr, sexprs parser.SelectExprs) *expr {
 
 	result.addProjections(projections)
 	result.updateProps()
-	return result
+	return result, scope.push(result.props)
 }
 
-func buildDistinct(input *expr, distinct bool) *expr {
+func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	if !distinct {
-		return input
+		return input, scope
 	}
 
 	// Distint is equivalent to group by without any aggregations.
@@ -571,7 +596,7 @@ func buildDistinct(input *expr, distinct bool) *expr {
 	result.addGroupings(exprs)
 
 	result.updateProps()
-	return result
+	return result, scope
 }
 
 func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
@@ -591,7 +616,7 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 	return result
 }
 
-func buildUnion(clause *parser.UnionClause, props *logicalProps) *expr {
+func buildUnion(clause *parser.UnionClause, scope *scope) *expr {
 	op := unionOp
 	switch clause.Type {
 	case parser.UnionOp:
@@ -600,8 +625,8 @@ func buildUnion(clause *parser.UnionClause, props *logicalProps) *expr {
 	case parser.ExceptOp:
 		op = exceptOp
 	}
-	left := buildSelect(clause.Left, props)
-	right := buildSelect(clause.Right, props)
+	left := buildSelect(clause.Left, scope)
+	right := buildSelect(clause.Right, scope)
 	result := &expr{
 		op: op,
 		children: []*expr{
