@@ -49,3 +49,31 @@ groupBy
   inputs:
     scan
       columns: +a.x:0 +a.y:1
+
+prep
+SELECT COUNT(*) FROM a
+----
+groupBy
+  columns: .column1:2
+  aggregations:
+    func (count)
+      inputs:
+        const (1)
+  inputs:
+    scan
+      columns: a.x:0 a.y:1
+
+prep
+SELECT COUNT(*) FROM a GROUP BY x
+----
+groupBy
+  columns: .column1:2
+  groupings:
+    variable (a.x) [in=0]
+  aggregations:
+    func (count)
+      inputs:
+        const (1)
+  inputs:
+    scan
+      columns: +a.x:0 a.y:1

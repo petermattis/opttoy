@@ -3,6 +3,9 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"strings"
+
+	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
 const spaces = "                                                                "
@@ -54,6 +57,7 @@ func init() {
 	registerOperator(unaryPlusOp, "unary (+)", scalar{})
 	registerOperator(unaryMinusOp, "unary (-)", scalar{})
 	registerOperator(unaryComplementOp, "unary (~)", scalar{})
+	registerOperator(functionOp, "func", scalar{})
 }
 
 type scalar struct{}
@@ -90,4 +94,32 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	}
 	result.updateProps()
 	return result
+}
+
+func isAggregate(e *expr) bool {
+	if e.op != functionOp {
+		return false
+	}
+	if def, ok := e.private.(*parser.FunctionDefinition); ok {
+		if strings.EqualFold(def.Name, "count") ||
+			strings.EqualFold(def.Name, "min") ||
+			strings.EqualFold(def.Name, "max") ||
+			strings.EqualFold(def.Name, "sum") ||
+			strings.EqualFold(def.Name, "avg") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAggregate(e *expr) bool {
+	if isAggregate(e) {
+		return true
+	}
+	for _, input := range e.inputs() {
+		if containsAggregate(input) {
+			return true
+		}
+	}
+	return false
 }

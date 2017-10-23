@@ -358,6 +358,31 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 			private: t,
 		}
 
+	case *parser.FuncExpr:
+		def, err := t.Func.Resolve(parser.SearchPath{})
+		if err != nil {
+			fatalf("%v", err)
+		}
+		result = &expr{
+			op:      functionOp,
+			props:   scope.props,
+			private: def,
+		}
+		result.children = make([]*expr, 0, len(t.Exprs))
+		for _, pexpr := range t.Exprs {
+			var e *expr
+			if _, ok := pexpr.(parser.UnqualifiedStar); ok {
+				e = &expr{
+					op:      constOp,
+					props:   scope.props,
+					private: parser.NewDInt(1),
+				}
+			} else {
+				e = buildScalar(pexpr, scope)
+			}
+			result.children = append(result.children, e)
+		}
+
 	case *parser.ExistsExpr:
 		result = &expr{
 			op: existsOp,
@@ -528,20 +553,21 @@ func buildProjections(
 
 	state := input.props.state
 	result := &expr{
-		op: projectOp,
-		children: []*expr{
-			input,
-		},
-		props: &logicalProps{state: state},
+		op:       projectOp,
+		children: []*expr{input},
+		props:    &logicalProps{state: state},
 	}
 
 	var projections []*expr
 	passthru := true
+	hasAggregations := false
 	for _, expr := range sexprs {
 		exprs := buildProjection(expr.Expr, scope)
 		projections = append(projections, exprs...)
 
 		for _, p := range exprs {
+			hasAggregations = hasAggregations || containsAggregate(p)
+
 			name := string(expr.As)
 			var tables []string
 
@@ -581,7 +607,17 @@ func buildProjections(
 		return input, scope
 	}
 
-	result.addProjections(projections)
+	if hasAggregations {
+		if input.op == groupByOp {
+			input.props = result.props
+			result = input
+		} else {
+			result.op = groupByOp
+		}
+		result.addAggregations(projections)
+	} else {
+		result.addProjections(projections)
+	}
 	result.updateProps()
 	return result, scope.push(result.props)
 }

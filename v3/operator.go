@@ -84,6 +84,8 @@ const (
 	unaryMinusOp
 	unaryComplementOp
 
+	functionOp
+
 	// TODO(peter): Pattern operators. The idea here is to define patterns in
 	// terms of the expression structure. patternLeaf allows the extraction of an
 	// expression tree for which we only care about the logical properties of the
