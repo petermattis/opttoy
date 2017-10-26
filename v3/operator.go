@@ -109,7 +109,16 @@ const (
 	numOperators
 )
 
+type operatorKind int
+
+const (
+	_ operatorKind = iota
+	relationalKind
+	scalarKind
+)
+
 type operatorInfo interface {
+	kind() operatorKind
 	format(e *expr, buf *bytes.Buffer, level int)
 	updateProps(e *expr)
 }

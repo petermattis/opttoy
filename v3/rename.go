@@ -10,6 +10,10 @@ func init() {
 
 type rename struct{}
 
+func (rename) kind() operatorKind {
+	return relationalKind
+}
+
 func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)

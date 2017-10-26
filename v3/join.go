@@ -15,6 +15,10 @@ func init() {
 
 type innerJoin struct{}
 
+func (innerJoin) kind() operatorKind {
+	return relationalKind
+}
+
 func (innerJoin) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)

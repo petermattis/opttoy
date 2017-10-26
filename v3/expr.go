@@ -345,6 +345,14 @@ func (e *expr) hasApply() bool {
 	return (e.auxBits & (1 << auxApplyBit)) != 0
 }
 
+func (e *expr) isRelational() bool {
+	return e.info().kind() == relationalKind
+}
+
+func (e *expr) isScalar() bool {
+	return e.info().kind() == scalarKind
+}
+
 func (e *expr) info() operatorInfo {
 	return operatorTab[e.op]
 }

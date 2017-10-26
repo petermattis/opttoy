@@ -10,6 +10,10 @@ func init() {
 
 type scan struct{}
 
+func (scan) kind() operatorKind {
+	return relationalKind
+}
+
 func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)

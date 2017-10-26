@@ -10,6 +10,10 @@ func init() {
 
 type orderBy struct{}
 
+func (orderBy) kind() operatorKind {
+	return relationalKind
+}
+
 func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	// formatExprs(buf, "sorting", e.sortings(), level)

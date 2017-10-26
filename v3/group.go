@@ -10,6 +10,10 @@ func init() {
 
 type groupBy struct{}
 
+func (groupBy) kind() operatorKind {
+	return relationalKind
+}
+
 func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "groupings", e.groupings(), level)

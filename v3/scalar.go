@@ -62,6 +62,10 @@ func init() {
 
 type scalar struct{}
 
+func (scalar) kind() operatorKind {
+	return scalarKind
+}
+
 func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
 	fmt.Fprintf(buf, "%s%v", indent, e.op)

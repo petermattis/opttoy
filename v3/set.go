@@ -12,6 +12,10 @@ func init() {
 
 type union struct{}
 
+func (union) kind() operatorKind {
+	return relationalKind
+}
+
 func (union) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)

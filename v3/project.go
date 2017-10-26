@@ -10,6 +10,10 @@ func init() {
 
 type project struct{}
 
+func (project) kind() operatorKind {
+	return relationalKind
+}
+
 func (project) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "projections", e.projections(), level)
