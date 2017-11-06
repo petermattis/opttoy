@@ -147,7 +147,19 @@ func maybeDecorrelateSelection(e *expr) bool {
 
 // apply(R, project(E)) -> project(apply(R, E))
 func maybeDecorrelateProjection(e *expr) bool {
-	// TODO(peter): unimplemented
+	right := e.inputs()[1]
+	if right.op == projectOp {
+		t := *e
+		*e = expr{
+			op:       projectOp,
+			children: []*expr{&t},
+			props:    t.props,
+		}
+		t.inputs()[1] = right.inputs()[0]
+		t.updateProps()
+		e.updateProps()
+		return true
+	}
 	return false
 }
 

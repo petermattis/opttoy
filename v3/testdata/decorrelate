@@ -77,6 +77,25 @@ inner join
       columns: +b.x:2* +b.z:3
 
 decorrelate
+SELECT * FROM a, (SELECT b.x FROM b WHERE a.x = b.x)
+----
+project
+  columns: a.x:0* a.y:1 b.x:2*
+  inputs:
+    inner join
+      columns: a.x:0* a.y:1 b.x:2*
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: +a.x:0 +a.y:1
+        scan
+          columns: +b.x:2* +b.z:3
+
+decorrelate
 SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
 ----
 project
