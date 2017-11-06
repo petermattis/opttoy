@@ -495,8 +495,12 @@ func buildGroupBy(
 	result := &expr{
 		op:       groupByOp,
 		children: []*expr{input},
-		props:    scope.props,
+		props: &logicalProps{
+			columns: make([]columnProps, len(scope.props.columns)),
+			state:   scope.props.state,
+		},
 	}
+	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(groupBy))
 	for _, expr := range groupBy {
@@ -508,12 +512,44 @@ func buildGroupBy(
 
 	if having != nil {
 		// TODO(peter): Any aggregations mentioned in the having expressions need
-		// to be copied into the groupByOp. Ditto for later projections.
-		result.addFilter(buildScalar(having.Expr, scope))
+		// to be copied into the groupByOp.
+		f := buildScalar(having.Expr, scope)
+		buildGroupByExtractAggregates(result, f)
+		result.addFilter(f)
 		result.updateProps()
 	}
 
 	return result, scope
+}
+
+func buildGroupByExtractAggregates(g *expr, e *expr) {
+	if isAggregate(e) {
+		// Check to see if the aggregation already exists.
+		for i, a := range g.aggregations() {
+			if equivalent(a, e) {
+				col := g.props.columns[i+len(g.inputs()[0].props.columns)]
+				*e = *col.newVariableExpr("", g.props)
+				return
+			}
+		}
+
+		t := *e
+		g.addAggregations([]*expr{&t})
+
+		index := g.props.state.nextVar
+		g.props.state.nextVar++
+		name := fmt.Sprintf("column%d", len(g.props.columns)+1)
+		g.props.columns = append(g.props.columns, columnProps{
+			index: index,
+			name:  name,
+		})
+		*e = *g.props.columns[len(g.props.columns)-1].newVariableExpr("", g.props)
+		return
+	}
+
+	for _, input := range e.inputs() {
+		buildGroupByExtractAggregates(g, input)
+	}
 }
 
 func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
@@ -571,15 +607,25 @@ func buildProjections(
 
 	var projections []*expr
 	passthru := true
-	hasAggregations := false
-	for _, expr := range sexprs {
-		exprs := buildProjection(expr.Expr, scope)
+	for _, sexpr := range sexprs {
+		exprs := buildProjection(sexpr.Expr, scope)
 		projections = append(projections, exprs...)
 
 		for _, p := range exprs {
-			hasAggregations = hasAggregations || containsAggregate(p)
+			if containsAggregate(p) {
+				if input.op != groupByOp {
+					input = &expr{
+						op:       groupByOp,
+						children: []*expr{input},
+						props:    &logicalProps{state: state},
+					}
+					result.inputs()[0] = input
+				}
+				buildGroupByExtractAggregates(input, p)
+				input.updateProps()
+			}
 
-			name := string(expr.As)
+			name := string(sexpr.As)
 			var tables []string
 
 			var index bitmapIndex
@@ -618,17 +664,7 @@ func buildProjections(
 		return input, scope
 	}
 
-	if hasAggregations {
-		if input.op == groupByOp {
-			input.props = result.props
-			result = input
-		} else {
-			result.op = groupByOp
-		}
-		result.addAggregations(projections)
-	} else {
-		result.addProjections(projections)
-	}
+	result.addProjections(projections)
 	result.updateProps()
 	return result, scope.push(result.props)
 }

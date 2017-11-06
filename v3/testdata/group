@@ -19,7 +19,7 @@ project
         variable (a.x) [in=0]
       inputs:
         scan
-          columns: a.x:0 +a.y:1
+          columns: +a.x:0 a.y:1
 
 prep
 SELECT y FROM a GROUP BY y, x
@@ -36,7 +36,7 @@ project
         variable (a.x) [in=0]
       inputs:
         scan
-          columns: a.x:0 +a.y:1
+          columns: +a.x:0 +a.y:1
 
 prep
 SELECT DISTINCT * FROM a
@@ -66,14 +66,70 @@ groupBy
 prep
 SELECT COUNT(*) FROM a GROUP BY x
 ----
-groupBy
-  columns: .column1:2
-  groupings:
-    variable (a.x) [in=0]
-  aggregations:
-    func (count)
-      inputs:
-        const (1)
+project
+  columns: .column3:2
+  projections:
+    variable (column3) [in=2]
   inputs:
-    scan
-      columns: +a.x:0 a.y:1
+    groupBy
+      columns: a.x:0 a.y:1 +.column3:2
+      groupings:
+        variable (a.x) [in=0]
+      aggregations:
+        func (count)
+          inputs:
+            const (1)
+      inputs:
+        scan
+          columns: +a.x:0 a.y:1
+
+prep
+SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
+----
+project
+  columns: a.x:0
+  projections:
+    variable (a.x) [in=0]
+  inputs:
+    groupBy
+      columns: +a.x:0 a.y:1 .column3:2
+      groupings:
+        variable (a.x) [in=0]
+      aggregations:
+        func (sum) [in=1]
+          inputs:
+            variable (a.y) [in=1]
+      filters:
+        comp (>) [in=1]
+          inputs:
+            variable (column3) [in=2]
+            const (0)
+      inputs:
+        scan
+          columns: +a.x:0 +a.y:1
+
+prep
+SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
+----
+project
+  columns: a.x:0 .column3:2
+  projections:
+    variable (a.x) [in=0]
+    variable (column3) [in=2]
+  inputs:
+    groupBy
+      columns: +a.x:0 a.y:1 +.column3:2
+      groupings:
+        variable (a.x) [in=0]
+      aggregations:
+        func (sum) [in=1]
+          inputs:
+            variable (a.y) [in=1]
+      filters:
+        comp (>) [in=1]
+          inputs:
+            variable (column3) [in=2]
+            const (0)
+      inputs:
+        scan
+          columns: +a.x:0 +a.y:1

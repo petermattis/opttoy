@@ -127,3 +127,22 @@ func containsAggregate(e *expr) bool {
 	}
 	return false
 }
+
+// TODO(peter): this probably deserves to be a method on expr.
+func equivalent(a, b *expr) bool {
+	if a.op != b.op {
+		return false
+	}
+	if a.op == variableOp {
+		return fmt.Sprint(a.private) == fmt.Sprint(b.private)
+	}
+	if len(a.inputs()) != len(b.inputs()) {
+		return false
+	}
+	for i := range a.inputs() {
+		if !equivalent(a.inputs()[i], b.inputs()[i]) {
+			return false
+		}
+	}
+	return true
+}
