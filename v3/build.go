@@ -511,8 +511,6 @@ func buildGroupBy(
 	result.updateProps()
 
 	if having != nil {
-		// TODO(peter): Any aggregations mentioned in the having expressions need
-		// to be copied into the groupByOp.
 		f := buildScalar(having.Expr, scope)
 		buildGroupByExtractAggregates(result, f)
 		result.addFilter(f)
