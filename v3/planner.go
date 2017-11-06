@@ -1,30 +1,11 @@
-// TODO(peter):
+// TODO(peter): transformations
 //
-// logical properties
-// - required columns
-// - derived columns
-// - keys, weak keys and foreign keys
-// - column value constraints
-// - required ordering
+// - Distinct/group-by elimination. If the grouping columns are a key from the
+//   input, we don't need to perform the grouping.
 //
-// physical properties
-// - provided ordering
+// - Group-by pull-up. Pull group-by above a join.
 //
-// scalar properties
-// - monotonic (ordering)
-// - not null
-// - constness
-// - type
-//
-// cost-agnostic transformations
-// - predicate push down
-// - join elimination
-// - unnesting
-//
-// cost-based transformations
-// - join re-ordering
-// - group-by pull-up
-// - group-by push-down
+// - Group-by push-down. Push group-by below a join.
 
 package v3
 
