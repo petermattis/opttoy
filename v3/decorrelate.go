@@ -159,9 +159,71 @@ func maybeDecorrelateJoin(e *expr) bool {
 
 // apply(R, groupBy(E)) -> groupBy(applyLOJ(R, E))
 func maybeDecorrelateScalarGroupBy(e *expr) bool {
-	// TODO(peter): unimplemented
 	right := e.inputs()[1]
 	if right.op == groupByOp && len(right.groupings()) == 0 {
+		// The inner group by is a scalar group by. We'll be push the apply down
+		// (or hoisting the group by up). The group by is transformed from a scalar
+		// group by to a vector group by where the grouping columns are the columns
+		// of R (the left input to the apply) and the aggregations are taken from
+		// the scalar group by.
+
+		// The input to the vector group by is a left outer join over R and E.
+		left := e.inputs()[0]
+		loj := &expr{
+			op: leftJoinOp,
+			children: []*expr{
+				left,
+				right.inputs()[0],
+			},
+		}
+		buildLeftOuterJoin(loj)
+		loj.setApply()
+		loj.updateProps()
+
+		// The new vector group by expression which groups over the columns of R
+		// and uses the aggregations from E.
+		g := &expr{
+			op: groupByOp,
+			children: []*expr{
+				loj,
+			},
+			props: &logicalProps{
+				columns: make([]columnProps, len(left.props.columns)+len(right.props.columns)),
+				state:   left.props.state,
+			},
+		}
+
+		copy(g.props.columns[:], left.props.columns)
+		copy(g.props.columns[len(left.props.columns):], right.props.columns)
+
+		// TODO(peter): convert the aggregations to be over a single non-nullable
+		// column. That is, COUNT(*) needs to be converted to COUNT(c) where "c" is
+		// non-nullable.
+		g.addAggregations(right.aggregations())
+
+		groupings := make([]*expr, 0, len(left.props.columns))
+		for _, col := range left.props.columns {
+			groupings = append(groupings, col.newVariableExpr(col.tables[0], left.props))
+		}
+		g.addGroupings(groupings)
+		g.addFilters(e.filters())
+		g.updateProps()
+
+		// A final projection is necessary to match the outputs of the original
+		// apply expression.
+		*e = expr{
+			op: projectOp,
+			children: []*expr{
+				g,
+			},
+			props: e.props,
+		}
+		projections := make([]*expr, 0, len(e.props.columns))
+		for _, col := range e.props.columns {
+			projections = append(projections, col.newVariableExpr(col.tables[0], e.props))
+		}
+		e.addProjections(projections)
+		e.updateProps()
 		return true
 	}
 	return false
@@ -187,8 +249,14 @@ func maybeDecorrelate(e *expr) bool {
 	if maybeDecorrelateProjection(e) {
 		return true
 	}
+	if maybeDecorrelateJoin(e) {
+		return true
+	}
 	if maybeDecorrelateScalarGroupBy(e) {
-		return false // TODO(peter): switch to true when implemented
+		return true
+	}
+	if maybeDecorrelateVectorGroupBy(e) {
+		return true
 	}
 
 	e.clearApply()
@@ -201,10 +269,13 @@ func maybeDecorrelate(e *expr) bool {
 func decorrelate(e *expr) {
 	for maybeExpandApply(e) {
 	}
+
 	for maybeDecorrelate(e) {
 	}
 
 	for _, input := range e.inputs() {
 		decorrelate(input)
 	}
+
+	e.updateProps()
 }

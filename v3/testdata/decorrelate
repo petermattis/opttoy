@@ -76,31 +76,39 @@ inner join
     scan
       columns: +b.x:2* +b.z:3
 
-
 decorrelate
 SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
 ----
-inner join (apply) [in=0]
+project
   columns: +a.x:0 +a.y:1
-  filters:
-    comp (<) [in=4]
-      inputs:
-        const (1000000)
-        variable (column1) [in=4]
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
   inputs:
-    scan
-      columns: +a.x:0 +a.y:1
-    groupBy [in=0]
-      columns: +.column1:4
+    groupBy
+      columns: +a.x:0 +a.y:1 .column1:4
+      groupings:
+        variable (a.x) [in=0]
+        variable (a.y) [in=1]
       aggregations:
         func (sum) [in=3]
           inputs:
             variable (b.z) [in=3]
+      filters:
+        comp (<) [in=4]
+          inputs:
+            const (1000000)
+            variable (column1) [in=4]
       inputs:
-        scan [in=0]
-          columns: b.x:2* +b.z:3
+        left join
+          columns: +a.x:0* +a.y:1 b.x:2* +b.z:3
           filters:
             comp (=) [in=0,2]
               inputs:
                 variable (a.x) [in=0]
                 variable (b.x) [in=2]
+          inputs:
+            scan
+              columns: +a.x:0 +a.y:1
+            scan
+              columns: +b.x:2* +b.z:3

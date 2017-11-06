@@ -209,6 +209,12 @@ func (e *expr) addFilter(f *expr) {
 	}
 }
 
+func (e *expr) addFilters(filters []*expr) {
+	for _, f := range filters {
+		e.addFilter(f)
+	}
+}
+
 func (e *expr) removeFilter(f *expr) {
 	filters := e.filters()
 	for i := range filters {

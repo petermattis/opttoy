@@ -266,6 +266,17 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 	}
 }
 
+func buildLeftOuterJoin(e *expr) {
+	left := e.inputs()[0].props
+	right := e.inputs()[1].props
+	e.props = &logicalProps{
+		columns: make([]columnProps, len(left.columns)+len(right.columns)),
+		state:   left.state,
+	}
+	copy(e.props.columns[:], left.columns)
+	copy(e.props.columns[len(left.columns):], right.columns)
+}
+
 func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 	var result *expr
 	switch t := pexpr.(type) {

@@ -5,10 +5,12 @@ import (
 )
 
 func init() {
+	// TODO(peter): It is almost certainly not correct to be using innerJoin for
+	// all of these joins.
 	registerOperator(innerJoinOp, "inner join", innerJoin{})
-	registerOperator(leftJoinOp, "left join", nil)
-	registerOperator(rightJoinOp, "right join", nil)
-	registerOperator(fullJoinOp, "full join", nil)
+	registerOperator(leftJoinOp, "left join", innerJoin{})
+	registerOperator(rightJoinOp, "right join", innerJoin{})
+	registerOperator(fullJoinOp, "full join", innerJoin{})
 	registerOperator(semiJoinOp, "semi-join", innerJoin{})
 	registerOperator(antiJoinOp, "anti-join", innerJoin{})
 }
