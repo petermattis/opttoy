@@ -508,15 +508,13 @@ func buildGroupBy(
 	}
 	result.addGroupings(exprs)
 
-	result.updateProps()
-
 	if having != nil {
 		f := buildScalar(having.Expr, scope)
 		buildGroupByExtractAggregates(result, f)
 		result.addFilter(f)
-		result.updateProps()
 	}
 
+	result.updateProps()
 	return result, scope
 }
 
