@@ -5,29 +5,27 @@ import (
 )
 
 func init() {
-	// TODO(peter): It is almost certainly not correct to be using innerJoin for
-	// all of these joins.
-	registerOperator(innerJoinOp, "inner join", innerJoin{})
-	registerOperator(leftJoinOp, "left join", innerJoin{})
-	registerOperator(rightJoinOp, "right join", innerJoin{})
-	registerOperator(fullJoinOp, "full join", innerJoin{})
-	registerOperator(semiJoinOp, "semi-join", innerJoin{})
-	registerOperator(antiJoinOp, "anti-join", innerJoin{})
+	registerOperator(innerJoinOp, "inner join", join{})
+	registerOperator(leftJoinOp, "left join", join{})
+	registerOperator(rightJoinOp, "right join", join{})
+	registerOperator(fullJoinOp, "full join", join{})
+	registerOperator(semiJoinOp, "semi-join", join{})
+	registerOperator(antiJoinOp, "anti-join", join{})
 }
 
-type innerJoin struct{}
+type join struct{}
 
-func (innerJoin) kind() operatorKind {
+func (join) kind() operatorKind {
 	return relationalKind
 }
 
-func (innerJoin) format(e *expr, buf *bytes.Buffer, level int) {
+func (join) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (innerJoin) updateProps(e *expr) {
+func (join) updateProps(e *expr) {
 	e.inputVars = 0
 	for _, filter := range e.filters() {
 		e.inputVars |= filter.inputVars
