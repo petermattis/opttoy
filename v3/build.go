@@ -149,7 +149,7 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 		left := buildTable(source.Left, scope)
 		right := buildTable(source.Right, scope.push(left.props))
 		result := &expr{
-			op: innerJoinOp,
+			op: joinOp(source.Join),
 			children: []*expr{
 				left,
 				right,

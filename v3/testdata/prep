@@ -205,6 +205,54 @@ project
           columns: +b.x:2 +b.z:3
 
 prep
+SELECT * FROM a LEFT JOIN b USING (x)
+----
+left join
+  columns: {a,b}.x:0* a.y:1 b.z:3
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0 +a.y:1
+    scan
+      columns: +b.x:2 +b.z:3
+
+prep
+SELECT * FROM a RIGHT JOIN b USING (x)
+----
+right join
+  columns: {a,b}.x:0* a.y:1 b.z:3
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0 +a.y:1
+    scan
+      columns: +b.x:2 +b.z:3
+
+prep
+SELECT * FROM a FULL JOIN b USING (x)
+----
+full join
+  columns: {a,b}.x:0* a.y:1 b.z:3
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+  inputs:
+    scan
+      columns: +a.x:0 +a.y:1
+    scan
+      columns: +b.x:2 +b.z:3
+
+prep
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 ----
 union

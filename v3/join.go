@@ -47,3 +47,19 @@ func (join) updateProps(e *expr) {
 
 	e.props.applyFilters(e.filters())
 }
+
+func joinOp(s string) operator {
+	switch s {
+	case "JOIN", "INNER JOIN", "CROSS JOIN":
+		return innerJoinOp
+	case "LEFT JOIN":
+		return leftJoinOp
+	case "RIGHT JOIN":
+		return rightJoinOp
+	case "FULL JOIN":
+		return fullJoinOp
+	default:
+		unimplemented("unsupported JOIN type %s", s)
+		return unknownOp
+	}
+}
