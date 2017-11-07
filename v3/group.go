@@ -29,6 +29,8 @@ func (g groupBy) updateProps(e *expr) {
 		e.inputVars |= input.inputVars
 	}
 
+	e.props.applyFilters(e.filters())
+
 	// TODO(peter): update keys
 }
 

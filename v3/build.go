@@ -518,14 +518,14 @@ func buildGroupBy(
 	return result, scope
 }
 
-func buildGroupByExtractAggregates(g *expr, e *expr) {
+func buildGroupByExtractAggregates(g *expr, e *expr) bool {
 	if isAggregate(e) {
 		// Check to see if the aggregation already exists.
 		for i, a := range g.aggregations() {
 			if equivalent(a, e) {
 				col := g.props.columns[i+len(g.inputs()[0].props.columns)]
 				*e = *col.newVariableExpr("", g.props)
-				return
+				return true
 			}
 		}
 
@@ -540,12 +540,17 @@ func buildGroupByExtractAggregates(g *expr, e *expr) {
 			name:  name,
 		})
 		*e = *g.props.columns[len(g.props.columns)-1].newVariableExpr("", g.props)
-		return
+		return true
 	}
 
+	var res bool
 	for _, input := range e.inputs() {
-		buildGroupByExtractAggregates(g, input)
+		res = buildGroupByExtractAggregates(g, input) || res
 	}
+	if res {
+		e.updateProps()
+	}
+	return res
 }
 
 func buildProjection(pexpr parser.Expr, scope *scope) []*expr {

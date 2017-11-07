@@ -92,7 +92,7 @@ project
     variable (a.x) [in=0]
   inputs:
     groupBy
-      columns: a.x:0 a.y:1 .column3:2
+      columns: a.x:0 a.y:1 .column3:2*
       groupings:
         variable (a.x) [in=0]
       aggregations:
@@ -100,7 +100,7 @@ project
           inputs:
             variable (a.y) [in=1]
       filters:
-        comp (>) [in=1]
+        comp (>) [in=2]
           inputs:
             variable (column3) [in=2]
             const (0)
@@ -118,7 +118,7 @@ project
     variable (column3) [in=2]
   inputs:
     groupBy
-      columns: a.x:0 a.y:1 .column3:2
+      columns: a.x:0 a.y:1 .column3:2*
       groupings:
         variable (a.x) [in=0]
       aggregations:
@@ -126,7 +126,7 @@ project
           inputs:
             variable (a.y) [in=1]
       filters:
-        comp (>) [in=1]
+        comp (>) [in=2]
           inputs:
             variable (column3) [in=2]
             const (0)

@@ -75,10 +75,10 @@ push_down
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
 ----
 rename
-  columns: b.x:2
+  columns: b.x:2*
   inputs:
     project
-      columns: .column1:2
+      columns: .column1:2*
       projections:
         binary (+) [in=0]
           inputs:
