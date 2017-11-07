@@ -530,7 +530,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr) {
 		}
 
 		t := *e
-		g.addAggregations([]*expr{&t})
+		g.addAggregation(&t)
 
 		index := g.props.state.nextVar
 		g.props.state.nextVar++
@@ -674,8 +674,12 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	result := &expr{
 		op:       groupByOp,
 		children: []*expr{input},
-		props:    input.props,
+		props: &logicalProps{
+			columns: make([]columnProps, len(scope.props.columns)),
+			state:   scope.props.state,
+		},
 	}
+	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(input.props.columns))
 	for _, col := range input.props.columns {
@@ -697,9 +701,13 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 	result := &expr{
 		op:       orderByOp,
 		children: []*expr{input},
-		props:    input.props,
-		private:  orderBy,
+		props: &logicalProps{
+			columns: make([]columnProps, len(input.props.columns)),
+			state:   input.props.state,
+		},
+		private: orderBy,
 	}
+	copy(result.props.columns, input.props.columns)
 	result.updateProps()
 	return result
 }
@@ -721,8 +729,12 @@ func buildUnion(clause *parser.UnionClause, scope *scope) *expr {
 			left,
 			right,
 		},
-		props: left.props,
+		props: &logicalProps{
+			columns: make([]columnProps, len(left.props.columns)),
+			state:   left.props.state,
+		},
 	}
+	copy(result.props.columns, left.props.columns)
 	result.updateProps()
 	return result
 }

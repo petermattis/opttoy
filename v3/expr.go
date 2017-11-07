@@ -345,6 +345,13 @@ func (e *expr) aggregations() []*expr {
 	return e.aux2()
 }
 
+func (e *expr) addAggregation(a *expr) {
+	if e.op != groupByOp {
+		fatalf("%s: invalid use of aggregations", e.op)
+	}
+	e.addAux2([]*expr{a})
+}
+
 func (e *expr) addAggregations(exprs []*expr) {
 	if e.op != groupByOp {
 		fatalf("%s: invalid use of aggregations", e.op)

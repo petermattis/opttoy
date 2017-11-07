@@ -38,6 +38,8 @@ func (j join) updateProps(e *expr) {
 	}
 
 	e.props.applyFilters(e.filters())
+
+	// TODO(peter): update keys
 }
 
 func (join) requiredInputVars(e *expr) bitmap {

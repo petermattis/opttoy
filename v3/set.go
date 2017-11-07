@@ -30,7 +30,7 @@ func (u union) updateProps(e *expr) {
 		e.inputVars |= input.inputVars
 	}
 
-	// TODO(peter): update expr.props.
+	// TODO(peter): update keys
 }
 
 func (union) requiredInputVars(e *expr) bitmap {

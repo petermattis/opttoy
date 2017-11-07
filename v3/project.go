@@ -28,7 +28,7 @@ func (p project) updateProps(e *expr) {
 		e.inputVars |= input.inputVars
 	}
 
-	// TODO(peter): update expr.props.
+	// TODO(peter): update keys
 }
 
 func (project) requiredInputVars(e *expr) bitmap {
