@@ -21,7 +21,7 @@ project
     variable (a.y) [in=1]
   inputs:
     scan
-      columns: a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT a.* FROM a
@@ -38,7 +38,7 @@ project
     variable (a.x) [in=0]
   inputs:
     scan
-      columns: +a.x:0 a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT * FROM (SELECT a.x+1 FROM a)
@@ -52,7 +52,7 @@ project
         const (1)
   inputs:
     scan
-      columns: +a.x:0 a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT a.y, a.x FROM a
@@ -64,7 +64,7 @@ project
     variable (a.x) [in=0]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT a.y+1 FROM a
@@ -78,7 +78,7 @@ project
         const (1)
   inputs:
     scan
-      columns: a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT * FROM b WHERE b.z > 10
@@ -101,7 +101,7 @@ project
     variable (b.z) [in=3]
   inputs:
     inner join
-      columns: a.x:0* +a.y:1 b.x:2* +b.z:3*
+      columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -117,9 +117,9 @@ project
             const (3)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
         scan
-          columns: +b.x:2 +b.z:3
+          columns: b.x:2 b.z:3
 
 prep
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
@@ -130,7 +130,7 @@ project
     variable (b.x) [in=2]
   inputs:
     inner join
-      columns: a.x:0* a.y:1 +b.x:2 b.z:3*
+      columns: a.x:0* a.y:1 b.x:2 b.z:3*
       filters:
         comp (>) [in=0]
           inputs:
@@ -142,9 +142,9 @@ project
             const (3)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
         scan
-          columns: +b.x:2 +b.z:3
+          columns: b.x:2 b.z:3
 
 prep
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
@@ -155,7 +155,7 @@ project
     variable (b.x) [in=0]
   inputs:
     inner join
-      columns: +{a,b}.x:0* a.y:1 b.z:3*
+      columns: {a,b}.x:0* a.y:1 b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -171,9 +171,9 @@ project
             const (3)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
         scan
-          columns: +b.x:2 +b.z:3
+          columns: b.x:2 b.z:3
 
 prep
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
@@ -184,7 +184,7 @@ project
     variable (b.x) [in=0]
   inputs:
     inner join
-      columns: +{a,b}.x:0* a.y:1 b.z:3*
+      columns: {a,b}.x:0* a.y:1 b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -200,9 +200,9 @@ project
             const (3)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
         scan
-          columns: +b.x:2 +b.z:3
+          columns: b.x:2 b.z:3
 
 prep
 SELECT * FROM a LEFT JOIN b USING (x)
@@ -216,9 +216,9 @@ left join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     scan
-      columns: +b.x:2 +b.z:3
+      columns: b.x:2 b.z:3
 
 prep
 SELECT * FROM a RIGHT JOIN b USING (x)
@@ -232,9 +232,9 @@ right join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     scan
-      columns: +b.x:2 +b.z:3
+      columns: b.x:2 b.z:3
 
 prep
 SELECT * FROM a FULL JOIN b USING (x)
@@ -248,23 +248,23 @@ full join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     scan
-      columns: +b.x:2 +b.z:3
+      columns: b.x:2 b.z:3
 
 prep
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 ----
 union
-  columns: +a.x:0 +a.y:1
+  columns: a.x:0 a.y:1
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     project
-      columns: +a.y:1 +a.x:0
+      columns: a.y:1 a.x:0
       projections:
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1

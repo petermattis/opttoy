@@ -25,27 +25,27 @@ func (join) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (join) updateProps(e *expr) {
-	e.inputVars = 0
-	for _, filter := range e.filters() {
-		e.inputVars |= filter.inputVars
-	}
-
+func (j join) updateProps(e *expr) {
 	e.props.notNullCols = 0
-	var providedInputVars bitmap
 	for _, input := range e.inputs() {
 		e.props.notNullCols |= input.props.notNullCols
-		outputVars := input.props.outputVars()
-		input.props.requiredOutputVars = outputVars
-		providedInputVars |= outputVars
 	}
 
-	e.inputVars &^= (e.props.outputVars() | providedInputVars)
+	e.inputVars = j.requiredInputVars(e)
+	e.inputVars &^= (e.props.outputVars() | e.providedInputVars())
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
 	}
 
 	e.props.applyFilters(e.filters())
+}
+
+func (join) requiredInputVars(e *expr) bitmap {
+	var v bitmap
+	for _, filter := range e.filters() {
+		v |= filter.inputVars
+	}
+	return v
 }
 
 func joinOp(s string) operator {

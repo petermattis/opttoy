@@ -82,10 +82,6 @@ type logicalProps struct {
 	// are NULL-intolerant.
 	notNullCols bitmap
 
-	// Required output vars is the set of output variables that parent expression
-	// requires. This must be a subset of logicalProperties.outputVars.
-	requiredOutputVars bitmap
-
 	// A column set is a key if no two rows are equal after projection onto that
 	// set. A requirement for a column set to be a key is for no columns in the
 	// set to be NULL-able. This requirement stems from the property of NULL
@@ -155,9 +151,6 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
-		if p.requiredOutputVars.get(col.index) {
-			buf.WriteString("+")
-		}
 		if tables := col.tables; len(tables) > 1 {
 			buf.WriteString("{")
 			for j, table := range tables {

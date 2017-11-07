@@ -24,3 +24,8 @@ func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {
 func (orderBy) updateProps(e *expr) {
 	unimplemented("%s.updateProperties", e.op)
 }
+
+func (orderBy) requiredInputVars(e *expr) bitmap {
+	unimplemented("%s.requiredInputVars", e.op)
+	return 0
+}

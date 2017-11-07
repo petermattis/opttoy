@@ -26,3 +26,7 @@ func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 
 func (variable) updateProps(e *expr) {
 }
+
+func (variable) requiredInputVars(e *expr) bitmap {
+	return 0
+}

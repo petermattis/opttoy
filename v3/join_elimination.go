@@ -6,7 +6,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
-func joinElimination(e *expr) {
+func joinElimination(e *expr, requiredOutputVars bitmap) {
 	if e.op == innerJoinOp {
 		inputs := e.inputs()
 		left := inputs[0]
@@ -14,21 +14,22 @@ func joinElimination(e *expr) {
 		// Try to eliminate the right side of the join. Because inner join is
 		// symmetric, we can use the same code to try and eliminate the left side
 		// of the join.
-		if !maybeEliminateInnerJoin(e, left, right) {
-			maybeEliminateInnerJoin(e, right, left)
+		if !maybeEliminateInnerJoin(e, left, right, requiredOutputVars) {
+			maybeEliminateInnerJoin(e, right, left, requiredOutputVars)
 		}
 	}
+	requiredInputVars := e.requiredInputVars()
 	for _, input := range e.inputs() {
-		joinElimination(input)
+		joinElimination(input, requiredInputVars&input.props.outputVars())
 	}
 	e.updateProps()
 }
 
 // Check to see if the right side of the join is unnecessary.
-func maybeEliminateInnerJoin(e, left, right *expr) bool {
+func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bool {
 	// Check to see if the required output vars only depend on the left side of the join.
 	leftOutputVars := left.props.outputVars()
-	if (e.props.requiredOutputVars & leftOutputVars) != e.props.requiredOutputVars {
+	if (requiredOutputVars & leftOutputVars) != requiredOutputVars {
 		return false
 	}
 

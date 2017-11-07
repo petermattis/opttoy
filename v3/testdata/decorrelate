@@ -16,7 +16,7 @@ decorrelate
 SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
 semi-join
-  columns: +a.x:0* +a.y:1
+  columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -24,15 +24,15 @@ semi-join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0* +a.y:1
+      columns: a.x:0* a.y:1
     scan
-      columns: +b.x:2* +b.z:3
+      columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE EXISTS (SELECT 1 FROM b WHERE a.x = b.x)
 ----
 semi-join
-  columns: +a.x:0* +a.y:1
+  columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -40,15 +40,15 @@ semi-join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0* +a.y:1
+      columns: a.x:0* a.y:1
     scan
-      columns: +b.x:2* +b.z:3
+      columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE NOT EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
 anti-join
-  columns: +a.x:0* +a.y:1
+  columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -56,9 +56,9 @@ anti-join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0* +a.y:1
+      columns: a.x:0* a.y:1
     scan
-      columns: +b.x:2* +b.z:3
+      columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a, (SELECT * FROM b WHERE a.x = b.x)
@@ -72,9 +72,9 @@ inner join
         variable (b.x) [in=2]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     scan
-      columns: +b.x:2* +b.z:3
+      columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a, (SELECT b.x FROM b WHERE a.x = b.x)
@@ -91,21 +91,21 @@ project
             variable (b.x) [in=2]
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
         scan
-          columns: +b.x:2* +b.z:3
+          columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
 ----
 project
-  columns: +a.x:0 +a.y:1
+  columns: a.x:0 a.y:1
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
     groupBy
-      columns: +a.x:0 +a.y:1 .column1:4
+      columns: a.x:0 a.y:1 .column1:4
       groupings:
         variable (a.x) [in=0]
         variable (a.y) [in=1]
@@ -120,7 +120,7 @@ project
             variable (column1) [in=4]
       inputs:
         left join
-          columns: +a.x:0* +a.y:1 b.x:2* +b.z:3
+          columns: a.x:0* a.y:1 b.x:2* b.z:3
           filters:
             comp (=) [in=0,2]
               inputs:
@@ -128,6 +128,6 @@ project
                 variable (b.x) [in=2]
           inputs:
             scan
-              columns: +a.x:0 +a.y:1
+              columns: a.x:0 a.y:1
             scan
-              columns: +b.x:2* +b.z:3
+              columns: b.x:2* b.z:3

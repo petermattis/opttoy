@@ -120,7 +120,14 @@ const (
 type operatorInfo interface {
 	kind() operatorKind
 	format(e *expr, buf *bytes.Buffer, level int)
+
+	// Update the logical properties based on the internal state of the
+	// expression.
 	updateProps(e *expr)
+
+	// Required input vars is the set of input variables that the expression
+	// requires.
+	requiredInputVars(e *expr) bitmap
 }
 
 var (

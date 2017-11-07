@@ -22,7 +22,7 @@ project
     variable (b.z) [in=3]
   inputs:
     inner join
-      columns: a.x:0* +a.y:1 b.x:2* +b.z:3*
+      columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -30,14 +30,14 @@ project
             variable (b.x) [in=2]
       inputs:
         scan
-          columns: +a.x:0* +a.y:1
+          columns: a.x:0* a.y:1
           filters:
             comp (>) [in=0]
               inputs:
                 variable (a.x) [in=0]
                 const (7)
         scan
-          columns: +b.x:2* +b.z:3*
+          columns: b.x:2* b.z:3*
           filters:
             comp (>) [in=2]
               inputs:
@@ -67,9 +67,9 @@ inner join
         const (1)
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
     scan
-      columns: +b.x:2 +b.z:3
+      columns: b.x:2 b.z:3
 
 push_down
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
@@ -78,7 +78,7 @@ rename
   columns: b.x:2
   inputs:
     project
-      columns: +.column1:2
+      columns: .column1:2
       projections:
         binary (+) [in=0]
           inputs:
@@ -86,7 +86,7 @@ rename
             const (1)
       inputs:
         scan
-          columns: +a.x:0* a.y:1
+          columns: a.x:0* a.y:1
           filters:
             comp (>) [in=0]
               inputs:

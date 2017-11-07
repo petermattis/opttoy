@@ -199,7 +199,7 @@ func TestLogic(t *testing.T) {
 					case "push_down":
 						pushDownFilters(e)
 					case "join_elimination":
-						joinElimination(e)
+						joinElimination(e, 0)
 					case "decorrelate":
 						decorrelate(e)
 					default:

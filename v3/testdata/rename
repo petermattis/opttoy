@@ -19,7 +19,7 @@ rename
   columns: b.x:0 b.y:1
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
@@ -28,7 +28,7 @@ rename
   columns: b.e:0 b.f:1
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
@@ -42,7 +42,7 @@ project
     variable (c.y) [in=1]
   inputs:
     inner join
-      columns: +{c,d}.x:0* +c.y:1 +d.z:3
+      columns: {c,d}.x:0* c.y:1 d.z:3
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -50,15 +50,15 @@ project
             variable (d.x) [in=2]
       inputs:
         rename
-          columns: +c.x:0 +c.y:1
+          columns: c.x:0 c.y:1
           inputs:
             scan
-              columns: +a.x:0 +a.y:1
+              columns: a.x:0 a.y:1
         rename
-          columns: +d.x:2 +d.z:3
+          columns: d.x:2 d.z:3
           inputs:
             scan
-              columns: +b.x:2 +b.z:3
+              columns: b.x:2 b.z:3
 
 prep
 SELECT x AS e FROM a
@@ -69,7 +69,7 @@ project
     variable (a.x) [in=0]
   inputs:
     scan
-      columns: +a.x:0 a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT * FROM (SELECT x AS e FROM a)
@@ -80,4 +80,4 @@ project
     variable (a.x) [in=0]
   inputs:
     scan
-      columns: +a.x:0 a.y:1
+      columns: a.x:0 a.y:1

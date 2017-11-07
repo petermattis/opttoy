@@ -22,28 +22,26 @@ func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (groupBy) updateProps(e *expr) {
-	e.inputVars = 0
-	for _, filter := range e.filters() {
-		e.inputVars |= filter.inputVars
-	}
-	for _, aggregate := range e.aggregations() {
-		e.inputVars |= aggregate.inputVars
-	}
-	for _, grouping := range e.groupings() {
-		e.inputVars |= grouping.inputVars
-	}
-	var providedInputVars bitmap
-	for _, input := range e.inputs() {
-		outputVars := input.props.outputVars()
-		providedInputVars |= outputVars
-		input.props.requiredOutputVars = e.inputVars & outputVars
-	}
-
-	e.inputVars &^= (e.props.outputVars() | providedInputVars)
+func (g groupBy) updateProps(e *expr) {
+	e.inputVars = g.requiredInputVars(e)
+	e.inputVars &^= (e.props.outputVars() | e.providedInputVars())
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
 	}
 
 	// TODO(peter): update expr.props.
+}
+
+func (groupBy) requiredInputVars(e *expr) bitmap {
+	var v bitmap
+	for _, filter := range e.filters() {
+		v |= filter.inputVars
+	}
+	for _, aggregate := range e.aggregations() {
+		v |= aggregate.inputVars
+	}
+	for _, grouping := range e.groupings() {
+		v |= grouping.inputVars
+	}
+	return v
 }

@@ -379,3 +379,15 @@ func (e *expr) info() operatorInfo {
 func (e *expr) updateProps() {
 	e.info().updateProps(e)
 }
+
+func (e *expr) requiredInputVars() bitmap {
+	return e.info().requiredInputVars(e)
+}
+
+func (e *expr) providedInputVars() bitmap {
+	var v bitmap
+	for _, input := range e.inputs() {
+		v |= input.props.outputVars()
+	}
+	return v
+}

@@ -77,13 +77,17 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
-func (scalar) updateProps(e *expr) {
+func (s scalar) updateProps(e *expr) {
 	// For a scalar operation the required input variables is the union of the
-	// required input variables of its inputs. There are no output variables.
+	// required input variables of its inputs.
 	e.inputVars = 0
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
 	}
+}
+
+func (scalar) requiredInputVars(e *expr) bitmap {
+	return e.providedInputVars()
 }
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {

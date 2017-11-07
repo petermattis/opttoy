@@ -54,13 +54,18 @@ func (s scan) updateProps(e *expr) {
 		}
 	}
 
-	e.inputVars = 0
-	for _, filter := range e.filters() {
-		e.inputVars |= filter.inputVars
-	}
+	e.inputVars = s.requiredInputVars(e)
 	e.inputVars &^= e.props.outputVars()
 
 	props.applyFilters(e.filters())
+}
+
+func (scan) requiredInputVars(e *expr) bitmap {
+	var v bitmap
+	for _, filter := range e.filters() {
+		v |= filter.inputVars
+	}
+	return v
 }
 
 func (scan) updateKeys(e *expr) {

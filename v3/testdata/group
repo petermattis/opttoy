@@ -14,12 +14,12 @@ project
     variable (a.y) [in=1]
   inputs:
     groupBy
-      columns: a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
       groupings:
         variable (a.x) [in=0]
       inputs:
         scan
-          columns: +a.x:0 a.y:1
+          columns: a.x:0 a.y:1
 
 prep
 SELECT y FROM a GROUP BY y, x
@@ -30,25 +30,25 @@ project
     variable (a.y) [in=1]
   inputs:
     groupBy
-      columns: a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
       groupings:
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
 
 prep
 SELECT DISTINCT * FROM a
 ----
 groupBy
-  columns: +a.x:0 +a.y:1
+  columns: a.x:0 a.y:1
   groupings:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
     scan
-      columns: +a.x:0 +a.y:1
+      columns: a.x:0 a.y:1
 
 prep
 SELECT COUNT(*) FROM a
@@ -72,7 +72,7 @@ project
     variable (column3) [in=2]
   inputs:
     groupBy
-      columns: a.x:0 a.y:1 +.column3:2
+      columns: a.x:0 a.y:1 .column3:2
       groupings:
         variable (a.x) [in=0]
       aggregations:
@@ -81,7 +81,7 @@ project
             const (1)
       inputs:
         scan
-          columns: +a.x:0 a.y:1
+          columns: a.x:0 a.y:1
 
 prep
 SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
@@ -92,7 +92,7 @@ project
     variable (a.x) [in=0]
   inputs:
     groupBy
-      columns: +a.x:0 a.y:1 .column3:2
+      columns: a.x:0 a.y:1 .column3:2
       groupings:
         variable (a.x) [in=0]
       aggregations:
@@ -106,7 +106,7 @@ project
             const (0)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
 
 prep
 SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
@@ -118,7 +118,7 @@ project
     variable (column3) [in=2]
   inputs:
     groupBy
-      columns: +a.x:0 a.y:1 +.column3:2
+      columns: a.x:0 a.y:1 .column3:2
       groupings:
         variable (a.x) [in=0]
       aggregations:
@@ -132,4 +132,4 @@ project
             const (0)
       inputs:
         scan
-          columns: +a.x:0 +a.y:1
+          columns: a.x:0 a.y:1
