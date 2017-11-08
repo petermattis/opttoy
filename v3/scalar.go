@@ -94,7 +94,7 @@ func (scalar) requiredInputVars(e *expr) bitmap {
 }
 
 func (scalar) equal(a, b *expr) bool {
-	return true
+	return a.private == b.private
 }
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {

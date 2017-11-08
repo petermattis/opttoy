@@ -385,7 +385,7 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 					result = &expr{
 						op:      variableOp,
 						props:   s.props,
-						private: t,
+						private: t.String(),
 					}
 					result.inputVars.set(col.index)
 					result.updateProps()

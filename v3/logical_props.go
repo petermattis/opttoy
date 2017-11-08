@@ -43,26 +43,24 @@ func (c columnProps) hasTable(tableName string) bool {
 	return false
 }
 
-func (c columnProps) resolvedName(tableName string) *parser.ColumnItem {
+func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *expr {
 	if tableName == "" {
 		if len(c.tables) > 0 {
 			tableName = c.tables[0]
 		}
 	}
-	return &parser.ColumnItem{
+	col := &parser.ColumnItem{
 		TableName: parser.TableName{
 			TableName:               parser.Name(tableName),
 			DBNameOriginallyOmitted: true,
 		},
 		ColumnName: parser.Name(c.name),
 	}
-}
 
-func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *expr {
 	e := &expr{
 		op:      variableOp,
 		props:   props,
-		private: c.resolvedName(tableName),
+		private: col.String(),
 	}
 	e.inputVars.set(c.index)
 	e.updateProps()
