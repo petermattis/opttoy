@@ -402,3 +402,32 @@ func (e *expr) providedInputVars() bitmap {
 	}
 	return v
 }
+
+func (e *expr) equal(b *expr) bool {
+	if e.op != b.op {
+		return false
+	}
+	if !e.info().equal(e, b) {
+		return false
+	}
+
+	eInputs, bInputs := e.inputs(), b.inputs()
+	if len(eInputs) != len(bInputs) {
+		return false
+	}
+	eFilters, bFilters := e.filters(), b.filters()
+	if len(eFilters) != len(bFilters) {
+		return false
+	}
+	for i := range eInputs {
+		if !eInputs[i].equal(bInputs[i]) {
+			return false
+		}
+	}
+	for i := range eFilters {
+		if !eFilters[i].equal(bFilters[i]) {
+			return false
+		}
+	}
+	return true
+}

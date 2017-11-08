@@ -32,3 +32,7 @@ func (orderBy) requiredInputVars(e *expr) bitmap {
 	unimplemented("%s.requiredInputVars", e.op)
 	return 0
 }
+
+func (orderBy) equal(a, b *expr) bool {
+	return false
+}

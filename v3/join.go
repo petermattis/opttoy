@@ -53,6 +53,10 @@ func (join) requiredInputVars(e *expr) bitmap {
 	return v
 }
 
+func (join) equal(a, b *expr) bool {
+	return true
+}
+
 func joinOp(s string) operator {
 	switch s {
 	case "JOIN", "INNER JOIN", "CROSS JOIN":

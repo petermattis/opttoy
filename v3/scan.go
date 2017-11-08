@@ -64,3 +64,7 @@ func (scan) requiredInputVars(e *expr) bitmap {
 	}
 	return v
 }
+
+func (scan) equal(a, b *expr) bool {
+	return a.private == b.private
+}

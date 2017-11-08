@@ -46,3 +46,16 @@ func (project) requiredInputVars(e *expr) bitmap {
 	}
 	return v
 }
+
+func (project) equal(a, b *expr) bool {
+	aProjections, bProjections := a.projections(), b.projections()
+	if len(aProjections) != len(bProjections) {
+		return false
+	}
+	for i := range aProjections {
+		if !aProjections[i].equal(bProjections[i]) {
+			return false
+		}
+	}
+	return true
+}

@@ -131,6 +131,10 @@ type operatorInfo interface {
 	// Required input vars is the set of input variables that the expression
 	// requires.
 	requiredInputVars(e *expr) bitmap
+
+	// Determines if the supplied expressions are equal. Both expressions will
+	// have the same operator (otherwise they would not be equal).
+	equal(a, b *expr) bool
 }
 
 var (

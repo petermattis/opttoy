@@ -561,7 +561,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 	if isAggregate(e) {
 		// Check to see if the aggregation already exists.
 		for i, a := range g.aggregations() {
-			if equivalent(a, e) {
+			if a.equal(e) {
 				col := g.props.columns[i+len(g.inputs()[0].props.columns)]
 				*e = *col.newVariableExpr("", g.props)
 				return true

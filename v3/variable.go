@@ -3,6 +3,8 @@ package v3
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/cockroachdb/cockroach/pkg/sql/parser"
 )
 
 func init() {
@@ -32,4 +34,11 @@ func (variable) updateProps(e *expr) {
 
 func (variable) requiredInputVars(e *expr) bitmap {
 	return 0
+}
+
+func (variable) equal(a, b *expr) bool {
+	aCol := a.private.(*parser.ColumnItem)
+	bCol := b.private.(*parser.ColumnItem)
+	return aCol.TableName == bCol.TableName &&
+		aCol.ColumnName == bCol.ColumnName
 }
