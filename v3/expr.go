@@ -100,7 +100,9 @@ type expr struct {
 	// queryState.nextVar.
 	inputVars bitmap
 	children  []*expr
-	props     *logicalProps
+	// Logical properties for relational expressions. This field is nil for
+	// scalar expressions.
+	props *logicalProps
 	// Private data used by this expression. For example, scanOp store a pointer
 	// to the underlying table while constOp store a pointer to the constant
 	// value.

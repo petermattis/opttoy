@@ -59,7 +59,6 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 
 	e := &expr{
 		op:      variableOp,
-		props:   props,
 		private: col.String(),
 	}
 	e.inputVars.set(c.index)

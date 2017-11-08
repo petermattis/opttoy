@@ -384,7 +384,6 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 					}
 					result = &expr{
 						op:      variableOp,
-						props:   s.props,
 						private: t.String(),
 					}
 					result.inputVars.set(col.index)
@@ -405,7 +404,6 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 	case *parser.NumVal:
 		result = &expr{
 			op:      constOp,
-			props:   scope.props,
 			private: t,
 		}
 
@@ -416,7 +414,6 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		}
 		result = &expr{
 			op:      functionOp,
-			props:   scope.props,
 			private: def,
 		}
 		result.children = make([]*expr, 0, len(t.Exprs))
@@ -425,7 +422,6 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 			if _, ok := pexpr.(parser.UnqualifiedStar); ok {
 				e = &expr{
 					op:      constOp,
-					props:   scope.props,
 					private: parser.NewDInt(1),
 				}
 			} else {
@@ -451,7 +447,6 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		if pexpr == parser.DNull {
 			result = &expr{
 				op:      constOp,
-				props:   scope.props,
 				private: pexpr,
 			}
 		} else {
