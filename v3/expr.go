@@ -383,6 +383,10 @@ func (e *expr) info() operatorInfo {
 	return operatorTab[e.op]
 }
 
+func (e *expr) initKeys(state *queryState) {
+	e.info().initKeys(e, state)
+}
+
 func (e *expr) updateProps() {
 	e.info().updateProps(e)
 }

@@ -60,12 +60,14 @@ var unaryOpMap = [...]operator{
 type scope struct {
 	parent *scope
 	props  *logicalProps
+	state  *queryState
 }
 
 func (s *scope) push(props *logicalProps) *scope {
 	return &scope{
 		parent: s,
 		props:  props,
+		state:  s.state,
 	}
 }
 
@@ -89,21 +91,12 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 			fatalf("%s", err)
 		}
 		name := tableName.Table()
-		state := scope.props.state
-		tab, ok := state.catalog[name]
+		tab, ok := scope.state.catalog[name]
 		if !ok {
 			fatalf("unknown table %s", name)
 		}
 
-		result := &expr{
-			op: scanOp,
-			props: &logicalProps{
-				state: state,
-			},
-			private: tab,
-		}
-		result.updateProps()
-		return result
+		return buildScan(tab, scope)
 
 	case *parser.AliasedTableExpr:
 		result := buildTable(source.Expr, scope)
@@ -119,7 +112,6 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 				children: []*expr{result},
 				props: &logicalProps{
 					columns: make([]columnProps, 0, len(tab.columns)),
-					state:   tab.state,
 				},
 			}
 
@@ -182,12 +174,61 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 	}
 }
 
+func buildScan(tab *table, scope *scope) *expr {
+	result := &expr{
+		op:      scanOp,
+		props:   &logicalProps{},
+		private: tab,
+	}
+
+	props := result.props
+	props.columns = make([]columnProps, 0, len(tab.columns))
+
+	state := scope.state
+	base, ok := state.tables[tab.name]
+	if !ok {
+		base = state.nextVar
+		state.tables[tab.name] = base
+		state.nextVar += bitmapIndex(len(tab.columns))
+	}
+
+	tables := []string{tab.name}
+	for i, col := range tab.columns {
+		index := base + bitmapIndex(i)
+		props.columns = append(props.columns, columnProps{
+			index:  index,
+			name:   col.name,
+			tables: tables,
+		})
+	}
+
+	// Initialize keys from the table schema.
+	for _, k := range tab.keys {
+		if k.fkey == nil && (k.primary || k.unique) {
+			var key bitmap
+			for _, i := range k.columns {
+				key.set(props.columns[i].index)
+			}
+			props.weakKeys = append(props.weakKeys, key)
+		}
+	}
+
+	// Initialize not-NULL columns from the table schema.
+	for i, col := range tab.columns {
+		if col.notNull {
+			props.notNullCols.set(props.columns[i].index)
+		}
+	}
+
+	result.updateProps()
+	return result
+}
+
 func buildOnJoin(result *expr, on parser.Expr, scope *scope) {
 	left := result.inputs()[0].props
 	right := result.inputs()[1].props
 	result.props = &logicalProps{
 		columns: make([]columnProps, len(left.columns)+len(right.columns)),
-		state:   left.state,
 	}
 	copy(result.props.columns[:], left.columns)
 	copy(result.props.columns[len(left.columns):], right.columns)
@@ -241,7 +282,7 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 		}
 	}
 
-	e.props = &logicalProps{state: inputs[0].props.state}
+	e.props = &logicalProps{}
 	for _, input := range inputs {
 		for _, col := range input.props.columns {
 			if idx, ok := joined[col.name]; ok {
@@ -271,7 +312,6 @@ func buildLeftOuterJoin(e *expr) {
 	right := e.inputs()[1].props
 	e.props = &logicalProps{
 		columns: make([]columnProps, len(left.columns)+len(right.columns)),
-		state:   left.state,
 	}
 	copy(e.props.columns[:], left.columns)
 	copy(e.props.columns[len(left.columns):], right.columns)
@@ -444,7 +484,7 @@ func buildSelect(stmt *parser.Select, scope *scope) *expr {
 		unimplemented("%T", stmt.Select)
 	}
 
-	result = buildOrderBy(result, stmt.OrderBy)
+	result = buildOrderBy(result, stmt.OrderBy, scope)
 	// TODO(peter): stmt.Limit
 	return result
 }
@@ -497,7 +537,6 @@ func buildGroupBy(
 		children: []*expr{input},
 		props: &logicalProps{
 			columns: make([]columnProps, len(scope.props.columns)),
-			state:   scope.props.state,
 		},
 	}
 	copy(result.props.columns, scope.props.columns)
@@ -510,7 +549,7 @@ func buildGroupBy(
 
 	if having != nil {
 		f := buildScalar(having.Expr, scope)
-		buildGroupByExtractAggregates(result, f)
+		buildGroupByExtractAggregates(result, f, scope)
 		result.addFilter(f)
 	}
 
@@ -518,7 +557,7 @@ func buildGroupBy(
 	return result, scope
 }
 
-func buildGroupByExtractAggregates(g *expr, e *expr) bool {
+func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 	if isAggregate(e) {
 		// Check to see if the aggregation already exists.
 		for i, a := range g.aggregations() {
@@ -532,8 +571,8 @@ func buildGroupByExtractAggregates(g *expr, e *expr) bool {
 		t := *e
 		g.addAggregation(&t)
 
-		index := g.props.state.nextVar
-		g.props.state.nextVar++
+		index := scope.state.nextVar
+		scope.state.nextVar++
 		name := fmt.Sprintf("column%d", len(g.props.columns)+1)
 		g.props.columns = append(g.props.columns, columnProps{
 			index: index,
@@ -545,7 +584,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr) bool {
 
 	var res bool
 	for _, input := range e.inputs() {
-		res = buildGroupByExtractAggregates(g, input) || res
+		res = buildGroupByExtractAggregates(g, input, scope) || res
 	}
 	if res {
 		e.updateProps()
@@ -599,11 +638,10 @@ func buildProjections(
 		return input, scope
 	}
 
-	state := input.props.state
 	result := &expr{
 		op:       projectOp,
 		children: []*expr{input},
-		props:    &logicalProps{state: state},
+		props:    &logicalProps{},
 	}
 
 	var projections []*expr
@@ -618,11 +656,11 @@ func buildProjections(
 					input = &expr{
 						op:       groupByOp,
 						children: []*expr{input},
-						props:    &logicalProps{state: state},
+						props:    &logicalProps{},
 					}
 					result.inputs()[0] = input
 				}
-				buildGroupByExtractAggregates(input, p)
+				buildGroupByExtractAggregates(input, p, scope)
 				input.updateProps()
 			}
 
@@ -631,8 +669,8 @@ func buildProjections(
 
 			var index bitmapIndex
 			if p.op != variableOp {
-				index = state.nextVar
-				state.nextVar++
+				index = scope.state.nextVar
+				scope.state.nextVar++
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
@@ -681,7 +719,6 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 		children: []*expr{input},
 		props: &logicalProps{
 			columns: make([]columnProps, len(scope.props.columns)),
-			state:   scope.props.state,
 		},
 	}
 	copy(result.props.columns, scope.props.columns)
@@ -696,7 +733,7 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	return result, scope
 }
 
-func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
+func buildOrderBy(input *expr, orderBy parser.OrderBy, scope *scope) *expr {
 	if orderBy == nil {
 		return input
 	}
@@ -708,7 +745,6 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy) *expr {
 		children: []*expr{input},
 		props: &logicalProps{
 			columns: make([]columnProps, len(input.props.columns)),
-			state:   input.props.state,
 		},
 		private: orderBy,
 	}
@@ -736,7 +772,6 @@ func buildUnion(clause *parser.UnionClause, scope *scope) *expr {
 		},
 		props: &logicalProps{
 			columns: make([]columnProps, len(left.props.columns)),
-			state:   left.props.state,
 		},
 	}
 	copy(result.props.columns, left.props.columns)

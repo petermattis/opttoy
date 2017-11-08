@@ -201,7 +201,6 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 			},
 			props: &logicalProps{
 				columns: make([]columnProps, len(left.props.columns)+len(right.props.columns)),
-				state:   left.props.state,
 			},
 		}
 

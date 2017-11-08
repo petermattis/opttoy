@@ -20,6 +20,9 @@ func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (rename) initKeys(e *expr, state *queryState) {
+}
+
 func (r rename) updateProps(e *expr) {
 	// Rename is pass through and requires any input variables that its inputs
 	// require.

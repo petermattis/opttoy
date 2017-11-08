@@ -77,6 +77,9 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (scalar) initKeys(e *expr, state *queryState) {
+}
+
 func (s scalar) updateProps(e *expr) {
 	// For a scalar operation the required input variables is the union of the
 	// required input variables of its inputs.

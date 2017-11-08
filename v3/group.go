@@ -22,6 +22,9 @@ func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (groupBy) initKeys(e *expr, state *queryState) {
+}
+
 func (g groupBy) updateProps(e *expr) {
 	e.inputVars = g.requiredInputVars(e)
 	e.inputVars &^= (e.props.outputVars() | e.providedInputVars())

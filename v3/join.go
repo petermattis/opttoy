@@ -25,6 +25,9 @@ func (join) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (join) initKeys(e *expr, state *queryState) {
+}
+
 func (j join) updateProps(e *expr) {
 	e.props.notNullCols = 0
 	for _, input := range e.inputs() {

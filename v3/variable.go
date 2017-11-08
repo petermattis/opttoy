@@ -24,6 +24,9 @@ func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (variable) initKeys(e *expr, state *queryState) {
+}
+
 func (variable) updateProps(e *expr) {
 }
 

@@ -135,9 +135,6 @@ type logicalProps struct {
 	//   FROM employees e
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
-
-	// The global query state.
-	state *queryState
 }
 
 func (p *logicalProps) String() string {
@@ -237,4 +234,11 @@ func updateProps(e *expr) {
 		updateProps(input)
 	}
 	e.updateProps()
+}
+
+func initKeys(e *expr, state *queryState) {
+	for _, input := range e.inputs() {
+		initKeys(input, state)
+	}
+	e.initKeys(state)
 }

@@ -22,6 +22,9 @@ func (union) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (union) initKeys(e *expr, state *queryState) {
+}
+
 func (u union) updateProps(e *expr) {
 	// Union is pass through and requires any input variables that its inputs
 	// require.

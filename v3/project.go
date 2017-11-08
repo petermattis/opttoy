@@ -21,6 +21,9 @@ func (project) format(e *expr, buf *bytes.Buffer, level int) {
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
+func (project) initKeys(e *expr, state *queryState) {
+}
+
 func (p project) updateProps(e *expr) {
 	e.inputVars = p.requiredInputVars(e)
 	e.inputVars &^= (e.props.outputVars() | e.providedInputVars())

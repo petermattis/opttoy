@@ -45,14 +45,14 @@ func (p *planner) exec(stmt parser.Statement) string {
 }
 
 func (p *planner) prep(stmt parser.Statement) *expr {
+	state := &queryState{
+		catalog: p.catalog,
+		tables:  make(map[string]bitmapIndex),
+	}
 	e := build(stmt, &scope{
-		props: &logicalProps{
-			state: &queryState{
-				catalog: p.catalog,
-				tables:  make(map[string]bitmapIndex),
-			},
-		},
+		props: &logicalProps{},
+		state: state,
 	})
-	updateProps(e)
+	initKeys(e, state)
 	return e
 }
