@@ -93,11 +93,6 @@ type logicalProps struct {
 	// weak key is a key if "(weakKeys[i] & notNullColumns) == weakKeys[i]".
 	weakKeys []bitmap
 
-	// TODO(peter): When to initialize foreign keys? In order to know the
-	// destination columns we have to have encountered all of the tables in the
-	// query. Perhaps as a first prep pass. How to propagate keys and foreign
-	// keys through groupBy, join, orderBy, project, rename and set operations?
-	//
 	// A foreign key is a set of columns in the source table that uniquely
 	// identify a single row in the destination table. A foreign key thus refers
 	// to a primary key or unique key in the destination table. If the source
