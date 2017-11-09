@@ -184,6 +184,10 @@ func (e *expr) filters() []*expr {
 }
 
 func (e *expr) addFilter(f *expr) {
+	if !e.isRelational() {
+		fatalf("%s: invalid use of filters", e.op)
+	}
+
 	// Recursively flatten AND expressions when adding them as a filter. The
 	// filters for an expression are implicitly AND'ed together (i.e. they are in
 	// conjunctive normal form).
