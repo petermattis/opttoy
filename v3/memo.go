@@ -60,25 +60,23 @@ func (e *memoExpr) fingerprint() string {
 }
 
 type memoClass struct {
-	id    int32
-	m     map[string]*memoExpr
-	exprs []*memoExpr
-	props *logicalProps
+	exprMap map[string]*memoExpr
+	exprs   []*memoExpr
+	props   *logicalProps
 }
 
-func newMemoClass(id int32, props *logicalProps) *memoClass {
+func newMemoClass(props *logicalProps) *memoClass {
 	return &memoClass{
-		id:    id,
-		m:     make(map[string]*memoExpr),
-		props: props,
+		exprMap: make(map[string]*memoExpr),
+		props:   props,
 	}
 }
 
 func (c *memoClass) maybeAddExpr(e *memoExpr) {
 	f := e.fingerprint()
-	if _, ok := c.m[f]; !ok {
+	if _, ok := c.exprMap[f]; !ok {
 		c.exprs = append(c.exprs, e)
-		c.m[f] = e
+		c.exprMap[f] = e
 	}
 }
 
@@ -95,8 +93,9 @@ func newMemo() *memo {
 
 func (m *memo) String() string {
 	var buf bytes.Buffer
-	for _, c := range m.topologicalSort() {
-		fmt.Fprintf(&buf, "%d:", c.id)
+	for _, id := range m.topologicalSort() {
+		fmt.Fprintf(&buf, "%d:", id)
+		c := m.classes[id]
 		for _, e := range c.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
 		}
@@ -136,16 +135,16 @@ func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
 	id, ok := m.classMap[f]
 	if !ok {
 		id = int32(len(m.classes))
-		c := newMemoClass(id, props)
+		c := newMemoClass(props)
 		m.classes = append(m.classes, c)
 		m.classMap[f] = id
 	}
 	return id
 }
 
-func (m *memo) topologicalSort() []*memoClass {
-	var visit func(m *memo, id int32, visited []bool, res []*memoClass) []*memoClass
-	visit = func(m *memo, id int32, visited []bool, res []*memoClass) []*memoClass {
+func (m *memo) topologicalSort() []int32 {
+	var visit func(m *memo, id int32, visited []bool, res []int32) []int32
+	visit = func(m *memo, id int32, visited []bool, res []int32) []int32 {
 		if visited[id] {
 			return res
 		}
@@ -157,13 +156,13 @@ func (m *memo) topologicalSort() []*memoClass {
 				res = visit(m, v, visited, res)
 			}
 		}
-		return append(res, c)
+		return append(res, id)
 	}
 
 	visited := make([]bool, len(m.classes))
-	res := make([]*memoClass, 0, len(m.classes))
-	for _, c := range m.classes {
-		res = visit(m, c.id, visited, res)
+	res := make([]int32, 0, len(m.classes))
+	for id := range m.classes {
+		res = visit(m, int32(id), visited, res)
 	}
 
 	// The depth first search returned the classes from leaf to root. We want the
