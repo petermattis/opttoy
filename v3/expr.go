@@ -312,10 +312,10 @@ func (e *expr) addAux2(exprs []*expr) {
 		e.children = append(e.children, nil)
 		i := e.aux2Index()
 		copy(e.children[i+1:], e.children[i:])
-		// if len(exprs) == 1 {
-		// 	e.children[i] = exprs[0]
-		// 	return
-		// }
+		if len(exprs) == 1 {
+			e.children[i] = exprs[0]
+			return
+		}
 		e.children[i] = &expr{op: listOp}
 	}
 	i := e.aux2Index()

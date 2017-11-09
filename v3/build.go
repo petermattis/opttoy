@@ -708,7 +708,7 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 		return input, scope
 	}
 
-	// Distint is equivalent to group by without any aggregations.
+	// Distinct is equivalent to group by without any aggregations.
 	result := &expr{
 		op:       groupByOp,
 		children: []*expr{input},
