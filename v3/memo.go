@@ -188,3 +188,49 @@ func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
 	}
 	return id
 }
+
+func (m *memo) newIterator(class int32, pattern *expr) *memoIterator {
+	c := m.classes[class]
+	i := &memoIterator{
+		m:       m,
+		class:   c,
+		pattern: pattern,
+		idx:     -1,
+		count:   len(c.exprs),
+	}
+	i.next()
+	return i
+}
+
+type memoIterator struct {
+	m       *memo
+	class   *memoClass
+	pattern *expr
+	bound   *expr
+	idx     int
+	count   int
+}
+
+func (i *memoIterator) valid() bool {
+	return i.bound != nil
+}
+
+func (i *memoIterator) next() {
+	i.bound = nil
+	if i.idx+1 >= i.count {
+		return
+	}
+	i.idx++
+
+	// TODO(peter): Recursively try to bind the pattern at the current
+	// expression. A single index isn't enough. We need an index per class we're
+	// iterating over. Note that when we create the iterator, we know how deep
+	// the pattern goes.
+	me := i.class.exprs[i.idx]
+	if me.op != i.pattern.op {
+	}
+}
+
+func (i *memoIterator) expr() *expr {
+	return i.bound
+}
