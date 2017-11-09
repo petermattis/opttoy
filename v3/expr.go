@@ -177,7 +177,7 @@ func (e *expr) filters() []*expr {
 	}
 	i := len(e.children) - 1
 	f := e.children[i:]
-	if f[0].op == andOp {
+	if f[0].op == listOp {
 		return f[0].children
 	}
 	return f
@@ -187,7 +187,7 @@ func (e *expr) addFilter(f *expr) {
 	// Recursively flatten AND expressions when adding them as a filter. The
 	// filters for an expression are implicitly AND'ed together (i.e. they are in
 	// conjunctive normal form).
-	if f.op == andOp {
+	if f.op == andOp || f.op == listOp {
 		for _, input := range f.inputs() {
 			e.addFilter(input)
 		}
@@ -199,9 +199,9 @@ func (e *expr) addFilter(f *expr) {
 		e.children = append(e.children, f)
 	} else {
 		i := len(e.children) - 1
-		if t := e.children[i]; t.op != andOp {
+		if t := e.children[i]; t.op != listOp {
 			e.children[i] = &expr{
-				op:       andOp,
+				op:       listOp,
 				children: []*expr{t, f},
 			}
 		} else {
@@ -253,7 +253,11 @@ func (e *expr) aux1() []*expr {
 	if i < 0 {
 		return nil
 	}
-	return e.children[i].children
+	aux1 := e.children[i : i+1]
+	if aux1[0].op == listOp {
+		return aux1[0].children
+	}
+	return aux1
 }
 
 func (e *expr) addAux1(exprs []*expr) {
@@ -262,15 +266,21 @@ func (e *expr) addAux1(exprs []*expr) {
 		e.children = append(e.children, nil)
 		i := e.aux1Index()
 		copy(e.children[i+1:], e.children[i:])
-		e.children[i] = &expr{
-			op:       andOp,
-			children: exprs,
+		if len(exprs) == 1 {
+			e.children[i] = exprs[0]
+			return
 		}
-	} else {
-		i := e.aux1Index()
-		aux1 := e.children[i]
-		aux1.children = append(aux1.children, exprs...)
+		e.children[i] = &expr{op: listOp}
 	}
+	i := e.aux1Index()
+	aux1 := e.children[i]
+	if aux1.op != listOp {
+		e.children[i] = &expr{
+			op:       listOp,
+			children: []*expr{aux1},
+		}
+	}
+	aux1.children = append(aux1.children, exprs...)
 }
 
 func (e *expr) aux2Present() int {
@@ -289,7 +299,11 @@ func (e *expr) aux2() []*expr {
 	if i < 0 {
 		return nil
 	}
-	return e.children[i].children
+	aux2 := e.children[i : i+1]
+	if aux2[0].op == listOp {
+		return aux2[0].children
+	}
+	return aux2
 }
 
 func (e *expr) addAux2(exprs []*expr) {
@@ -298,15 +312,21 @@ func (e *expr) addAux2(exprs []*expr) {
 		e.children = append(e.children, nil)
 		i := e.aux2Index()
 		copy(e.children[i+1:], e.children[i:])
-		e.children[i] = &expr{
-			op:       andOp,
-			children: exprs,
-		}
-	} else {
-		i := e.aux2Index()
-		aux2 := e.children[i]
-		aux2.children = append(aux2.children, exprs...)
+		// if len(exprs) == 1 {
+		// 	e.children[i] = exprs[0]
+		// 	return
+		// }
+		e.children[i] = &expr{op: listOp}
 	}
+	i := e.aux2Index()
+	aux2 := e.children[i]
+	if aux2.op != listOp {
+		e.children[i] = &expr{
+			op:       listOp,
+			children: []*expr{aux2},
+		}
+	}
+	aux2.children = append(aux2.children, exprs...)
 }
 
 func (e *expr) projections() []*expr {

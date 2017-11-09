@@ -33,6 +33,7 @@ const (
 	// Scalar operators
 	variableOp
 	constOp
+	listOp
 
 	existsOp
 

@@ -12,6 +12,7 @@ const spaces = "                                                                
 
 func init() {
 	registerOperator(constOp, "const", scalar{})
+	registerOperator(listOp, "list", scalar{})
 	registerOperator(existsOp, "exists", scalar{})
 	registerOperator(andOp, "logical (AND)", scalar{})
 	registerOperator(orOp, "logical (OR)", scalar{})
