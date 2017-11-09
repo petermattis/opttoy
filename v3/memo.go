@@ -94,9 +94,8 @@ func newMemo() *memo {
 }
 
 func (m *memo) String() string {
-	// TODO(peter): topological sort.
 	var buf bytes.Buffer
-	for _, c := range m.classes {
+	for _, c := range m.topologicalSort() {
 		fmt.Fprintf(&buf, "%d:", c.id)
 		for _, e := range c.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
@@ -125,7 +124,7 @@ func (m *memo) addExpr(e *expr) int32 {
 	} else {
 		// We have a scalar expression. Use the expression fingerprint as the class
 		// fingerprint.
-		me.class = m.maybeAddClass(me.fingerprint(), e.props)
+		me.class = m.maybeAddClass(me.fingerprint(), nil)
 	}
 
 	c := m.classes[me.class]
@@ -142,4 +141,35 @@ func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
 		m.classMap[f] = id
 	}
 	return id
+}
+
+func (m *memo) topologicalSort() []*memoClass {
+	var visit func(m *memo, id int32, visited []bool, res []*memoClass) []*memoClass
+	visit = func(m *memo, id int32, visited []bool, res []*memoClass) []*memoClass {
+		if visited[id] {
+			return res
+		}
+		visited[id] = true
+
+		c := m.classes[id]
+		for _, e := range c.exprs {
+			for _, v := range e.children {
+				res = visit(m, v, visited, res)
+			}
+		}
+		return append(res, c)
+	}
+
+	visited := make([]bool, len(m.classes))
+	res := make([]*memoClass, 0, len(m.classes))
+	for _, c := range m.classes {
+		res = visit(m, c.id, visited, res)
+	}
+
+	// The depth first search returned the classes from leaf to root. We want the
+	// root first, so reverse the results.
+	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
+		res[i], res[j] = res[j], res[i]
+	}
+	return res
 }
