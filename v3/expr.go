@@ -203,7 +203,6 @@ func (e *expr) addFilter(f *expr) {
 			e.children[i] = &expr{
 				op:       andOp,
 				children: []*expr{t, f},
-				props:    t.props,
 			}
 		} else {
 			t.children = append(t.children, f)
@@ -266,7 +265,6 @@ func (e *expr) addAux1(exprs []*expr) {
 		e.children[i] = &expr{
 			op:       andOp,
 			children: exprs,
-			props:    e.props,
 		}
 	} else {
 		i := e.aux1Index()
@@ -303,7 +301,6 @@ func (e *expr) addAux2(exprs []*expr) {
 		e.children[i] = &expr{
 			op:       andOp,
 			children: exprs,
-			props:    e.props,
 		}
 	} else {
 		i := e.aux2Index()

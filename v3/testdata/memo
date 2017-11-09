@@ -1,0 +1,38 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+memo
+SELECT y FROM a
+----
+0: [scan a]
+1: [variable a.y]
+2: [logical (AND) [1]]
+3: [project 1 [0 2]]
+
+memo
+SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7
+----
+0: [scan a]
+1: [scan b]
+2: [variable a.x]
+3: [variable b.x]
+4: [comp (=) [2 3]]
+5: [const 7]
+6: [comp (>) [2 5]]
+7: [logical (AND) [4 6]]
+8: [inner join f [0 1 7]]
+9: [variable a.y]
+10: [variable b.z]
+11: [logical (AND) [9 10]]
+12: [project 1 [8 11]]

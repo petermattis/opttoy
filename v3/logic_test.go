@@ -202,6 +202,10 @@ func TestLogic(t *testing.T) {
 						joinElimination(e, 0)
 					case "decorrelate":
 						decorrelate(e)
+					case "memo":
+						m := newMemo()
+						m.addExpr(e)
+						return m.String()
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}

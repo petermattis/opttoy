@@ -173,6 +173,47 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 	}
 }
 
+// fingerprint returns a string which uniquely identifies the logical
+// properties within the context of a query.
+func (p *logicalProps) fingerprint() string {
+	// TODO(peter): The fingerprint is unique, but human readable. A binary
+	// format encoding columns and keys using varints might be faster and more
+	// compact.
+	var buf bytes.Buffer
+	buf.WriteString("[")
+	for i, col := range p.columns {
+		if i > 0 {
+			buf.WriteString(" ")
+		}
+		fmt.Fprintf(&buf, "%d", col.index)
+		if p.notNullCols.get(col.index) {
+			buf.WriteString("*")
+		}
+	}
+	buf.WriteString("]")
+	if len(p.weakKeys) > 0 {
+		buf.WriteString(" [")
+		for i, key := range p.weakKeys {
+			if i > 0 {
+				buf.WriteString(" ")
+			}
+			fmt.Fprintf(&buf, "%s", key)
+		}
+		buf.WriteString("]")
+	}
+	if len(p.foreignKeys) > 0 {
+		buf.WriteString(" [")
+		for i, fkey := range p.foreignKeys {
+			if i > 0 {
+				buf.WriteString(" ")
+			}
+			fmt.Fprintf(&buf, "%s->%s", fkey.src, fkey.dest)
+		}
+		buf.WriteString("]")
+	}
+	return buf.String()
+}
+
 func (p *logicalProps) newColumnExpr(name string) *expr {
 	for _, col := range p.columns {
 		if col.name == name {
