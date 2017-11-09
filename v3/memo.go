@@ -60,14 +60,22 @@ func (e *memoExpr) fingerprint() string {
 }
 
 type memoClass struct {
-	exprMap map[string]*memoExpr
+	// A map from memo expression fingerprint to the index of the memo expression
+	// in the exprs slice. Used to determine if a memoExpr already exists in the
+	// class.
+	exprMap map[string]int32
 	exprs   []*memoExpr
-	props   *logicalProps
+	// The logical properties for the class. The logical properties are nil for
+	// scalar expressions.
+	props *logicalProps
+	// Scalar expressions only have a single memoExpr per class. So we cache the
+	// full expression tree to make extraction faster.
+	scalarExpr *expr
 }
 
 func newMemoClass(props *logicalProps) *memoClass {
 	return &memoClass{
-		exprMap: make(map[string]*memoExpr),
+		exprMap: make(map[string]int32),
 		props:   props,
 	}
 }
@@ -75,12 +83,16 @@ func newMemoClass(props *logicalProps) *memoClass {
 func (c *memoClass) maybeAddExpr(e *memoExpr) {
 	f := e.fingerprint()
 	if _, ok := c.exprMap[f]; !ok {
+		c.exprMap[f] = int32(len(c.exprs))
 		c.exprs = append(c.exprs, e)
-		c.exprMap[f] = e
 	}
 }
 
 type memo struct {
+	// A map from class fingerprint to the index of the class in the classes
+	// slice. For relational classes, the fingerprint for a class is the
+	// fingerprint of the logical properties. For scalar classes, the fingerprint
+	// for a class is the fingerprint of the memo expression.
 	classMap map[string]int32
 	classes  []*memoClass
 }
@@ -104,6 +116,36 @@ func (m *memo) String() string {
 	return buf.String()
 }
 
+func (m *memo) topologicalSort() []int32 {
+	visited := make([]bool, len(m.classes))
+	res := make([]int32, 0, len(m.classes))
+	for id := range m.classes {
+		res = m.dfsVisit(int32(id), visited, res)
+	}
+
+	// The depth first search returned the classes from leaf to root. We want the
+	// root first, so reverse the results.
+	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
+		res[i], res[j] = res[j], res[i]
+	}
+	return res
+}
+
+func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
+	if visited[id] {
+		return res
+	}
+	visited[id] = true
+
+	c := m.classes[id]
+	for _, e := range c.exprs {
+		for _, v := range e.children {
+			res = m.dfsVisit(v, visited, res)
+		}
+	}
+	return append(res, id)
+}
+
 func (m *memo) addExpr(e *expr) int32 {
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
@@ -120,14 +162,19 @@ func (m *memo) addExpr(e *expr) int32 {
 		// We have a relational expression. Find the class the memoExpr would exist
 		// in.
 		me.class = m.maybeAddClass(e.props.fingerprint(), e.props)
+		c := m.classes[me.class]
+		c.maybeAddExpr(me)
 	} else {
 		// We have a scalar expression. Use the expression fingerprint as the class
 		// fingerprint.
 		me.class = m.maybeAddClass(me.fingerprint(), nil)
+		c := m.classes[me.class]
+		if c.scalarExpr == nil {
+			c.scalarExpr = e
+		}
+		c.maybeAddExpr(me)
 	}
 
-	c := m.classes[me.class]
-	c.maybeAddExpr(me)
 	return me.class
 }
 
@@ -140,35 +187,4 @@ func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
 		m.classMap[f] = id
 	}
 	return id
-}
-
-func (m *memo) topologicalSort() []int32 {
-	var visit func(m *memo, id int32, visited []bool, res []int32) []int32
-	visit = func(m *memo, id int32, visited []bool, res []int32) []int32 {
-		if visited[id] {
-			return res
-		}
-		visited[id] = true
-
-		c := m.classes[id]
-		for _, e := range c.exprs {
-			for _, v := range e.children {
-				res = visit(m, v, visited, res)
-			}
-		}
-		return append(res, id)
-	}
-
-	visited := make([]bool, len(m.classes))
-	res := make([]int32, 0, len(m.classes))
-	for id := range m.classes {
-		res = visit(m, int32(id), visited, res)
-	}
-
-	// The depth first search returned the classes from leaf to root. We want the
-	// root first, so reverse the results.
-	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
-		res[i], res[j] = res[j], res[i]
-	}
-	return res
 }
