@@ -189,48 +189,31 @@ func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
 	return id
 }
 
-func (m *memo) newIterator(class int32, pattern *expr) *memoIterator {
+func (m *memo) newBinder(class, idx int32) *memoBinder {
 	c := m.classes[class]
-	i := &memoIterator{
-		m:       m,
-		class:   c,
-		pattern: pattern,
-		idx:     -1,
-		count:   len(c.exprs),
+	return &memoBinder{
+		memo:  m,
+		class: c,
+		mexpr: c.exprs[idx],
 	}
-	i.next()
-	return i
 }
 
-type memoIterator struct {
-	m       *memo
+type memoBinder struct {
+	memo    *memo
 	class   *memoClass
+	mexpr   *memoExpr
 	pattern *expr
-	bound   *expr
-	idx     int
-	count   int
 }
 
-func (i *memoIterator) valid() bool {
-	return i.bound != nil
-}
-
-func (i *memoIterator) next() {
-	i.bound = nil
-	if i.idx+1 >= i.count {
-		return
+// Specify the pattern to bind with. The binder will be reset and bound
+// expressions can be iterated over using next().
+func (b *memoBinder) bind(pattern *expr) {
+	if pattern.op != b.mexpr.op {
+		fatalf("pattern root does not match expression root: %s != %s", pattern.op, b.mexpr.op)
 	}
-	i.idx++
-
-	// TODO(peter): Recursively try to bind the pattern at the current
-	// expression. A single index isn't enough. We need an index per class we're
-	// iterating over. Note that when we create the iterator, we know how deep
-	// the pattern goes.
-	me := i.class.exprs[i.idx]
-	if me.op != i.pattern.op {
-	}
+	b.pattern = pattern
 }
 
-func (i *memoIterator) expr() *expr {
-	return i.bound
+func (b *memoBinder) next() *expr {
+	return nil
 }
