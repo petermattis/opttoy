@@ -48,7 +48,3 @@ func (r rename) updateProps(e *expr) {
 func (rename) requiredInputVars(e *expr) bitmap {
 	return e.providedInputVars()
 }
-
-func (rename) equal(a, b *expr) bool {
-	return true
-}

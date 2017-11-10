@@ -50,7 +50,3 @@ func (u union) updateProps(e *expr) {
 func (union) requiredInputVars(e *expr) bitmap {
 	return e.providedInputVars()
 }
-
-func (union) equal(a, b *expr) bool {
-	return true
-}

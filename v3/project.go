@@ -55,7 +55,3 @@ func (project) requiredInputVars(e *expr) bitmap {
 	}
 	return v
 }
-
-func (project) equal(a, b *expr) bool {
-	return true
-}

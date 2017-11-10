@@ -59,7 +59,3 @@ func (groupBy) requiredInputVars(e *expr) bitmap {
 	}
 	return v
 }
-
-func (groupBy) equal(a, b *expr) bool {
-	return true
-}

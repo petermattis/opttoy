@@ -404,9 +404,6 @@ func (e *expr) equal(b *expr) bool {
 	if e.op != b.op {
 		return false
 	}
-	if !e.info().equal(e, b) {
-		return false
-	}
 
 	if len(e.children) != len(b.children) {
 		return false
@@ -416,5 +413,5 @@ func (e *expr) equal(b *expr) bool {
 			return false
 		}
 	}
-	return true
+	return e.private == b.private
 }

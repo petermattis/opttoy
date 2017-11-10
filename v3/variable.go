@@ -38,7 +38,3 @@ func (variable) updateProps(e *expr) {
 func (variable) requiredInputVars(e *expr) bitmap {
 	return 0
 }
-
-func (variable) equal(a, b *expr) bool {
-	return a.private == b.private
-}

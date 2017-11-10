@@ -43,7 +43,3 @@ func (pattern) updateProps(e *expr) {
 func (pattern) requiredInputVars(e *expr) bitmap {
 	return 0
 }
-
-func (pattern) equal(a, b *expr) bool {
-	return true
-}
