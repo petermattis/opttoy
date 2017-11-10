@@ -9,7 +9,7 @@ import (
 // - Extract expressions from the memo for transformation
 
 type memoExpr struct {
-	class    int32
+	group    int32
 	op       operator
 	extra    uint8
 	apply    bool
@@ -52,28 +52,31 @@ func (e *memoExpr) fingerprint() string {
 	return buf.String()
 }
 
-type memoClass struct {
+type memoGroup struct {
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
-	// class.
+	// group.
 	exprMap map[string]int32
 	exprs   []*memoExpr
-	// The logical properties for the class. The logical properties are nil for
+	// The logical properties for the group. The logical properties are nil for
 	// scalar expressions.
 	props *logicalProps
-	// Scalar expressions only have a single memoExpr per class. So we cache the
+	// Scalar expressions only have a single memoExpr per group. So we cache the
 	// full expression tree to make extraction faster.
+	//
+	// TODO(peter): Does this work when a scalar expression can contain a
+	// relational expression?
 	scalarExpr *expr
 }
 
-func newMemoClass(props *logicalProps) *memoClass {
-	return &memoClass{
+func newMemoGroup(props *logicalProps) *memoGroup {
+	return &memoGroup{
 		exprMap: make(map[string]int32),
 		props:   props,
 	}
 }
 
-func (c *memoClass) maybeAddExpr(e *memoExpr) {
+func (c *memoGroup) maybeAddExpr(e *memoExpr) {
 	f := e.fingerprint()
 	if _, ok := c.exprMap[f]; !ok {
 		c.exprMap[f] = int32(len(c.exprs))
@@ -82,17 +85,17 @@ func (c *memoClass) maybeAddExpr(e *memoExpr) {
 }
 
 type memo struct {
-	// A map from class fingerprint to the index of the class in the classes
-	// slice. For relational classes, the fingerprint for a class is the
-	// fingerprint of the logical properties. For scalar classes, the fingerprint
-	// for a class is the fingerprint of the memo expression.
-	classMap map[string]int32
-	classes  []*memoClass
+	// A map from group fingerprint to the index of the group in the groups
+	// slice. For relational groups, the fingerprint for a group is the
+	// fingerprint of the logical properties. For scalar groups, the fingerprint
+	// for a group is the fingerprint of the memo expression.
+	groupMap map[string]int32
+	groups   []*memoGroup
 }
 
 func newMemo() *memo {
 	return &memo{
-		classMap: make(map[string]int32),
+		groupMap: make(map[string]int32),
 	}
 }
 
@@ -100,7 +103,7 @@ func (m *memo) String() string {
 	var buf bytes.Buffer
 	for _, id := range m.topologicalSort() {
 		fmt.Fprintf(&buf, "%d:", id)
-		c := m.classes[id]
+		c := m.groups[id]
 		for _, e := range c.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
 		}
@@ -110,13 +113,13 @@ func (m *memo) String() string {
 }
 
 func (m *memo) topologicalSort() []int32 {
-	visited := make([]bool, len(m.classes))
-	res := make([]int32, 0, len(m.classes))
-	for id := range m.classes {
+	visited := make([]bool, len(m.groups))
+	res := make([]int32, 0, len(m.groups))
+	for id := range m.groups {
 		res = m.dfsVisit(int32(id), visited, res)
 	}
 
-	// The depth first search returned the classes from leaf to root. We want the
+	// The depth first search returned the groups from leaf to root. We want the
 	// root first, so reverse the results.
 	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
 		res[i], res[j] = res[j], res[i]
@@ -130,7 +133,7 @@ func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
 	}
 	visited[id] = true
 
-	c := m.classes[id]
+	c := m.groups[id]
 	for _, e := range c.exprs {
 		for _, v := range e.children {
 			res = m.dfsVisit(v, visited, res)
@@ -157,48 +160,48 @@ func (m *memo) addExpr(e *expr) int32 {
 	}
 
 	if e.props != nil {
-		// We have a relational expression. Find the class the memoExpr would exist
+		// We have a relational expression. Find the group the memoExpr would exist
 		// in.
-		me.class = m.maybeAddClass(e.props.fingerprint(), e.props)
-		c := m.classes[me.class]
+		me.group = m.maybeAddGroup(e.props.fingerprint(), e.props)
+		c := m.groups[me.group]
 		c.maybeAddExpr(me)
 	} else {
-		// We have a scalar expression. Use the expression fingerprint as the class
+		// We have a scalar expression. Use the expression fingerprint as the group
 		// fingerprint.
-		me.class = m.maybeAddClass(me.fingerprint(), nil)
-		c := m.classes[me.class]
+		me.group = m.maybeAddGroup(me.fingerprint(), nil)
+		c := m.groups[me.group]
 		if c.scalarExpr == nil {
 			c.scalarExpr = e
 		}
 		c.maybeAddExpr(me)
 	}
 
-	return me.class
+	return me.group
 }
 
-func (m *memo) maybeAddClass(f string, props *logicalProps) int32 {
-	id, ok := m.classMap[f]
+func (m *memo) maybeAddGroup(f string, props *logicalProps) int32 {
+	id, ok := m.groupMap[f]
 	if !ok {
-		id = int32(len(m.classes))
-		c := newMemoClass(props)
-		m.classes = append(m.classes, c)
-		m.classMap[f] = id
+		id = int32(len(m.groups))
+		c := newMemoGroup(props)
+		m.groups = append(m.groups, c)
+		m.groupMap[f] = id
 	}
 	return id
 }
 
-func (m *memo) newBinder(class, idx int32) *memoBinder {
-	c := m.classes[class]
+func (m *memo) newBinder(group, idx int32) *memoBinder {
+	c := m.groups[group]
 	return &memoBinder{
 		memo:  m,
-		class: c,
+		group: c,
 		mexpr: c.exprs[idx],
 	}
 }
 
 type memoBinder struct {
 	memo    *memo
-	class   *memoClass
+	group   *memoGroup
 	mexpr   *memoExpr
 	pattern *expr
 }
