@@ -13,6 +13,15 @@ func init() {
 	registerOperator(antiJoinOp, "anti-join", join{})
 }
 
+func newJoinExpr(op operator, left, right *expr) *expr {
+	return &expr{
+		op:       op,
+		extra:    1,
+		children: []*expr{left, right, nil /* filter */},
+		props:    &logicalProps{},
+	}
+}
+
 type join struct{}
 
 func (join) kind() operatorKind {

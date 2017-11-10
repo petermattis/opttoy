@@ -9,6 +9,13 @@ func init() {
 	registerOperator(variableOp, "variable", variable{})
 }
 
+func newVariableExpr(private interface{}) *expr {
+	return &expr{
+		op:      variableOp,
+		private: private,
+	}
+}
+
 type variable struct{}
 
 func (variable) kind() operatorKind {
@@ -20,8 +27,6 @@ func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.private)
 	e.formatVars(buf)
 	buf.WriteString("\n")
-	formatExprs(buf, "filters", e.filters(), level)
-	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
 func (variable) initKeys(e *expr, state *queryState) {

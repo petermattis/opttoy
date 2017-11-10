@@ -8,6 +8,15 @@ func init() {
 	registerOperator(projectOp, "project", project{})
 }
 
+func newProjectExpr(input *expr) *expr {
+	return &expr{
+		op:       projectOp,
+		extra:    2,
+		children: []*expr{input, nil /* projection */, nil /* filter */},
+		props:    &logicalProps{},
+	}
+}
+
 type project struct{}
 
 func (project) kind() operatorKind {
@@ -48,14 +57,5 @@ func (project) requiredInputVars(e *expr) bitmap {
 }
 
 func (project) equal(a, b *expr) bool {
-	aProjections, bProjections := a.projections(), b.projections()
-	if len(aProjections) != len(bProjections) {
-		return false
-	}
-	for i := range aProjections {
-		if !aProjections[i].equal(bProjections[i]) {
-			return false
-		}
-	}
 	return true
 }

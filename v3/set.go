@@ -10,6 +10,15 @@ func init() {
 	registerOperator(exceptOp, "except", nil)
 }
 
+func newSetExpr(op operator, input1, input2 *expr) *expr {
+	return &expr{
+		op:       op,
+		extra:    1,
+		children: []*expr{input1, input2, nil /* filter */},
+		props:    &logicalProps{},
+	}
+}
+
 type union struct{}
 
 func (union) kind() operatorKind {

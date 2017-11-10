@@ -8,6 +8,15 @@ func init() {
 	registerOperator(orderByOp, "orderBy", orderBy{})
 }
 
+func newOrderByExpr(input *expr) *expr {
+	return &expr{
+		op:       orderByOp,
+		extra:    0,
+		children: []*expr{input},
+		props:    &logicalProps{},
+	}
+}
+
 type orderBy struct{}
 
 func (orderBy) kind() operatorKind {

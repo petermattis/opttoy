@@ -17,12 +17,10 @@ func maybeExpandExists(e *expr, filter, filterTop *expr) bool {
 	}
 
 	*e = expr{
-		op: semiJoinOp,
-		children: []*expr{
-			&t,
-			subquery,
-		},
-		props: t.props,
+		op:       semiJoinOp,
+		extra:    1,
+		children: []*expr{&t, subquery, nil /* filter */},
+		props:    t.props,
 	}
 	e.setApply()
 	e.updateProps()
@@ -90,12 +88,10 @@ func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 			t.updateProps()
 
 			*e = expr{
-				op: innerJoinOp,
-				children: []*expr{
-					&t,
-					&subquery,
-				},
-				props: t.props,
+				op:       innerJoinOp,
+				extra:    1,
+				children: []*expr{&t, &subquery, nil /* filter */},
+				props:    t.props,
 			}
 			e.addFilter(filterTop)
 			e.setApply()
@@ -152,7 +148,8 @@ func maybeDecorrelateProjection(e *expr) bool {
 		t := *e
 		*e = expr{
 			op:       projectOp,
-			children: []*expr{&t},
+			extra:    2,
+			children: []*expr{&t, nil /* projection */, nil /* filter */},
 			props:    t.props,
 		}
 		t.inputs()[1] = right.inputs()[0]
@@ -181,29 +178,15 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 
 		// The input to the vector group by is a left outer join over R and E.
 		left := e.inputs()[0]
-		loj := &expr{
-			op: leftJoinOp,
-			children: []*expr{
-				left,
-				right.inputs()[0],
-			},
-		}
+		loj := newJoinExpr(leftJoinOp, left, right.inputs()[0])
 		buildLeftOuterJoin(loj)
 		loj.setApply()
 		loj.updateProps()
 
 		// The new vector group by expression which groups over the columns of R
 		// and uses the aggregations from E.
-		g := &expr{
-			op: groupByOp,
-			children: []*expr{
-				loj,
-			},
-			props: &logicalProps{
-				columns: make([]columnProps, len(left.props.columns)+len(right.props.columns)),
-			},
-		}
-
+		g := newGroupByExpr(loj)
+		g.props.columns = make([]columnProps, len(left.props.columns)+len(right.props.columns))
 		copy(g.props.columns[:], left.props.columns)
 		copy(g.props.columns[len(left.props.columns):], right.props.columns)
 
@@ -223,11 +206,10 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		// A final projection is necessary to match the outputs of the original
 		// apply expression.
 		*e = expr{
-			op: projectOp,
-			children: []*expr{
-				g,
-			},
-			props: e.props,
+			op:       projectOp,
+			extra:    2,
+			children: []*expr{g, nil /* projection */, nil /* filter */},
+			props:    e.props,
 		}
 		projections := make([]*expr, 0, len(e.props.columns))
 		for _, col := range e.props.columns {

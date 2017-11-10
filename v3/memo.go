@@ -11,7 +11,8 @@ import (
 type memoExpr struct {
 	class    int32
 	op       operator
-	auxBits  uint16
+	extra    uint8
+	apply    bool
 	children []int32
 	private  interface{}
 }
@@ -30,20 +31,8 @@ func (e *memoExpr) fingerprint() string {
 		fmt.Fprintf(&buf, " %s", e.private)
 	}
 
-	if e.auxBits != 0 {
-		buf.WriteString(" ")
-		if (e.auxBits & (1 << auxApplyBit)) != 0 {
-			buf.WriteString("a")
-		}
-		if (e.auxBits & (1 << auxFilterBit)) != 0 {
-			buf.WriteString("f")
-		}
-		if (e.auxBits & (1 << aux1Bit)) != 0 {
-			buf.WriteString("1")
-		}
-		if (e.auxBits & (1 << aux2Bit)) != 0 {
-			buf.WriteString("2")
-		}
+	if e.apply {
+		buf.WriteString(" (apply)")
 	}
 
 	if len(e.children) > 0 {
@@ -52,7 +41,11 @@ func (e *memoExpr) fingerprint() string {
 			if i > 0 {
 				buf.WriteString(" ")
 			}
-			fmt.Fprintf(&buf, "%d", c)
+			if c < 0 {
+				buf.WriteString("-")
+			} else {
+				fmt.Fprintf(&buf, "%d", c)
+			}
 		}
 		fmt.Fprintf(&buf, "]")
 	}
@@ -132,7 +125,7 @@ func (m *memo) topologicalSort() []int32 {
 }
 
 func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
-	if visited[id] {
+	if id < 0 || visited[id] {
 		return res
 	}
 	visited[id] = true
@@ -150,12 +143,17 @@ func (m *memo) addExpr(e *expr) int32 {
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
 		op:       e.op,
-		auxBits:  e.auxBits,
+		extra:    e.extra,
+		apply:    e.apply,
 		children: make([]int32, len(e.children)),
 		private:  e.private,
 	}
 	for i, c := range e.children {
-		me.children[i] = m.addExpr(c)
+		if c != nil {
+			me.children[i] = m.addExpr(c)
+		} else {
+			me.children[i] = -1
+		}
 	}
 
 	if e.props != nil {

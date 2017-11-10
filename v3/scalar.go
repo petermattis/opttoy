@@ -61,6 +61,36 @@ func init() {
 	registerOperator(functionOp, "func", scalar{})
 }
 
+func newConstExpr(private interface{}) *expr {
+	return &expr{
+		op:      constOp,
+		private: private,
+	}
+}
+
+func newFunctionExpr(private interface{}) *expr {
+	return &expr{
+		op:      functionOp,
+		private: private,
+	}
+}
+
+func newUnaryExpr(op operator, input1 *expr) *expr {
+	return &expr{
+		op:       op,
+		extra:    0,
+		children: []*expr{input1},
+	}
+}
+
+func newBinaryExpr(op operator, input1, input2 *expr) *expr {
+	return &expr{
+		op:       op,
+		extra:    0,
+		children: []*expr{input1, input2},
+	}
+}
+
 type scalar struct{}
 
 func (scalar) kind() operatorKind {

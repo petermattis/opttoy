@@ -48,10 +48,7 @@ func findEquivalency(filters []*expr, e *expr) *expr {
 func pushDownFilters(e *expr) {
 	// Push down filters to inputs.
 	filters := e.filters()
-	// Strip off all of the filters. We'll re-add any filters that couldn't be
-	// pushed down.
-	e.removeFilters()
-
+	newFilters := filters[:0]
 	for _, filter := range filters {
 		count := maybePushDownFilter(e, filter, filters)
 
@@ -75,9 +72,10 @@ func pushDownFilters(e *expr) {
 		// NULL" which can be pushed down.
 
 		if count == 0 {
-			e.addFilter(filter)
+			newFilters = append(newFilters, filter)
 		}
 	}
+	e.replaceFilters(newFilters)
 
 	for _, input := range e.inputs() {
 		input.updateProps()

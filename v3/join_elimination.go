@@ -89,17 +89,9 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 	for v := fkey.src & ^left.props.notNullCols; v != 0; {
 		i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 		v.clear(i)
-		t := &expr{
-			op: isNotOp,
-			children: []*expr{
-				left.props.newColumnExprByIndex(i),
-				&expr{
-					op:      constOp,
-					props:   left.props,
-					private: parser.DNull,
-				},
-			},
-		}
+		t := newBinaryExpr(isNotOp,
+			left.props.newColumnExprByIndex(i),
+			newConstExpr(parser.DNull))
 		t.updateProps()
 		notNull = append(notNull, t)
 	}
@@ -107,7 +99,6 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 		t := &expr{
 			op:       orOp,
 			children: notNull,
-			props:    left.props,
 		}
 		t.updateProps()
 		left.addFilter(t)

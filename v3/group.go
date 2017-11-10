@@ -8,6 +8,15 @@ func init() {
 	registerOperator(groupByOp, "groupBy", groupBy{})
 }
 
+func newGroupByExpr(input *expr) *expr {
+	return &expr{
+		op:       groupByOp,
+		extra:    3,
+		children: []*expr{input, nil /* grouping */, nil /* projection */, nil /* filter */},
+		props:    &logicalProps{},
+	}
+}
+
 type groupBy struct{}
 
 func (groupBy) kind() operatorKind {
@@ -52,24 +61,5 @@ func (groupBy) requiredInputVars(e *expr) bitmap {
 }
 
 func (groupBy) equal(a, b *expr) bool {
-	aAggregations, bAggregations := a.aggregations(), b.aggregations()
-	if len(aAggregations) != len(bAggregations) {
-		return false
-	}
-	for i := range aAggregations {
-		if !aAggregations[i].equal(bAggregations[i]) {
-			return false
-		}
-	}
-
-	aGroupings, bGroupings := a.groupings(), b.groupings()
-	if len(aGroupings) != len(bGroupings) {
-		return false
-	}
-	for i := range aGroupings {
-		if !aGroupings[i].equal(bAggregations[i]) {
-			return false
-		}
-	}
 	return true
 }

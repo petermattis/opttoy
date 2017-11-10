@@ -8,6 +8,15 @@ func init() {
 	registerOperator(renameOp, "rename", rename{})
 }
 
+func newRenameExpr(input *expr) *expr {
+	return &expr{
+		op:       renameOp,
+		extra:    1,
+		children: []*expr{input, nil /* filter */},
+		props:    &logicalProps{},
+	}
+}
+
 type rename struct{}
 
 func (rename) kind() operatorKind {

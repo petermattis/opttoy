@@ -107,13 +107,8 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 			}
 
 			tab := result.props
-			result = &expr{
-				op:       renameOp,
-				children: []*expr{result},
-				props: &logicalProps{
-					columns: make([]columnProps, 0, len(tab.columns)),
-				},
-			}
+			result = newRenameExpr(result)
+			result.props.columns = make([]columnProps, 0, len(tab.columns))
 
 			tables := []string{string(source.As.Alias)}
 			for i, col := range tab.columns {
@@ -140,13 +135,7 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 	case *parser.JoinTableExpr:
 		left := buildTable(source.Left, scope)
 		right := buildTable(source.Right, scope.push(left.props))
-		result := &expr{
-			op: joinOp(source.Join),
-			children: []*expr{
-				left,
-				right,
-			},
-		}
+		result := newJoinExpr(joinOp(source.Join), left, right)
 
 		switch cond := source.Cond.(type) {
 		case *parser.OnJoinCond:
@@ -175,12 +164,7 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 }
 
 func buildScan(tab *table, scope *scope) *expr {
-	result := &expr{
-		op:      scanOp,
-		props:   &logicalProps{},
-		private: tab,
-	}
-
+	result := newScanExpr(tab)
 	props := result.props
 	props.columns = make([]columnProps, 0, len(tab.columns))
 
@@ -227,9 +211,7 @@ func buildScan(tab *table, scope *scope) *expr {
 func buildOnJoin(result *expr, on parser.Expr, scope *scope) {
 	left := result.inputs()[0].props
 	right := result.inputs()[1].props
-	result.props = &logicalProps{
-		columns: make([]columnProps, len(left.columns)+len(right.columns)),
-	}
+	result.props.columns = make([]columnProps, len(left.columns)+len(right.columns))
 	copy(result.props.columns[:], left.columns)
 	copy(result.props.columns[len(left.columns):], right.columns)
 	result.addFilter(buildScalar(on, scope.push(result.props)))
@@ -270,19 +252,12 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 			if right == nil {
 				fatalf("unable to resolve name %s", name)
 			}
-			f := &expr{
-				op: eqOp,
-				children: []*expr{
-					left,
-					right,
-				},
-			}
+			f := newBinaryExpr(eqOp, left, right)
 			f.updateProps()
 			e.addFilter(f)
 		}
 	}
 
-	e.props = &logicalProps{}
 	for _, input := range inputs {
 		for _, col := range input.props.columns {
 			if idx, ok := joined[col.name]; ok {
@@ -310,9 +285,7 @@ func buildUsingJoin(e *expr, names parser.NameList) {
 func buildLeftOuterJoin(e *expr) {
 	left := e.inputs()[0].props
 	right := e.inputs()[1].props
-	e.props = &logicalProps{
-		columns: make([]columnProps, len(left.columns)+len(right.columns)),
-	}
+	e.props.columns = make([]columnProps, len(left.columns)+len(right.columns))
 	copy(e.props.columns[:], left.columns)
 	copy(e.props.columns[len(left.columns):], right.columns)
 }
@@ -324,52 +297,20 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		return buildScalar(t.Expr, scope)
 
 	case *parser.AndExpr:
-		result = &expr{
-			op: andOp,
-			children: []*expr{
-				buildScalar(t.Left, scope),
-				buildScalar(t.Right, scope),
-			},
-		}
+		result = newBinaryExpr(andOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
 	case *parser.OrExpr:
-		result = &expr{
-			op: orOp,
-			children: []*expr{
-				buildScalar(t.Left, scope),
-				buildScalar(t.Right, scope),
-			},
-		}
+		result = newBinaryExpr(orOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
 	case *parser.NotExpr:
-		result = &expr{
-			op: notOp,
-			children: []*expr{
-				buildScalar(t.Expr, scope),
-			},
-		}
+		result = newUnaryExpr(notOp, buildScalar(t.Expr, scope))
 
 	case *parser.BinaryExpr:
-		result = &expr{
-			op: binaryOpMap[t.Operator],
-			children: []*expr{
-				buildScalar(t.Left, scope),
-				buildScalar(t.Right, scope),
-			},
-		}
+		result = newBinaryExpr(binaryOpMap[t.Operator],
+			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
 	case *parser.ComparisonExpr:
-		result = &expr{
-			op: comparisonOpMap[t.Operator],
-			children: []*expr{
-				buildScalar(t.Left, scope),
-				buildScalar(t.Right, scope),
-			},
-		}
+		result = newBinaryExpr(comparisonOpMap[t.Operator],
+			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
 	case *parser.UnaryExpr:
-		result = &expr{
-			op: unaryOpMap[t.Operator],
-			children: []*expr{
-				buildScalar(t.Expr, scope),
-			},
-		}
+		result = newUnaryExpr(unaryOpMap[t.Operator], buildScalar(t.Expr, scope))
 
 	case *parser.ColumnItem:
 		tableName := t.TableName.Table()
@@ -382,10 +323,7 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 						t.TableName.TableName = parser.Name(col.tables[0])
 						t.TableName.DBNameOriginallyOmitted = true
 					}
-					result = &expr{
-						op:      variableOp,
-						private: t.String(),
-					}
+					result := newVariableExpr(t.String())
 					result.inputVars.set(col.index)
 					result.updateProps()
 					return result
@@ -402,28 +340,19 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		return buildScalar(vn, scope)
 
 	case *parser.NumVal:
-		result = &expr{
-			op:      constOp,
-			private: t,
-		}
+		result = newConstExpr(t)
 
 	case *parser.FuncExpr:
 		def, err := t.Func.Resolve(parser.SearchPath{})
 		if err != nil {
 			fatalf("%v", err)
 		}
-		result = &expr{
-			op:      functionOp,
-			private: def,
-		}
+		result = newFunctionExpr(def)
 		result.children = make([]*expr, 0, len(t.Exprs))
 		for _, pexpr := range t.Exprs {
 			var e *expr
 			if _, ok := pexpr.(parser.UnqualifiedStar); ok {
-				e = &expr{
-					op:      constOp,
-					private: parser.NewDInt(1),
-				}
+				e = newConstExpr(parser.NewDInt(1))
 			} else {
 				e = buildScalar(pexpr, scope)
 			}
@@ -431,12 +360,7 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		}
 
 	case *parser.ExistsExpr:
-		result = &expr{
-			op: existsOp,
-			children: []*expr{
-				buildScalar(t.Subquery, scope),
-			},
-		}
+		result = newUnaryExpr(existsOp, buildScalar(t.Subquery, scope))
 
 	case *parser.Subquery:
 		return build(t.Select, scope)
@@ -445,10 +369,7 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		// NB: we can't type assert on parser.dNull because the type is not
 		// exported.
 		if pexpr == parser.DNull {
-			result = &expr{
-				op:      constOp,
-				private: pexpr,
-			}
+			result = newConstExpr(pexpr)
 		} else {
 			unimplemented("%T", pexpr)
 		}
@@ -497,13 +418,7 @@ func buildFrom(from *parser.From, where *parser.Where, scope *scope) (*expr, *sc
 			scope = scope.push(result.props)
 			continue
 		}
-		result = &expr{
-			op: innerJoinOp,
-			children: []*expr{
-				result,
-				t,
-			},
-		}
+		result = newJoinExpr(innerJoinOp, result, t)
 		buildUsingJoin(result, nil)
 		result.updateProps()
 		scope = scope.push(result.props)
@@ -527,13 +442,8 @@ func buildGroupBy(
 		return input, scope
 	}
 
-	result := &expr{
-		op:       groupByOp,
-		children: []*expr{input},
-		props: &logicalProps{
-			columns: make([]columnProps, len(scope.props.columns)),
-		},
-	}
+	result := newGroupByExpr(input)
+	result.props.columns = make([]columnProps, len(scope.props.columns))
 	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(groupBy))
@@ -633,11 +543,7 @@ func buildProjections(
 		return input, scope
 	}
 
-	result := &expr{
-		op:       projectOp,
-		children: []*expr{input},
-		props:    &logicalProps{},
-	}
+	result := newProjectExpr(input)
 
 	var projections []*expr
 	passthru := true
@@ -648,11 +554,7 @@ func buildProjections(
 		for _, p := range exprs {
 			if containsAggregate(p) {
 				if input.op != groupByOp {
-					input = &expr{
-						op:       groupByOp,
-						children: []*expr{input},
-						props:    &logicalProps{},
-					}
+					input = newGroupByExpr(input)
 					result.inputs()[0] = input
 				}
 				buildGroupByExtractAggregates(input, p, scope)
@@ -709,13 +611,8 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	}
 
 	// Distinct is equivalent to group by without any aggregations.
-	result := &expr{
-		op:       groupByOp,
-		children: []*expr{input},
-		props: &logicalProps{
-			columns: make([]columnProps, len(scope.props.columns)),
-		},
-	}
+	result := newGroupByExpr(input)
+	result.props.columns = make([]columnProps, len(scope.props.columns))
 	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(input.props.columns))
@@ -735,15 +632,10 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy, scope *scope) *expr {
 
 	// TODO(peter): order by is not a relational expression, but instead a
 	// required property on the output.
-	result := &expr{
-		op:       orderByOp,
-		children: []*expr{input},
-		props: &logicalProps{
-			columns: make([]columnProps, len(input.props.columns)),
-		},
-		private: orderBy,
-	}
+	result := newOrderByExpr(input)
+	result.props.columns = make([]columnProps, len(input.props.columns))
 	copy(result.props.columns, input.props.columns)
+	result.private = orderBy
 	result.updateProps()
 	return result
 }
@@ -759,16 +651,8 @@ func buildUnion(clause *parser.UnionClause, scope *scope) *expr {
 	}
 	left := buildSelect(clause.Left, scope)
 	right := buildSelect(clause.Right, scope)
-	result := &expr{
-		op: op,
-		children: []*expr{
-			left,
-			right,
-		},
-		props: &logicalProps{
-			columns: make([]columnProps, len(left.props.columns)),
-		},
-	}
+	result := newSetExpr(op, left, right)
+	result.props.columns = make([]columnProps, len(left.props.columns))
 	copy(result.props.columns, left.props.columns)
 	result.updateProps()
 	return result
