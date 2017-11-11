@@ -124,6 +124,9 @@ type logicalProps struct {
 	//   FROM employees e
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
+
+	// The number of joins that have been performed at and below this relation.
+	joinDepth int32
 }
 
 func (p *logicalProps) String() string {
@@ -207,6 +210,9 @@ func (p *logicalProps) fingerprint() string {
 			fmt.Fprintf(&buf, "%s->%s", fkey.src, fkey.dest)
 		}
 		buf.WriteString("]")
+	}
+	if p.joinDepth > 0 {
+		fmt.Fprintf(&buf, " %d", p.joinDepth)
 	}
 	return buf.String()
 }

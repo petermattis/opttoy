@@ -43,10 +43,12 @@ func (j join) updateProps(e *expr) {
 		e.props.notNullCols |= input.props.notNullCols
 	}
 
+	e.props.joinDepth = 1
 	e.inputVars = j.requiredInputVars(e)
 	e.inputVars &^= (e.props.outputVars() | e.providedInputVars())
 	for _, input := range e.inputs() {
 		e.inputVars |= input.inputVars
+		e.props.joinDepth += input.props.joinDepth
 	}
 
 	e.props.applyFilters(e.filters())

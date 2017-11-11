@@ -27,9 +27,9 @@ func testMemo(t *testing.T, sql string) *memo {
 
 func TestMemoBind(t *testing.T) {
 	m := testMemo(t, `
-CREATE TABLE a (x INT, a INT);
-CREATE TABLE b (x INT, b INT);
-CREATE TABLE c (x INT, c INT);
+CREATE TABLE a (x INT);
+CREATE TABLE b (x INT);
+CREATE TABLE c (x INT);
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c;
 `)
 	fmt.Println(m)
