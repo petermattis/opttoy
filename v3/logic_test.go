@@ -206,6 +206,11 @@ func TestLogic(t *testing.T) {
 						m := newMemo()
 						m.addRoot(e)
 						return m.String()
+					case "search":
+						s := newSearch(newMemo())
+						s.memo.addRoot(e)
+						s.run()
+						return s.memo.String()
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}

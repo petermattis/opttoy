@@ -1,0 +1,70 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+exec
+CREATE TABLE c (x INT, w INT)
+----
+table c
+  x NULL
+  w NULL
+
+search
+SELECT * FROM a NATURAL JOIN b
+----
+6: [inner join [1 2 5]] [inner join [2 1 5]]
+5: [comp (=) [3 4]]
+4: [variable b.x]
+3: [variable a.x]
+2: [scan b [-]]
+1: [scan a [-]]
+
+prep
+SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
+----
+inner join
+  columns: {a,c}.x:0* a.y:1 b.z:3 c.w:5
+  filters:
+    comp (=) [in=0,4]
+      inputs:
+        variable (a.x) [in=0]
+        variable (c.x) [in=4]
+  inputs:
+    inner join
+      columns: {a,b}.x:0* a.y:1 b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
+    scan
+      columns: c.x:4 c.w:5
+
+search
+SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
+----
+10: [inner join [6 7 9]] [inner join [7 6 9]]
+9: [comp (=) [3 8]]
+8: [variable c.x]
+7: [scan c [-]]
+6: [inner join [1 2 5]] [inner join [2 1 5]]
+5: [comp (=) [3 4]]
+4: [variable b.x]
+3: [variable a.x]
+2: [scan b [-]]
+1: [scan a [-]]

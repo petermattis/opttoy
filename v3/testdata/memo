@@ -15,20 +15,20 @@ table b
 memo
 SELECT y FROM a
 ----
-2: [project [0 1 -]]
-1: [variable a.y]
-0: [scan a [-]]
+3: [project [1 2 -]]
+2: [variable a.y]
+1: [scan a [-]]
 
 memo
 SELECT a.y, b.z FROM a NATURAL JOIN b
 ----
-9: [project [5 8 -]]
-8: [list [6 7]]
-7: [variable b.z]
-6: [variable a.y]
-5: [inner join [0 1 4]]
-4: [comp (=) [2 3]]
-3: [variable b.x]
-2: [variable a.x]
-1: [scan b [-]]
-0: [scan a [-]]
+10: [project [6 9 -]]
+9: [list [7 8]]
+8: [variable b.z]
+7: [variable a.y]
+6: [inner join [1 2 5]]
+5: [comp (=) [3 4]]
+4: [variable b.x]
+3: [variable a.x]
+2: [scan b [-]]
+1: [scan a [-]]

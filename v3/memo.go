@@ -3,11 +3,36 @@ package v3
 import (
 	"bytes"
 	"fmt"
-	"sync"
 )
 
-// TODO(peter):
-// - Extract expressions from the memo for transformation
+type searchState int32
+
+var searchStateName = [...]string{
+	stateUnexplored:   "unexplored",
+	stateExploring:    "exploring",
+	stateExplored:     "explored",
+	stateImplementing: "implementing",
+	stateImplemented:  "implemented",
+	stateOptimizing:   "optimizing",
+	stateOptimized:    "optimized",
+}
+
+func (i searchState) String() string {
+	if i < 0 || i >= searchState(len(searchStateName)-1) {
+		return fmt.Sprintf("searchState(%d)", i)
+	}
+	return searchStateName[i]
+}
+
+const (
+	stateUnexplored searchState = iota
+	stateExploring
+	stateExplored
+	stateImplementing
+	stateImplemented
+	stateOptimizing
+	stateOptimized
+)
 
 type memoLoc struct {
 	group int32
@@ -19,6 +44,7 @@ func (l memoLoc) String() string {
 }
 
 type memoExpr struct {
+	state    searchState
 	loc      memoLoc
 	op       operator
 	extra    uint8
@@ -36,6 +62,9 @@ func (e *memoExpr) match(pattern *expr) bool {
 func (e *memoExpr) fingerprint() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s", e.op)
+	if e.apply {
+		buf.WriteString(" (apply)")
+	}
 
 	switch t := e.private.(type) {
 	case nil:
@@ -45,17 +74,13 @@ func (e *memoExpr) fingerprint() string {
 		fmt.Fprintf(&buf, " %s", e.private)
 	}
 
-	if e.apply {
-		buf.WriteString(" (apply)")
-	}
-
 	if len(e.children) > 0 {
 		fmt.Fprintf(&buf, " [")
 		for i, c := range e.children {
 			if i > 0 {
 				buf.WriteString(" ")
 			}
-			if c < 0 {
+			if c <= 0 {
 				buf.WriteString("-")
 			} else {
 				fmt.Fprintf(&buf, "%d", c)
@@ -67,6 +92,7 @@ func (e *memoExpr) fingerprint() string {
 }
 
 type memoGroup struct {
+	state searchState
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
@@ -106,9 +132,11 @@ type memo struct {
 }
 
 func newMemo() *memo {
+	// NB: group 0 is reserved and intentionally nil so that the 0 group index
+	// can indicate that we don't know the group for an expression.
 	return &memo{
 		groupMap: make(map[string]int32),
-		root:     -1,
+		groups:   make([]*memoGroup, 1),
 	}
 }
 
@@ -141,7 +169,7 @@ func (m *memo) topologicalSort() []int32 {
 }
 
 func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
-	if id < 0 || visited[id] {
+	if id <= 0 || visited[id] {
 		return res
 	}
 	visited[id] = true
@@ -156,37 +184,44 @@ func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
 }
 
 func (m *memo) addRoot(e *expr) {
-	if m.root != -1 {
+	if m.root != 0 {
 		fatalf("root has already been set")
 	}
 	m.root = m.addExpr(e)
 }
 
 func (m *memo) addExpr(e *expr) int32 {
+	if e.loc.group > 0 && e.loc.expr >= 0 {
+		// The expression has already been added to the memo.
+		return e.loc.group
+	}
+
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
 		op:       e.op,
 		extra:    e.extra,
 		apply:    e.apply,
+		loc:      e.loc,
 		children: make([]int32, len(e.children)),
 		private:  e.private,
 	}
 	for i, g := range e.children {
 		if g != nil {
 			me.children[i] = m.addExpr(g)
-		} else {
-			me.children[i] = -1
 		}
 	}
 
-	if e.props != nil {
-		// We have a relational expression. Find the group the memoExpr would exist
-		// in.
-		me.loc.group = m.maybeAddGroup(e.props.fingerprint(), e.props)
-	} else {
-		// We have a scalar expression. Use the expression fingerprint as the group
-		// fingerprint.
-		me.loc.group = m.maybeAddGroup(me.fingerprint(), nil)
+	if me.loc.group == 0 {
+		// Determine which group the expression belongs in.
+		if e.props != nil {
+			// We have a relational expression. Find the group the memoExpr would exist
+			// in.
+			me.loc.group = m.maybeAddGroup(e.props.fingerprint(), e.props)
+		} else {
+			// We have a scalar expression. Use the expression fingerprint as the group
+			// fingerprint.
+			me.loc.group = m.maybeAddGroup(me.fingerprint(), nil)
+		}
 	}
 
 	g := m.groups[me.loc.group]
@@ -212,16 +247,14 @@ func (m *memo) maybeAddGroup(f string, props *logicalProps) int32 {
 //
 // Note that the returned expression is only valid until the next call to
 // bind().
-func (m *memo) bind(loc memoLoc, pattern *expr, cursor *expr) *expr {
-	g := m.groups[loc.group]
-	e := g.exprs[loc.expr]
-	if e.op != pattern.op {
-		return nil
-	}
-	return m.bindExpr(e, pattern, cursor)
-}
-
-func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
+//
+// TODO(peter): Figure out a way to reuse the cursor memory. One challenge is
+// that transformations can hold on to cursors across calls to bind. Perhaps we
+// can add an API where we start a bind iteration has an associated arena to
+// allocate from and when the iteration ends we bulk free all of the
+// expressions. We'd also want to use this arena for the expressions created by
+// the transformation.
+func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 	if !e.match(pattern) {
 		return nil
 	}
@@ -233,8 +266,7 @@ func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
 	g := m.groups[e.loc.group]
 	var initChildren bool
 	if cursor == nil {
-		cursor = newMemoCursor()
-		cursor.props = g.props
+		cursor = &expr{props: g.props}
 		initChildren = true
 	}
 	cursor.op = e.op
@@ -266,7 +298,7 @@ func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
 				childPattern = pattern.children[i]
 			}
 
-			if g != -1 {
+			if g != 0 {
 				cursor.children[i] = m.bindGroup(m.groups[g], childPattern, nil)
 				if cursor.children[i] == nil {
 					// Pattern failed to match.
@@ -288,7 +320,6 @@ func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
 	}
 	if valid == 0 {
 		// If we're at a leaf node, there is nothing further to advance.
-		releaseMemoCursor(cursor)
 		return nil
 	}
 
@@ -313,8 +344,6 @@ func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
 			return cursor
 		}
 
-		releaseMemoCursor(childCursor)
-
 		exhausted++
 		if exhausted >= valid {
 			// We exhausted all of the child cursors. Nothing more for us to do.
@@ -337,44 +366,21 @@ func (m *memo) bindGroup(g *memoGroup, pattern, cursor *expr) *expr {
 		// For leaf patterns we do not iterate on groups.
 		if cursor != nil {
 			// If a leaf was extracted before, we've exhaused the group.
-			releaseMemoCursor(cursor)
 			return nil
 		}
-		return m.bindExpr(g.exprs[0], pattern, cursor)
+		return m.bind(g.exprs[0], pattern, cursor)
 	}
 
 	for _, e := range exprs {
 		if !e.match(pattern) {
 			continue
 		}
-		last := cursor
-		cursor = m.bindExpr(e, pattern, cursor)
+		cursor = m.bind(e, pattern, cursor)
 		if cursor != nil {
 			return cursor
 		}
-		releaseMemoCursor(last)
 	}
 
 	// We've exhausted the group.
 	return nil
-}
-
-var cursorPool = sync.Pool{
-	New: func() interface{} {
-		return &expr{}
-	},
-}
-
-func newMemoCursor() *expr {
-	return cursorPool.Get().(*expr)
-}
-
-func releaseMemoCursor(cursor *expr) {
-	if cursor != nil {
-		for _, child := range cursor.children {
-			releaseMemoCursor(child)
-		}
-		*cursor = expr{}
-		cursorPool.Put(cursor)
-	}
 }
