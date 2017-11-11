@@ -204,7 +204,7 @@ func TestLogic(t *testing.T) {
 						decorrelate(e)
 					case "memo":
 						m := newMemo()
-						m.addExpr(e)
+						m.addRoot(e)
 						return m.String()
 					default:
 						t.Fatalf("unknown command: %s", cmd)

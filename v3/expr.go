@@ -101,6 +101,8 @@ type expr struct {
 	// are present.
 	extra uint8
 	apply bool
+	// Location of the expression in the memo.
+	loc memoLoc
 	// The input vars bitmap specifies required input variables (a.k.a. free
 	// variables) that are not otherwise provided by inputs. For scalar
 	// operators, this will by the set of all variables referenced by the scalar
@@ -123,6 +125,22 @@ type expr struct {
 func (e *expr) String() string {
 	var buf bytes.Buffer
 	e.format(&buf, 0)
+	return buf.String()
+}
+
+func (e *expr) MemoString() string {
+	var format func(e *expr, buf *bytes.Buffer, level int)
+	format = func(e *expr, buf *bytes.Buffer, level int) {
+		fmt.Fprintf(buf, "%s[%s] %s\n", spaces[:2*level], e.loc, e.op)
+		for _, c := range e.children {
+			if c != nil {
+				format(c, buf, level+1)
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	format(e, &buf, 0)
 	return buf.String()
 }
 
@@ -151,7 +169,9 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 		indent := spaces[:2*level]
 		fmt.Fprintf(buf, "%s  %s:\n", indent, title)
 		for _, e := range exprs {
-			e.format(buf, level+2)
+			if e != nil {
+				e.format(buf, level+2)
+			}
 		}
 	}
 }
