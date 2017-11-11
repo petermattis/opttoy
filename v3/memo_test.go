@@ -19,7 +19,6 @@ func testMemo(t *testing.T, sql string) *memo {
 		p.exec(s)
 	}
 	e := p.prep(stmts[n])
-	fmt.Println(e)
 	m := newMemo()
 	m.addRoot(e)
 	return m
@@ -32,9 +31,25 @@ CREATE TABLE b (x INT);
 CREATE TABLE c (x INT);
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c;
 `)
-	fmt.Println(m)
+	if testing.Verbose() {
+		fmt.Println(m)
+	}
 
 	p := newJoinPattern(innerJoinOp, nil, nil, patternTree)
 	e := m.bind(memoLoc{m.root, 0}, p, nil)
-	fmt.Println(e.MemoString())
+
+	const expected = `[9.0] inner join
+  [5.0] inner join
+  [6.0] scan
+  [8.0] comp (=)
+    [2.0] variable
+    [7.0] variable
+`
+	if s := e.MemoString(); expected != s {
+		t.Fatalf("expected\n%s\nbut found\n%s", expected, s)
+	}
+
+	if m.bind(memoLoc{m.root, 0}, p, e) != nil {
+		t.Fatalf("expected a single match, but found\n%s", e.MemoString())
+	}
 }

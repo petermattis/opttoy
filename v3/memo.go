@@ -286,6 +286,11 @@ func (m *memo) bindExpr(e *memoExpr, pattern, cursor *expr) *expr {
 			valid++
 		}
 	}
+	if valid == 0 {
+		// If we're at a leaf node, there is nothing further to advance.
+		releaseMemoCursor(cursor)
+		return nil
+	}
 
 	// Advance the child cursors.
 	var exhausted int
