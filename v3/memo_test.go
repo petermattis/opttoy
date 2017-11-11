@@ -34,8 +34,7 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c;
 `)
 	fmt.Println(m)
 
-	p := newJoinExpr(innerJoinOp, nil, nil)
-	p.addFilter(patternExpr)
+	p := newJoinPattern(innerJoinOp, nil, nil, patternTree)
 	e := m.bind(memoLoc{m.root, 0}, p, nil)
 	fmt.Println(e.MemoString())
 }
