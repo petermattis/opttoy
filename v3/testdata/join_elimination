@@ -25,7 +25,7 @@ table e
   (emp_id) KEY
   (dept_id) -> d(dept_id)
 
-prep,push_down,join_elimination
+prep
 SELECT e.name, e.salary
 FROM e, d
 WHERE e.dept_id = d.dept_id
@@ -46,7 +46,7 @@ project
             variable (e.dept_id) [in=1]
             const (NULL)
 
-prep,push_down,join_elimination
+prep
 SELECT e.name, e.salary
 FROM d, e
 WHERE e.dept_id = d.dept_id AND e.dept_id != 0
@@ -67,7 +67,7 @@ project
             variable (e.dept_id) [in=3]
             const (0)
 
-prep,push_down,join_elimination
+prep
 SELECT e.name, e.salary, d.name
 FROM e, d
 WHERE e.dept_id = d.dept_id

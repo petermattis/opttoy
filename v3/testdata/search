@@ -44,7 +44,7 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 2: [scan b [-]]
 1: [scan a [-]]
 
-prep,push_down,search
+prep,search
 SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
 ----
 17: [inner join [12 15 16]] [inner join [18 4 11]] [inner join [15 12 16]]

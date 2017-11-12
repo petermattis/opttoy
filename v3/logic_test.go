@@ -199,10 +199,6 @@ func TestLogic(t *testing.T) {
 						// Already done.
 					case "prep":
 						prep(e)
-					case "push_down":
-						pushDownFilters(e)
-					case "join_elimination":
-						joinElimination(e, 0)
 					case "decorrelate":
 						decorrelate(e)
 					case "memo":

@@ -10,6 +10,8 @@ import (
 // - Normalize filers
 func prep(e *expr) {
 	inferFilters(e)
+	pushDownFilters(e)
+	joinElimination(e, 0)
 }
 
 func inferFilters(e *expr) {

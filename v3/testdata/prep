@@ -22,16 +22,18 @@ inner join
       inputs:
         variable (a.x) [in=0]
         variable (b.x) [in=2]
-    comp (>) [in=0]
-      inputs:
-        variable (a.x) [in=0]
-        const (1)
-    comp (>) [in=2]
-      inputs:
-        variable (b.x) [in=2]
-        const (1)
   inputs:
     scan
-      columns: a.x:0 a.y:1
+      columns: a.x:0* a.y:1
+      filters:
+        comp (>) [in=0]
+          inputs:
+            variable (a.x) [in=0]
+            const (1)
     scan
-      columns: b.x:2 b.z:3
+      columns: b.x:2* b.z:3
+      filters:
+        comp (>) [in=2]
+          inputs:
+            variable (b.x) [in=2]
+            const (1)
