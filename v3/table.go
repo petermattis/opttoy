@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 type column struct {
@@ -44,7 +44,7 @@ type table struct {
 	keys    []tableKey
 }
 
-func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
+func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 	getKey := func(t *table, key tableKey) *tableKey {
 		for i := range t.keys {
 			if t.keys[i].equalColumns(key) {
@@ -81,7 +81,7 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 		}
 	}
 
-	extractColumns := func(def *parser.IndexTableDef) []string {
+	extractColumns := func(def *tree.IndexTableDef) []string {
 		res := make([]string, len(def.Columns))
 		for i, col := range def.Columns {
 			res[i] = string(col.Column)
@@ -89,7 +89,7 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 		return res
 	}
 
-	extractNames := func(names parser.NameList) []string {
+	extractNames := func(names tree.NameList) []string {
 		res := make([]string, len(names))
 		for i, name := range names {
 			res[i] = string(name)
@@ -113,7 +113,7 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 
 	for _, def := range stmt.Defs {
 		switch def := def.(type) {
-		case *parser.ColumnTableDef:
+		case *tree.ColumnTableDef:
 			if _, ok := tab.colMap[string(def.Name)]; ok {
 				fatalf("column %s already exists", def.Name)
 			}
@@ -121,7 +121,7 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 			tab.colMap[string(def.Name)] = index
 			tab.columns = append(tab.columns, column{
 				name:    string(def.Name),
-				notNull: def.PrimaryKey || (def.Nullable.Nullability == parser.NotNull),
+				notNull: def.PrimaryKey || (def.Nullable.Nullability == tree.NotNull),
 			})
 
 			if def.Unique || def.PrimaryKey {
@@ -159,7 +159,7 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 				addForeignKey(tab, ref, []int{index}, refCols)
 			}
 
-		case *parser.UniqueConstraintTableDef:
+		case *tree.UniqueConstraintTableDef:
 			columns := tab.getColumnIndexes(extractColumns(&def.IndexTableDef))
 			if def.PrimaryKey {
 				for _, i := range columns {
@@ -172,13 +172,13 @@ func createTable(catalog map[string]*table, stmt *parser.CreateTable) *table {
 				columns: columns,
 			})
 
-		case *parser.IndexTableDef:
+		case *tree.IndexTableDef:
 			addKey(tab, tableKey{
 				unique:  true,
 				columns: tab.getColumnIndexes(extractColumns(def)),
 			})
 
-		case *parser.ForeignKeyConstraintTableDef:
+		case *tree.ForeignKeyConstraintTableDef:
 			refTable, err := def.Table.Normalize()
 			if err != nil {
 				fatalf("%s", err)

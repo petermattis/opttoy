@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 var (
@@ -44,7 +45,7 @@ type testdata struct {
 	pos      string // file and line number
 	cmd      string // exec, query, ...
 	sql      string
-	stmt     parser.Statement
+	stmt     tree.Statement
 	expected string
 }
 

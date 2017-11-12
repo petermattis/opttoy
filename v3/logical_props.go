@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 // queryState holds per-query state such as the tables referenced by the query
@@ -49,12 +49,12 @@ func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *exp
 			tableName = c.tables[0]
 		}
 	}
-	col := &parser.ColumnItem{
-		TableName: parser.TableName{
-			TableName:               parser.Name(tableName),
+	col := &tree.ColumnItem{
+		TableName: tree.TableName{
+			TableName:               tree.Name(tableName),
 			DBNameOriginallyOmitted: true,
 		},
-		ColumnName: parser.Name(c.name),
+		ColumnName: tree.Name(c.name),
 	}
 
 	e := newVariableExpr(col.String())

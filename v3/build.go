@@ -4,57 +4,58 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	_ "github.com/cockroachdb/cockroach/pkg/sql/sem/builtins"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 var comparisonOpMap = [...]operator{
-	parser.EQ:                eqOp,
-	parser.LT:                ltOp,
-	parser.GT:                gtOp,
-	parser.LE:                leOp,
-	parser.GE:                geOp,
-	parser.NE:                neOp,
-	parser.In:                inOp,
-	parser.NotIn:             notInOp,
-	parser.Like:              likeOp,
-	parser.NotLike:           notLikeOp,
-	parser.ILike:             iLikeOp,
-	parser.NotILike:          notILikeOp,
-	parser.SimilarTo:         similarToOp,
-	parser.NotSimilarTo:      notSimilarToOp,
-	parser.RegMatch:          regMatchOp,
-	parser.NotRegMatch:       notRegMatchOp,
-	parser.RegIMatch:         regIMatchOp,
-	parser.NotRegIMatch:      notRegIMatchOp,
-	parser.IsDistinctFrom:    isDistinctFromOp,
-	parser.IsNotDistinctFrom: isNotDistinctFromOp,
-	parser.Is:                isOp,
-	parser.IsNot:             isNotOp,
-	parser.Any:               anyOp,
-	parser.Some:              someOp,
-	parser.All:               allOp,
+	tree.EQ:                eqOp,
+	tree.LT:                ltOp,
+	tree.GT:                gtOp,
+	tree.LE:                leOp,
+	tree.GE:                geOp,
+	tree.NE:                neOp,
+	tree.In:                inOp,
+	tree.NotIn:             notInOp,
+	tree.Like:              likeOp,
+	tree.NotLike:           notLikeOp,
+	tree.ILike:             iLikeOp,
+	tree.NotILike:          notILikeOp,
+	tree.SimilarTo:         similarToOp,
+	tree.NotSimilarTo:      notSimilarToOp,
+	tree.RegMatch:          regMatchOp,
+	tree.NotRegMatch:       notRegMatchOp,
+	tree.RegIMatch:         regIMatchOp,
+	tree.NotRegIMatch:      notRegIMatchOp,
+	tree.IsDistinctFrom:    isDistinctFromOp,
+	tree.IsNotDistinctFrom: isNotDistinctFromOp,
+	tree.Is:                isOp,
+	tree.IsNot:             isNotOp,
+	tree.Any:               anyOp,
+	tree.Some:              someOp,
+	tree.All:               allOp,
 }
 
 var binaryOpMap = [...]operator{
-	parser.Bitand:   bitandOp,
-	parser.Bitor:    bitorOp,
-	parser.Bitxor:   bitxorOp,
-	parser.Plus:     plusOp,
-	parser.Minus:    minusOp,
-	parser.Mult:     multOp,
-	parser.Div:      divOp,
-	parser.FloorDiv: floorDivOp,
-	parser.Mod:      modOp,
-	parser.Pow:      powOp,
-	parser.Concat:   concatOp,
-	parser.LShift:   lShiftOp,
-	parser.RShift:   rShiftOp,
+	tree.Bitand:   bitandOp,
+	tree.Bitor:    bitorOp,
+	tree.Bitxor:   bitxorOp,
+	tree.Plus:     plusOp,
+	tree.Minus:    minusOp,
+	tree.Mult:     multOp,
+	tree.Div:      divOp,
+	tree.FloorDiv: floorDivOp,
+	tree.Mod:      modOp,
+	tree.Pow:      powOp,
+	tree.Concat:   concatOp,
+	tree.LShift:   lShiftOp,
+	tree.RShift:   rShiftOp,
 }
 
 var unaryOpMap = [...]operator{
-	parser.UnaryPlus:       unaryPlusOp,
-	parser.UnaryMinus:      unaryMinusOp,
-	parser.UnaryComplement: unaryComplementOp,
+	tree.UnaryPlus:       unaryPlusOp,
+	tree.UnaryMinus:      unaryMinusOp,
+	tree.UnaryComplement: unaryComplementOp,
 }
 
 type scope struct {
@@ -71,11 +72,11 @@ func (s *scope) push(props *logicalProps) *scope {
 	}
 }
 
-func build(stmt parser.Statement, scope *scope) *expr {
+func build(stmt tree.Statement, scope *scope) *expr {
 	switch stmt := stmt.(type) {
-	case *parser.Select:
+	case *tree.Select:
 		return buildSelect(stmt, scope)
-	case *parser.ParenSelect:
+	case *tree.ParenSelect:
 		return buildSelect(stmt.Select, scope)
 	default:
 		unimplemented("%T", stmt)
@@ -83,9 +84,9 @@ func build(stmt parser.Statement, scope *scope) *expr {
 	}
 }
 
-func buildTable(texpr parser.TableExpr, scope *scope) *expr {
+func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 	switch source := texpr.(type) {
-	case *parser.NormalizableTableName:
+	case *tree.NormalizableTableName:
 		tableName, err := source.Normalize()
 		if err != nil {
 			fatalf("%s", err)
@@ -98,7 +99,7 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 
 		return buildScan(tab, scope)
 
-	case *parser.AliasedTableExpr:
+	case *tree.AliasedTableExpr:
 		result := buildTable(source.Expr, scope)
 		if source.As.Alias != "" {
 			if n := len(source.As.Cols); n > 0 && n != len(result.props.columns) {
@@ -129,22 +130,22 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 		}
 		return result
 
-	case *parser.ParenTableExpr:
+	case *tree.ParenTableExpr:
 		return buildTable(source.Expr, scope)
 
-	case *parser.JoinTableExpr:
+	case *tree.JoinTableExpr:
 		left := buildTable(source.Left, scope)
 		right := buildTable(source.Right, scope.push(left.props))
 		result := newJoinExpr(joinOp(source.Join), left, right)
 
 		switch cond := source.Cond.(type) {
-		case *parser.OnJoinCond:
+		case *tree.OnJoinCond:
 			buildOnJoin(result, cond.Expr, scope)
 
-		case parser.NaturalJoinCond:
+		case tree.NaturalJoinCond:
 			buildNaturalJoin(result)
 
-		case *parser.UsingJoinCond:
+		case *tree.UsingJoinCond:
 			buildUsingJoin(result, cond.Cols)
 
 		default:
@@ -154,7 +155,7 @@ func buildTable(texpr parser.TableExpr, scope *scope) *expr {
 		result.updateProps()
 		return result
 
-	case *parser.Subquery:
+	case *tree.Subquery:
 		return build(source.Select, scope)
 
 	default:
@@ -208,7 +209,7 @@ func buildScan(tab *table, scope *scope) *expr {
 	return result
 }
 
-func buildOnJoin(result *expr, on parser.Expr, scope *scope) {
+func buildOnJoin(result *expr, on tree.Expr, scope *scope) {
 	left := result.inputs()[0].props
 	right := result.inputs()[1].props
 	result.props.columns = make([]columnProps, len(left.columns)+len(right.columns))
@@ -219,15 +220,15 @@ func buildOnJoin(result *expr, on parser.Expr, scope *scope) {
 
 func buildNaturalJoin(e *expr) {
 	inputs := e.inputs()
-	names := make(parser.NameList, 0, len(inputs[0].props.columns))
+	names := make(tree.NameList, 0, len(inputs[0].props.columns))
 	for _, col := range inputs[0].props.columns {
-		names = append(names, parser.Name(col.name))
+		names = append(names, tree.Name(col.name))
 	}
 	for _, input := range inputs[1:] {
-		var common parser.NameList
+		var common tree.NameList
 		for _, colName := range names {
 			for _, col := range input.props.columns {
-				if colName == parser.Name(col.name) {
+				if colName == tree.Name(col.name) {
 					common = append(common, colName)
 				}
 			}
@@ -237,7 +238,7 @@ func buildNaturalJoin(e *expr) {
 	buildUsingJoin(e, names)
 }
 
-func buildUsingJoin(e *expr, names parser.NameList) {
+func buildUsingJoin(e *expr, names tree.NameList) {
 	joined := make(map[string]int, len(names))
 	inputs := e.inputs()
 	for _, name := range names {
@@ -290,29 +291,29 @@ func buildLeftOuterJoin(e *expr) {
 	copy(e.props.columns[len(left.columns):], right.columns)
 }
 
-func buildScalar(pexpr parser.Expr, scope *scope) *expr {
+func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 	var result *expr
 	switch t := pexpr.(type) {
-	case *parser.ParenExpr:
+	case *tree.ParenExpr:
 		return buildScalar(t.Expr, scope)
 
-	case *parser.AndExpr:
+	case *tree.AndExpr:
 		result = newBinaryExpr(andOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
-	case *parser.OrExpr:
+	case *tree.OrExpr:
 		result = newBinaryExpr(orOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
-	case *parser.NotExpr:
+	case *tree.NotExpr:
 		result = newUnaryExpr(notOp, buildScalar(t.Expr, scope))
 
-	case *parser.BinaryExpr:
+	case *tree.BinaryExpr:
 		result = newBinaryExpr(binaryOpMap[t.Operator],
 			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
-	case *parser.ComparisonExpr:
+	case *tree.ComparisonExpr:
 		result = newBinaryExpr(comparisonOpMap[t.Operator],
 			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
-	case *parser.UnaryExpr:
+	case *tree.UnaryExpr:
 		result = newUnaryExpr(unaryOpMap[t.Operator], buildScalar(t.Expr, scope))
 
-	case *parser.ColumnItem:
+	case *tree.ColumnItem:
 		tableName := t.TableName.Table()
 		colName := string(t.ColumnName)
 
@@ -320,7 +321,7 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 			for _, col := range s.props.columns {
 				if col.hasColumn(tableName, colName) {
 					if tableName == "" && len(col.tables) > 0 {
-						t.TableName.TableName = parser.Name(col.tables[0])
+						t.TableName.TableName = tree.Name(col.tables[0])
 						t.TableName.DBNameOriginallyOmitted = true
 					}
 					result := newVariableExpr(t.String())
@@ -332,18 +333,18 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		}
 		fatalf("unknown column %s", t)
 
-	case parser.UnresolvedName:
+	case tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
 		}
 		return buildScalar(vn, scope)
 
-	case *parser.NumVal:
+	case *tree.NumVal:
 		result = newConstExpr(t)
 
-	case *parser.FuncExpr:
-		def, err := t.Func.Resolve(parser.SearchPath{})
+	case *tree.FuncExpr:
+		def, err := t.Func.Resolve(tree.SearchPath{})
 		if err != nil {
 			fatalf("%v", err)
 		}
@@ -351,24 +352,24 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 		result.children = make([]*expr, 0, len(t.Exprs))
 		for _, pexpr := range t.Exprs {
 			var e *expr
-			if _, ok := pexpr.(parser.UnqualifiedStar); ok {
-				e = newConstExpr(parser.NewDInt(1))
+			if _, ok := pexpr.(tree.UnqualifiedStar); ok {
+				e = newConstExpr(tree.NewDInt(1))
 			} else {
 				e = buildScalar(pexpr, scope)
 			}
 			result.children = append(result.children, e)
 		}
 
-	case *parser.ExistsExpr:
+	case *tree.ExistsExpr:
 		result = newUnaryExpr(existsOp, buildScalar(t.Subquery, scope))
 
-	case *parser.Subquery:
+	case *tree.Subquery:
 		return build(t.Select, scope)
 
 	default:
-		// NB: we can't type assert on parser.dNull because the type is not
+		// NB: we can't type assert on tree.dNull because the type is not
 		// exported.
-		if pexpr == parser.DNull {
+		if pexpr == tree.DNull {
 			result = newConstExpr(pexpr)
 		} else {
 			unimplemented("%T", pexpr)
@@ -378,23 +379,23 @@ func buildScalar(pexpr parser.Expr, scope *scope) *expr {
 	return result
 }
 
-func buildSelect(stmt *parser.Select, scope *scope) *expr {
+func buildSelect(stmt *tree.Select, scope *scope) *expr {
 	var result *expr
 
 	switch t := stmt.Select.(type) {
-	case *parser.SelectClause:
+	case *tree.SelectClause:
 		result, scope = buildFrom(t.From, t.Where, scope)
 		result, scope = buildGroupBy(result, t.GroupBy, t.Having, scope)
 		result, scope = buildProjections(result, t.Exprs, scope)
 		result, scope = buildDistinct(result, t.Distinct, scope)
 
-	case *parser.UnionClause:
+	case *tree.UnionClause:
 		result = buildUnion(t, scope)
 
-	case *parser.ParenSelect:
+	case *tree.ParenSelect:
 		result = buildSelect(t.Select, scope)
 
-	// TODO(peter): case *parser.ValuesClause:
+	// TODO(peter): case *tree.ValuesClause:
 
 	default:
 		unimplemented("%T", stmt.Select)
@@ -405,7 +406,7 @@ func buildSelect(stmt *parser.Select, scope *scope) *expr {
 	return result
 }
 
-func buildFrom(from *parser.From, where *parser.Where, scope *scope) (*expr, *scope) {
+func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope) {
 	if from == nil {
 		return nil, scope
 	}
@@ -434,8 +435,8 @@ func buildFrom(from *parser.From, where *parser.Where, scope *scope) (*expr, *sc
 
 func buildGroupBy(
 	input *expr,
-	groupBy parser.GroupBy,
-	having *parser.Where,
+	groupBy tree.GroupBy,
+	having *tree.Where,
 	scope *scope,
 ) (*expr, *scope) {
 	if groupBy == nil {
@@ -497,9 +498,9 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 	return res
 }
 
-func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
+func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 	switch t := pexpr.(type) {
-	case parser.UnqualifiedStar:
+	case tree.UnqualifiedStar:
 		var projections []*expr
 		for _, col := range scope.props.columns {
 			projections = append(projections, col.newVariableExpr("", scope.props))
@@ -509,7 +510,7 @@ func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
 		}
 		return projections
 
-	case *parser.AllColumnsSelector:
+	case *tree.AllColumnsSelector:
 		tableName := t.TableName.Table()
 		var projections []*expr
 		for _, col := range scope.props.columns {
@@ -522,7 +523,7 @@ func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
 		}
 		return projections
 
-	case parser.UnresolvedName:
+	case tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
@@ -536,7 +537,7 @@ func buildProjection(pexpr parser.Expr, scope *scope) []*expr {
 
 func buildProjections(
 	input *expr,
-	sexprs parser.SelectExprs,
+	sexprs tree.SelectExprs,
 	scope *scope,
 ) (*expr, *scope) {
 	if len(sexprs) == 0 {
@@ -625,7 +626,7 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	return result, scope
 }
 
-func buildOrderBy(input *expr, orderBy parser.OrderBy, scope *scope) *expr {
+func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 	if orderBy == nil {
 		return input
 	}
@@ -640,13 +641,13 @@ func buildOrderBy(input *expr, orderBy parser.OrderBy, scope *scope) *expr {
 	return result
 }
 
-func buildUnion(clause *parser.UnionClause, scope *scope) *expr {
+func buildUnion(clause *tree.UnionClause, scope *scope) *expr {
 	op := unionOp
 	switch clause.Type {
-	case parser.UnionOp:
-	case parser.IntersectOp:
+	case tree.UnionOp:
+	case tree.IntersectOp:
 		op = intersectOp
-	case parser.ExceptOp:
+	case tree.ExceptOp:
 		op = exceptOp
 	}
 	left := buildSelect(clause.Left, scope)

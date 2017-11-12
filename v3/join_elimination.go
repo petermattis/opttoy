@@ -3,7 +3,7 @@ package v3
 import (
 	"math/bits"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 func joinElimination(e *expr, requiredOutputVars bitmap) {
@@ -91,7 +91,7 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 		v.clear(i)
 		t := newBinaryExpr(isNotOp,
 			left.props.newColumnExprByIndex(i),
-			newConstExpr(parser.DNull))
+			newConstExpr(tree.DNull))
 		t.updateProps()
 		notNull = append(notNull, t)
 	}

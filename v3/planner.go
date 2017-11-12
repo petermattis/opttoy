@@ -12,7 +12,7 @@ package v3
 import (
 	"fmt"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 func unimplemented(format string, args ...interface{}) {
@@ -33,9 +33,9 @@ func newPlanner() *planner {
 	}
 }
 
-func (p *planner) exec(stmt parser.Statement) string {
+func (p *planner) exec(stmt tree.Statement) string {
 	switch stmt := stmt.(type) {
-	case *parser.CreateTable:
+	case *tree.CreateTable:
 		tab := createTable(p.catalog, stmt)
 		return tab.String()
 	default:
@@ -44,7 +44,7 @@ func (p *planner) exec(stmt parser.Statement) string {
 	return ""
 }
 
-func (p *planner) prep(stmt parser.Statement) *expr {
+func (p *planner) prep(stmt tree.Statement) *expr {
 	state := &queryState{
 		catalog: p.catalog,
 		tables:  make(map[string]bitmapIndex),

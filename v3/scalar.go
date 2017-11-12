@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cockroachdb/cockroach/pkg/sql/parser"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
 const spaces = "                                                                "
@@ -142,7 +142,7 @@ func isAggregate(e *expr) bool {
 	if e.op != functionOp {
 		return false
 	}
-	if def, ok := e.private.(*parser.FunctionDefinition); ok {
+	if def, ok := e.private.(*tree.FunctionDefinition); ok {
 		if strings.EqualFold(def.Name, "count") ||
 			strings.EqualFold(def.Name, "min") ||
 			strings.EqualFold(def.Name, "max") ||
