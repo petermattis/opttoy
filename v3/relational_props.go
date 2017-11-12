@@ -42,7 +42,7 @@ func (c columnProps) hasTable(tableName string) bool {
 	return false
 }
 
-func (c columnProps) newVariableExpr(tableName string, props *logicalProps) *expr {
+func (c columnProps) newVariableExpr(tableName string, props *relationalProps) *expr {
 	if tableName == "" {
 		if len(c.tables) > 0 {
 			tableName = c.tables[0]
@@ -67,7 +67,7 @@ type foreignKeyProps struct {
 	dest bitmap
 }
 
-type logicalProps struct {
+type relationalProps struct {
 	// Output variable set.
 	outputVars bitmap
 
@@ -137,20 +137,20 @@ type logicalProps struct {
 	joinDepth int32
 }
 
-func (p *logicalProps) init() {
+func (p *relationalProps) init() {
 	p.outputVars = 0
 	for _, col := range p.columns {
 		p.outputVars.set(col.index)
 	}
 }
 
-func (p *logicalProps) String() string {
+func (p *relationalProps) String() string {
 	var buf bytes.Buffer
 	p.format(&buf, 0)
 	return buf.String()
 }
 
-func (p *logicalProps) format(buf *bytes.Buffer, level int) {
+func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
@@ -188,9 +188,9 @@ func (p *logicalProps) format(buf *bytes.Buffer, level int) {
 	}
 }
 
-// fingerprint returns a string which uniquely identifies the logical
+// fingerprint returns a string which uniquely identifies the relational
 // properties within the context of a query.
-func (p *logicalProps) fingerprint() string {
+func (p *relationalProps) fingerprint() string {
 	// TODO(peter): The fingerprint is unique, but human readable. A binary
 	// format encoding columns and keys using varints might be faster and more
 	// compact.
@@ -232,7 +232,7 @@ func (p *logicalProps) fingerprint() string {
 	return buf.String()
 }
 
-func (p *logicalProps) newColumnExpr(name string) *expr {
+func (p *relationalProps) newColumnExpr(name string) *expr {
 	for _, col := range p.columns {
 		if col.name == name {
 			return col.newVariableExpr(col.tables[0], p)
@@ -241,7 +241,7 @@ func (p *logicalProps) newColumnExpr(name string) *expr {
 	return nil
 }
 
-func (p *logicalProps) newColumnExprByIndex(index bitmapIndex) *expr {
+func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 	for _, col := range p.columns {
 		if col.index == index {
 			return col.newVariableExpr(col.tables[0], p)
@@ -251,7 +251,7 @@ func (p *logicalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 }
 
 // Add additional not-NULL columns based on the filtering expressions.
-func (p *logicalProps) applyFilters(filters []*expr) {
+func (p *relationalProps) applyFilters(filters []*expr) {
 	for _, filter := range filters {
 		// TODO(peter): !isNullTolerant(filter)
 		for v := filter.inputVars; v != 0; {
@@ -262,14 +262,10 @@ func (p *logicalProps) applyFilters(filters []*expr) {
 	}
 }
 
-// A filter is compatible with the logical properties for an expression if all
-// of the input variables used by the filter are provided by the columns.
-func (p *logicalProps) isFilterCompatible(filter *expr) bool {
-	v := filter.inputVars
-	for i := 0; v != 0 && i < len(p.columns); i++ {
-		v.clear(p.columns[i].index)
-	}
-	return v == 0
+// A filter is compatible with the relational properties for an expression if
+// all of the input variables used by the filter are provided by the columns.
+func (p *relationalProps) isFilterCompatible(filter *expr) bool {
+	return (p.outputVars & filter.inputVars) == filter.inputVars
 }
 
 func initKeys(e *expr, state *queryState) {

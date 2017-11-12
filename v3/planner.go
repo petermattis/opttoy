@@ -50,7 +50,7 @@ func (p *planner) prep(stmt tree.Statement) *expr {
 		tables:  make(map[string]bitmapIndex),
 	}
 	e := build(stmt, &scope{
-		props: &logicalProps{},
+		props: &relationalProps{},
 		state: state,
 	})
 	initKeys(e, state)

@@ -60,11 +60,11 @@ var unaryOpMap = [...]operator{
 
 type scope struct {
 	parent *scope
-	props  *logicalProps
+	props  *relationalProps
 	state  *queryState
 }
 
-func (s *scope) push(props *logicalProps) *scope {
+func (s *scope) push(props *relationalProps) *scope {
 	return &scope{
 		parent: s,
 		props:  props,

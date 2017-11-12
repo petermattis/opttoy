@@ -13,7 +13,7 @@ func newScanExpr(tab *table) *expr {
 		op:       scanOp,
 		extra:    1,
 		children: []*expr{nil /* filter */},
-		props:    &logicalProps{},
+		props:    &relationalProps{},
 		private:  tab,
 	}
 }

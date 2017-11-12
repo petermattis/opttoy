@@ -13,7 +13,7 @@ func newGroupByExpr(input *expr) *expr {
 		op:       groupByOp,
 		extra:    3,
 		children: []*expr{input, nil /* grouping */, nil /* projection */, nil /* filter */},
-		props:    &logicalProps{},
+		props:    &relationalProps{},
 	}
 }
 

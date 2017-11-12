@@ -13,7 +13,7 @@ func newProjectExpr(input *expr) *expr {
 		op:       projectOp,
 		extra:    2,
 		children: []*expr{input, nil /* projection */, nil /* filter */},
-		props:    &logicalProps{},
+		props:    &relationalProps{},
 	}
 }
 

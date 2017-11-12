@@ -105,7 +105,7 @@ type operatorInfo interface {
 	kind() operatorKind
 	format(e *expr, buf *bytes.Buffer, level int)
 
-	// Initialize keys and foreign keys in the logical properties.
+	// Initialize keys and foreign keys in the relational properties.
 	initKeys(e *expr, state *queryState)
 
 	// Update the logical properties based on the internal state of the

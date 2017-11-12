@@ -22,9 +22,8 @@ const (
 // aggregations aggregationOffset. All relational expressions store filters at
 // filterOffset.
 //
-// Expressions contain a pointer to their logical properties. For scalar
-// expressions, the logical properties points to the context in which the
-// scalar is defined.
+// Expressions contain a pointer to their relational properties. For scalar
+// expressions, the relational properties are nil.
 //
 // Every unique column and every projection (that is more than just a pass
 // through of a variable) is given a variable index within the query. The
@@ -113,9 +112,9 @@ type expr struct {
 	// queryState.nextVar.
 	inputVars bitmap
 	children  []*expr
-	// Logical properties for relational expressions. This field is nil for
+	// Relational properties for relational expressions. This field is nil for
 	// scalar expressions.
-	props *logicalProps
+	props *relationalProps
 	// Private data used by this expression. For example, scanOp store a pointer
 	// to the underlying table while constOp store a pointer to the constant
 	// value.

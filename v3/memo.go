@@ -98,9 +98,9 @@ type memoGroup struct {
 	// group.
 	exprMap map[string]int32
 	exprs   []*memoExpr
-	// The logical properties for the group. The logical properties are nil for
-	// scalar expressions.
-	props *logicalProps
+	// The relational properties for the group. The relational properties are nil
+	// for scalar expressions.
+	props *relationalProps
 
 	// TODO(peter): Scalar input vars. Really need a scalarProps structure.
 	inputVars bitmap
@@ -108,7 +108,7 @@ type memoGroup struct {
 	// TODO(peter): Cache scalar expressions that do not contain subqueries.
 }
 
-func newMemoGroup(props *logicalProps) *memoGroup {
+func newMemoGroup(props *relationalProps) *memoGroup {
 	return &memoGroup{
 		exprMap: make(map[string]int32),
 		props:   props,
@@ -127,8 +127,8 @@ func (g *memoGroup) maybeAddExpr(e *memoExpr) {
 type memo struct {
 	// A map from group fingerprint to the index of the group in the groups
 	// slice. For relational groups, the fingerprint for a group is the
-	// fingerprint of the logical properties. For scalar groups, the fingerprint
-	// for a group is the fingerprint of the memo expression.
+	// fingerprint of the relational properties. For scalar groups, the
+	// fingerprint for a group is the fingerprint of the memo expression.
 	groupMap map[string]int32
 	groups   []*memoGroup
 	root     int32
@@ -234,7 +234,7 @@ func (m *memo) addExpr(e *expr) int32 {
 	return me.loc.group
 }
 
-func (m *memo) maybeAddGroup(f string, props *logicalProps) int32 {
+func (m *memo) maybeAddGroup(f string, props *relationalProps) int32 {
 	id, ok := m.groupMap[f]
 	if !ok {
 		id = int32(len(m.groups))
