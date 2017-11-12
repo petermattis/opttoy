@@ -43,3 +43,25 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 3: [variable a.x]
 2: [scan b [-]]
 1: [scan a [-]]
+
+prep,push_down,search
+SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
+----
+17: [inner join [12 15 16]] [inner join [18 4 11]] [inner join [15 12 16]]
+18: [inner join [10 15 16]] [inner join [15 10 16]]
+16: [comp (=) [5 13]]
+15: [scan c [14]]
+14: [comp (IS NOT) [13 2]]
+13: [variable c.w]
+12: [inner join [4 10 11]] [inner join [10 4 11]]
+11: [comp (=) [1 7]]
+10: [scan b [9]]
+9: [list [6 8]]
+8: [comp (IS NOT) [7 2]]
+7: [variable b.z]
+6: [comp (IS NOT) [5 2]]
+5: [variable b.x]
+4: [scan a [3]]
+3: [comp (IS NOT) [1 2]]
+2: [const NULL]
+1: [variable a.y]

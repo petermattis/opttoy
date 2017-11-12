@@ -33,14 +33,6 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	leftRight := left.children[1]
 	right := e.children[1]
 
-	// TODO(peter): Imagine the query:
-	//
-	//   a, b, c WHERE a.x = b.y AND b.y = c.z
-	//
-	// In order to create the expression `a JOIN c` we need to infer the filter
-	// `a.x = c.z`. The creation of inferred expressions should happen as a prep
-	// pass.
-
 	// Split the filters on the upper and lower joins into new sets.
 	var lowerFilters []*expr
 	var upperFilters []*expr
