@@ -247,6 +247,7 @@ func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 			return col.newVariableExpr(col.tables[0], p)
 		}
 	}
+	fatalf("unable to find column index %d", index)
 	return nil
 }
 
@@ -270,7 +271,7 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 			left := filter.inputs()[0]
 			right := filter.inputs()[1]
 			if left.op == variableOp && right.op == variableOp {
-				p.addEquivColumns(left.scalarProps.definedCols, right.scalarProps.definedCols)
+				p.addEquivColumns(left.scalarProps.inputCols, right.scalarProps.inputCols)
 			}
 		}
 	}

@@ -1,0 +1,37 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+prep
+SELECT * FROM a NATURAL JOIN b WHERE a.x > 1
+----
+inner join
+  columns: {a,b}.x:0* a.y:1 b.z:3
+  filters:
+    comp (=) [in=0,2]
+      inputs:
+        variable (a.x) [in=0]
+        variable (b.x) [in=2]
+    comp (>) [in=0]
+      inputs:
+        variable (a.x) [in=0]
+        const (1)
+    comp (>) [in=2]
+      inputs:
+        variable (b.x) [in=2]
+        const (1)
+  inputs:
+    scan
+      columns: a.x:0 a.y:1
+    scan
+      columns: b.x:2 b.z:3

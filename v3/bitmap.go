@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 )
 
 // Bitmap used for columns. We're limited to using 64 in a query due to
@@ -38,6 +39,10 @@ func (b bitmap) String() string {
 		appendBitmapRange(&buf, start, 63)
 	}
 	return buf.String()
+}
+
+func (b bitmap) count() int {
+	return bits.OnesCount64(uint64(b))
 }
 
 func (b bitmap) get(i bitmapIndex) bool {

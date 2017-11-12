@@ -197,6 +197,8 @@ func TestLogic(t *testing.T) {
 					switch cmd {
 					case "build":
 						// Already done.
+					case "prep":
+						prep(e)
 					case "push_down":
 						pushDownFilters(e)
 					case "join_elimination":
