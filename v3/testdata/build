@@ -12,7 +12,7 @@ table b
   x NULL
   z NULL
 
-prep
+build
 SELECT y FROM a
 ----
 project
@@ -23,13 +23,13 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT a.* FROM a
 ----
 scan
   columns: a.x:0 a.y:1
 
-prep
+build
 SELECT * FROM (SELECT a.x FROM a)
 ----
 project
@@ -40,7 +40,7 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT * FROM (SELECT a.x+1 FROM a)
 ----
 project
@@ -54,7 +54,7 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT a.y, a.x FROM a
 ----
 project
@@ -66,7 +66,7 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT a.y+1 FROM a
 ----
 project
@@ -80,7 +80,7 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT * FROM b WHERE b.z > 10
 ----
 scan
@@ -91,7 +91,7 @@ scan
         variable (b.z) [in=1]
         const (10)
 
-prep
+build
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -121,7 +121,7 @@ project
         scan
           columns: b.x:2 b.z:3
 
-prep
+build
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -146,7 +146,7 @@ project
         scan
           columns: b.x:2 b.z:3
 
-prep
+build
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -175,7 +175,7 @@ project
         scan
           columns: b.x:2 b.z:3
 
-prep
+build
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -204,7 +204,7 @@ project
         scan
           columns: b.x:2 b.z:3
 
-prep
+build
 SELECT * FROM a LEFT JOIN b USING (x)
 ----
 left join
@@ -220,7 +220,7 @@ left join
     scan
       columns: b.x:2 b.z:3
 
-prep
+build
 SELECT * FROM a RIGHT JOIN b USING (x)
 ----
 right join
@@ -236,7 +236,7 @@ right join
     scan
       columns: b.x:2 b.z:3
 
-prep
+build
 SELECT * FROM a FULL JOIN b USING (x)
 ----
 full join
@@ -252,7 +252,7 @@ full join
     scan
       columns: b.x:2 b.z:3
 
-prep
+build
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 ----
 union

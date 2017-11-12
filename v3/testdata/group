@@ -5,7 +5,7 @@ table a
   x NULL
   y NULL
 
-prep
+build
 SELECT y FROM a GROUP BY x
 ----
 project
@@ -21,7 +21,7 @@ project
         scan
           columns: a.x:0 a.y:1
 
-prep
+build
 SELECT y FROM a GROUP BY y, x
 ----
 project
@@ -38,7 +38,7 @@ project
         scan
           columns: a.x:0 a.y:1
 
-prep
+build
 SELECT DISTINCT * FROM a
 ----
 groupBy
@@ -50,7 +50,7 @@ groupBy
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT COUNT(*) FROM a
 ----
 groupBy
@@ -63,7 +63,7 @@ groupBy
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT COUNT(*) FROM a GROUP BY x
 ----
 project
@@ -83,7 +83,7 @@ project
         scan
           columns: a.x:0 a.y:1
 
-prep
+build
 SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
 ----
 project
@@ -108,7 +108,7 @@ project
         scan
           columns: a.x:0 a.y:1
 
-prep
+build
 SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
 ----
 project

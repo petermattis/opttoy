@@ -192,10 +192,10 @@ func TestLogic(t *testing.T) {
 					return p.exec(d.stmt)
 				}
 
-				e := p.prep(d.stmt)
+				e := p.build(d.stmt)
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
-					case "prep":
+					case "build":
 						// Already done.
 					case "push_down":
 						pushDownFilters(e)

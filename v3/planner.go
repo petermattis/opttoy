@@ -44,7 +44,7 @@ func (p *planner) exec(stmt tree.Statement) string {
 	return ""
 }
 
-func (p *planner) prep(stmt tree.Statement) *expr {
+func (p *planner) build(stmt tree.Statement) *expr {
 	state := &queryState{
 		catalog: p.catalog,
 		tables:  make(map[string]bitmapIndex),

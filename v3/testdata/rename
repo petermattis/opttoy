@@ -12,7 +12,7 @@ table b
   x NULL
   z NULL
 
-prep
+build
 SELECT * FROM (SELECT * FROM a) AS b
 ----
 rename
@@ -21,7 +21,7 @@ rename
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
 rename
@@ -30,7 +30,7 @@ rename
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
 ----
 project
@@ -60,7 +60,7 @@ project
             scan
               columns: b.x:2 b.z:3
 
-prep
+build
 SELECT x AS e FROM a
 ----
 project
@@ -71,7 +71,7 @@ project
     scan
       columns: a.x:0 a.y:1
 
-prep
+build
 SELECT * FROM (SELECT x AS e FROM a)
 ----
 project

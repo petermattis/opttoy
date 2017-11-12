@@ -65,14 +65,14 @@ table i
   x NULL
   (x) -> a(x)
 
-prep
+build
 SELECT * FROM b
 ----
 scan
   columns: b.x:0* b.y:1 b.z:2*
   key: 0,2
 
-prep
+build
 SELECT b.* FROM b
 ----
 scan
