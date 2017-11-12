@@ -25,7 +25,7 @@ table e
   (emp_id) KEY
   (dept_id) -> d(dept_id)
 
-join_elimination
+prep,push_down,join_elimination
 SELECT e.name, e.salary
 FROM e, d
 WHERE e.dept_id = d.dept_id
@@ -46,7 +46,7 @@ project
             variable (e.dept_id) [in=1]
             const (NULL)
 
-join_elimination
+prep,push_down,join_elimination
 SELECT e.name, e.salary
 FROM d, e
 WHERE e.dept_id = d.dept_id AND e.dept_id != 0
@@ -67,7 +67,7 @@ project
             variable (e.dept_id) [in=3]
             const (0)
 
-join_elimination
+prep,push_down,join_elimination
 SELECT e.name, e.salary, d.name
 FROM e, d
 WHERE e.dept_id = d.dept_id
@@ -88,9 +88,14 @@ project
             variable (d.dept_id) [in=4]
       inputs:
         scan
-          columns: e.emp_id:0* e.dept_id:1 e.name:2 e.salary:3
+          columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3
           key: 0
           foreign key: 1 -> 4
+          filters:
+            comp (IS NOT) [in=1]
+              inputs:
+                variable (e.dept_id) [in=1]
+                const (NULL)
         scan
           columns: d.dept_id:4* d.name:5
           key: 4
