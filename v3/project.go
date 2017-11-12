@@ -34,10 +34,10 @@ func (project) initKeys(e *expr, state *queryState) {
 }
 
 func (p project) updateProps(e *expr) {
-	e.inputVars = p.requiredInputVars(e)
-	e.inputVars &^= (e.props.outputVars | e.providedInputVars())
+	e.props.outerVars = p.requiredInputVars(e)
+	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
 	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
+		e.props.outerVars |= input.props.outerVars
 	}
 
 	e.props.applyFilters(e.filters())

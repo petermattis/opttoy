@@ -37,9 +37,9 @@ func (union) initKeys(e *expr, state *queryState) {
 func (u union) updateProps(e *expr) {
 	// Union is pass through and requires any input variables that its inputs
 	// require.
-	e.inputVars = 0
+	e.props.outerVars = 0
 	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
+		e.props.outerVars |= input.props.outerVars
 	}
 
 	e.props.applyFilters(e.filters())

@@ -52,10 +52,10 @@ func (j join) updateProps(e *expr) {
 	}
 
 	e.props.joinDepth = 1
-	e.inputVars = j.requiredInputVars(e)
-	e.inputVars &^= (e.props.outputVars | e.providedInputVars())
+	e.props.outerVars = j.requiredInputVars(e)
+	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
 	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
+		e.props.outerVars |= input.props.outerVars
 		e.props.joinDepth += input.props.joinDepth
 	}
 

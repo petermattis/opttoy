@@ -47,8 +47,8 @@ func maybeExpandJoin(e *expr) {
 	if e.op == innerJoinOp {
 		left := e.inputs()[0]
 		right := e.inputs()[1]
-		if right.inputVars != 0 &&
-			(right.inputVars&left.props.outputVars) == right.inputVars {
+		if right.props.outerVars != 0 &&
+			(right.props.outerVars&left.props.outputVars) == right.props.outerVars {
 			e.setApply()
 		}
 	}
@@ -57,8 +57,8 @@ func maybeExpandJoin(e *expr) {
 // Expand correlated subqueries in filters into inner join apply expressions.
 func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 	for _, input := range filter.inputs() {
-		if input.isRelational() && input.inputVars != 0 &&
-			(input.inputVars&e.props.outputVars) == input.inputVars {
+		if input.isRelational() && input.props.outerVars != 0 &&
+			(input.props.outerVars&e.props.outputVars) == input.props.outerVars {
 			// The input to the filter is relational and the relational expression
 			// has free variables that are provided by the containing expression.
 

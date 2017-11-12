@@ -73,7 +73,7 @@ type relationalProps struct {
 
 	// Variables that are not defined in the underlying expression tree (i.e. not
 	// supplied by the inputs to the current expression).
-	// TODO(peter): outerVars bitmap
+	outerVars bitmap
 
 	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
 	// columns flows from the inputs and can also be derived from filters that
@@ -131,7 +131,7 @@ type relationalProps struct {
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
 
-	// TODO(peter): equivalance classes
+	// TODO(peter): equivVars []bitmap
 
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
@@ -152,6 +152,9 @@ func (p *relationalProps) String() string {
 
 func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
+	if p.outerVars != 0 {
+		fmt.Fprintf(buf, "%souter: %s\n", indent, p.outerVars)
+	}
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
