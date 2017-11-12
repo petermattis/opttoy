@@ -252,8 +252,10 @@ func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 
 // Add additional not-NULL columns based on the filtering expressions.
 func (p *relationalProps) applyFilters(filters []*expr) {
+	// Expand the set of non-NULL columns based on the filters.
+	//
+	// TODO(peter): Need to make sure the filter is not null-tolerant.
 	for _, filter := range filters {
-		// TODO(peter): !isNullTolerant(filter)
 		for v := filter.scalarInputCols(); v != 0; {
 			i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 			v.clear(i)
@@ -261,7 +263,29 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 		}
 	}
 
-	// TODO(peter): find equivalent columns.
+	// Find equivalent columns.
+	p.equivCols = nil
+	for _, filter := range filters {
+		if filter.op == eqOp {
+			left := filter.inputs()[0]
+			right := filter.inputs()[1]
+			if left.op == variableOp && right.op == variableOp {
+				p.addEquivColumns(left.scalarProps.definedCols, right.scalarProps.definedCols)
+			}
+		}
+	}
+}
+
+func (p *relationalProps) addEquivColumns(a, b bitmap) {
+	for i, equiv := range p.equivCols {
+		if a.subsetOf(equiv) || b.subsetOf(equiv) {
+			p.equivCols[i].unionWith(a)
+			p.equivCols[i].unionWith(b)
+			return
+		}
+	}
+	a.unionWith(b)
+	p.equivCols = append(p.equivCols, a)
 }
 
 func initKeys(e *expr, state *queryState) {
