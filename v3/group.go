@@ -34,10 +34,10 @@ func (groupBy) initKeys(e *expr, state *queryState) {
 }
 
 func (g groupBy) updateProps(e *expr) {
-	e.props.outerVars = g.requiredInputVars(e)
-	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
+	e.props.outerCols = g.requiredInputCols(e)
+	e.props.outerCols &^= (e.props.outputCols | e.providedInputCols())
 	for _, input := range e.inputs() {
-		e.props.outerVars.unionWith(input.props.outerVars)
+		e.props.outerCols.unionWith(input.props.outerCols)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -45,16 +45,16 @@ func (g groupBy) updateProps(e *expr) {
 	// TODO(peter): update keys
 }
 
-func (groupBy) requiredInputVars(e *expr) bitmap {
+func (groupBy) requiredInputCols(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v.unionWith(filter.scalarInputVars())
+		v.unionWith(filter.scalarInputCols())
 	}
 	for _, aggregate := range e.aggregations() {
-		v.unionWith(aggregate.scalarInputVars())
+		v.unionWith(aggregate.scalarInputCols())
 	}
 	for _, grouping := range e.groupings() {
-		v.unionWith(grouping.scalarInputVars())
+		v.unionWith(grouping.scalarInputCols())
 	}
 	return v
 }

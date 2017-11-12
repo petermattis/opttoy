@@ -33,10 +33,10 @@ func (project) initKeys(e *expr, state *queryState) {
 }
 
 func (p project) updateProps(e *expr) {
-	e.props.outerVars = p.requiredInputVars(e)
-	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
+	e.props.outerCols = p.requiredInputCols(e)
+	e.props.outerCols &^= (e.props.outputCols | e.providedInputCols())
 	for _, input := range e.inputs() {
-		e.props.outerVars.unionWith(input.props.outerVars)
+		e.props.outerCols.unionWith(input.props.outerCols)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -44,13 +44,13 @@ func (p project) updateProps(e *expr) {
 	// TODO(peter): update keys
 }
 
-func (project) requiredInputVars(e *expr) bitmap {
+func (project) requiredInputCols(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v.unionWith(filter.scalarInputVars())
+		v.unionWith(filter.scalarInputCols())
 	}
 	for _, project := range e.projections() {
-		v.unionWith(project.scalarInputVars())
+		v.unionWith(project.scalarInputCols())
 	}
 	return v
 }

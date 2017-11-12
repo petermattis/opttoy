@@ -576,9 +576,9 @@ func buildProjections(
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
-				p.scalarProps.definedVars.set(index)
+				p.scalarProps.definedCols.set(index)
 			} else {
-				index = bitmapIndex(bits.TrailingZeros64(uint64(p.scalarInputVars())))
+				index = bitmapIndex(bits.TrailingZeros64(uint64(p.scalarInputCols())))
 				for j, col := range input.props.columns {
 					if index == col.index {
 						if name == "" {

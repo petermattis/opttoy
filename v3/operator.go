@@ -112,9 +112,9 @@ type operatorInfo interface {
 	// expression.
 	updateProps(e *expr)
 
-	// Required input vars is the set of input variables that the expression
+	// Required input columns is the set of input columns that the expression
 	// requires.
-	requiredInputVars(e *expr) bitmap
+	requiredInputCols(e *expr) bitmap
 }
 
 var (

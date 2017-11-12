@@ -60,15 +60,15 @@ func (scan) initKeys(e *expr, state *queryState) {
 }
 
 func (s scan) updateProps(e *expr) {
-	e.props.outerVars = s.requiredInputVars(e)
-	e.props.outerVars &^= e.props.outputVars
+	e.props.outerCols = s.requiredInputCols(e)
+	e.props.outerCols &^= e.props.outputCols
 	e.props.applyFilters(e.filters())
 }
 
-func (scan) requiredInputVars(e *expr) bitmap {
+func (scan) requiredInputCols(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v.unionWith(filter.scalarInputVars())
+		v.unionWith(filter.scalarInputCols())
 	}
 	return v
 }

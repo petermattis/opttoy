@@ -114,8 +114,8 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	if e.private != nil {
 		fmt.Fprintf(buf, " (%s)", e.private)
 	}
-	if e.scalarProps != nil && e.scalarProps.inputVars != 0 {
-		fmt.Fprintf(buf, " [in=%s]", e.scalarProps.inputVars)
+	if e.scalarProps != nil && e.scalarProps.inputCols != 0 {
+		fmt.Fprintf(buf, " [in=%s]", e.scalarProps.inputCols)
 	}
 	buf.WriteString("\n")
 	formatExprs(buf, "inputs", e.inputs(), level)
@@ -126,21 +126,21 @@ func (scalar) initKeys(e *expr, state *queryState) {
 
 func (s scalar) updateProps(e *expr) {
 	if e.scalarProps != nil {
-		// For a scalar operation the required input variables is the union of the
-		// required input variables of its inputs.
-		e.scalarProps.inputVars = 0
+		// For a scalar operation the required input columns is the union of the
+		// input columns of its inputs.
+		e.scalarProps.inputCols = 0
 		for _, input := range e.inputs() {
-			e.scalarProps.inputVars.unionWith(input.scalarInputVars())
+			e.scalarProps.inputCols.unionWith(input.scalarInputCols())
 		}
 	}
 }
 
-func (scalar) requiredInputVars(e *expr) bitmap {
-	return e.providedInputVars()
+func (scalar) requiredInputCols(e *expr) bitmap {
+	return e.providedInputCols()
 }
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
-	if e.op == variableOp && e.scalarInputVars() == columns {
+	if e.op == variableOp && e.scalarInputCols() == columns {
 		return replacement
 	}
 

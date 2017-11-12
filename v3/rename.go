@@ -32,11 +32,11 @@ func (rename) initKeys(e *expr, state *queryState) {
 }
 
 func (r rename) updateProps(e *expr) {
-	// Rename is pass through and requires any input variables that its inputs
+	// Rename is pass through and requires any input columns that its inputs
 	// require.
-	e.props.outerVars = 0
+	e.props.outerCols = 0
 	for _, input := range e.inputs() {
-		e.props.outerVars.unionWith(input.props.outerVars)
+		e.props.outerCols.unionWith(input.props.outerCols)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -44,6 +44,6 @@ func (r rename) updateProps(e *expr) {
 	// TODO(peter): update keys
 }
 
-func (rename) requiredInputVars(e *expr) bitmap {
-	return e.providedInputVars()
+func (rename) requiredInputCols(e *expr) bitmap {
+	return e.providedInputCols()
 }

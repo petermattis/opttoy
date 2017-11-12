@@ -15,7 +15,7 @@ func newVariableExpr(private interface{}, index bitmapIndex) *expr {
 		scalarProps: &scalarProps{},
 		private:     private,
 	}
-	e.scalarProps.inputVars.set(index)
+	e.scalarProps.inputCols.set(index)
 	e.updateProps()
 	return e
 }
@@ -29,7 +29,7 @@ func (variable) kind() operatorKind {
 func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
 	fmt.Fprintf(buf, "%s%v (%s) [in=%s]",
-		indent, e.op, e.private, e.scalarProps.inputVars)
+		indent, e.op, e.private, e.scalarProps.inputCols)
 	buf.WriteString("\n")
 }
 
@@ -39,6 +39,6 @@ func (variable) initKeys(e *expr, state *queryState) {
 func (variable) updateProps(e *expr) {
 }
 
-func (variable) requiredInputVars(e *expr) bitmap {
+func (variable) requiredInputCols(e *expr) bitmap {
 	return 0
 }

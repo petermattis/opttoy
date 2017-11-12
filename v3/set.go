@@ -34,11 +34,11 @@ func (union) initKeys(e *expr, state *queryState) {
 }
 
 func (u union) updateProps(e *expr) {
-	// Union is pass through and requires any input variables that its inputs
+	// Union is pass through and requires any input columns that its inputs
 	// require.
-	e.props.outerVars = 0
+	e.props.outerCols = 0
 	for _, input := range e.inputs() {
-		e.props.outerVars.unionWith(input.props.outerVars)
+		e.props.outerCols.unionWith(input.props.outerCols)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -46,6 +46,6 @@ func (u union) updateProps(e *expr) {
 	// TODO(peter): update keys
 }
 
-func (union) requiredInputVars(e *expr) bitmap {
-	return e.providedInputVars()
+func (union) requiredInputCols(e *expr) bitmap {
+	return e.providedInputCols()
 }

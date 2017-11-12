@@ -26,14 +26,14 @@ const (
 // expressions, the relational properties are nil.
 //
 // Every unique column and every projection (that is more than just a pass
-// through of a variable) is given a variable index within the query. The
-// variable indexes are global to the query (see queryState.nextVar). For
-// example, consider the query:
+// through of a column) is given a column index within the query. The column
+// indexes are global to the query (see queryState.nextVar). For example,
+// consider the query:
 //
 //   SELECT x FROM a WHERE y > 0
 //
-// There are 2 variables in the above query: x and y. During name resolution,
-// the above query becomes:
+// There are 2 columns in the above query: x and y. During name resolution, the
+// above query becomes:
 //
 //   SELECT [0] FROM a WHERE [1] > 0
 //   -- [0] -> x
@@ -131,8 +131,8 @@ func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	if e.hasApply() {
 		buf.WriteString(" (apply)")
 	}
-	if e.props.outerVars != 0 {
-		fmt.Fprintf(buf, " [outer=%s]", e.props.outerVars)
+	if e.props.outerCols != 0 {
+		fmt.Fprintf(buf, " [outer=%s]", e.props.outerCols)
 	}
 	buf.WriteString("\n")
 	e.props.format(buf, level+1)
@@ -382,21 +382,21 @@ func (e *expr) updateProps() {
 	e.info().updateProps(e)
 }
 
-func (e *expr) scalarInputVars() bitmap {
+func (e *expr) scalarInputCols() bitmap {
 	if e.scalarProps == nil {
 		return 0
 	}
-	return e.scalarProps.inputVars
+	return e.scalarProps.inputCols
 }
 
-func (e *expr) requiredInputVars() bitmap {
-	return e.info().requiredInputVars(e)
+func (e *expr) requiredInputCols() bitmap {
+	return e.info().requiredInputCols(e)
 }
 
-func (e *expr) providedInputVars() bitmap {
+func (e *expr) providedInputCols() bitmap {
 	var v bitmap
 	for _, input := range e.inputs() {
-		v.unionWith(input.props.outputVars)
+		v.unionWith(input.props.outputCols)
 	}
 	return v
 }

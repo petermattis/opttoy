@@ -6,7 +6,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
-func joinElimination(e *expr, requiredOutputVars bitmap) {
+func joinElimination(e *expr, requiredOutputCols bitmap) {
 	if e.op == innerJoinOp {
 		inputs := e.inputs()
 		left := inputs[0]
@@ -14,32 +14,33 @@ func joinElimination(e *expr, requiredOutputVars bitmap) {
 		// Try to eliminate the right side of the join. Because inner join is
 		// symmetric, we can use the same code to try and eliminate the left side
 		// of the join.
-		if !maybeEliminateInnerJoin(e, left, right, requiredOutputVars) {
-			maybeEliminateInnerJoin(e, right, left, requiredOutputVars)
+		if !maybeEliminateInnerJoin(e, left, right, requiredOutputCols) {
+			maybeEliminateInnerJoin(e, right, left, requiredOutputCols)
 		}
 	}
-	requiredInputVars := e.requiredInputVars()
+	requiredInputCols := e.requiredInputCols()
 	for _, input := range e.inputs() {
-		joinElimination(input, requiredInputVars&input.props.outputVars)
+		joinElimination(input, requiredInputCols&input.props.outputCols)
 	}
 	e.updateProps()
 }
 
 // Check to see if the right side of the join is unnecessary.
-func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bool {
-	// Check to see if the required output vars only depend on the left side of the join.
-	leftOutputVars := left.props.outputVars
-	if !requiredOutputVars.subsetOf(leftOutputVars) {
+func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputCols bitmap) bool {
+	// Check to see if the required output columns only depend on the left side
+	// of the join.
+	leftOutputCols := left.props.outputCols
+	if !requiredOutputCols.subsetOf(leftOutputCols) {
 		return false
 	}
 
 	// Look for a foreign key in the left side of the join which maps to a unique
 	// index on the right side of the join.
-	rightOutputVars := right.props.outputVars
+	rightOutputCols := right.props.outputCols
 	var fkey *foreignKeyProps
 	for i := range left.props.foreignKeys {
 		fkey = &left.props.foreignKeys[i]
-		if fkey.dest.subsetOf(rightOutputVars) {
+		if fkey.dest.subsetOf(rightOutputCols) {
 			// The target of the foreign key is the right side of the join.
 			break
 		}
@@ -54,16 +55,14 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 	filters := e.filters()
 	for _, filter := range filters {
 		// TODO(peter): pushDownFilters() should ensure we only have join
-		// conditions here making this test and the one for the left output vars
+		// conditions here making this test and the one for the left output columns
 		// unnecessary.
-		if filter.scalarInputVars().subsetOf(rightOutputVars) {
-			// The filter only utilizes variables from the right hand side of the
-			// join.
+		if filter.scalarInputCols().subsetOf(rightOutputCols) {
+			// The filter only utilizes columns from the right hand side of the join.
 			return false
 		}
-		if filter.scalarInputVars().subsetOf(leftOutputVars) {
-			// The filter only utilizes variables from the left hand side of the
-			// join.
+		if filter.scalarInputCols().subsetOf(leftOutputCols) {
+			// The filter only utilizes columns from the left hand side of the join.
 			continue
 		}
 		// TODO(peter): how to check for the join conditions? We need the join
@@ -74,7 +73,7 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 
 	// Move any filters down to the left hand side of the join.
 	for _, filter := range filters {
-		if filter.scalarInputVars().subsetOf(leftOutputVars) {
+		if filter.scalarInputCols().subsetOf(leftOutputCols) {
 			left.addFilter(filter)
 		}
 	}

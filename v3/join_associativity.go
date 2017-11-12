@@ -44,12 +44,12 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	// Split the filters on the upper and lower joins into new sets.
 	var lowerFilters []*expr
 	var upperFilters []*expr
-	var lowerVars bitmap
-	lowerVars.unionWith(leftLeft.props.outputVars)
-	lowerVars.unionWith(right.props.outputVars)
+	var lowerCols bitmap
+	lowerCols.unionWith(leftLeft.props.outputCols)
+	lowerCols.unionWith(right.props.outputCols)
 	for _, filters := range [2][]*expr{e.filters(), left.filters()} {
 		for _, f := range filters {
-			if f.scalarInputVars().subsetOf(lowerVars) {
+			if f.scalarInputCols().subsetOf(lowerCols) {
 				lowerFilters = append(lowerFilters, f)
 			} else {
 				upperFilters = append(upperFilters, f)

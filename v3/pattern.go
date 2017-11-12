@@ -55,7 +55,7 @@ func (pattern) initKeys(e *expr, state *queryState) {
 func (pattern) updateProps(e *expr) {
 }
 
-func (pattern) requiredInputVars(e *expr) bitmap {
+func (pattern) requiredInputCols(e *expr) bitmap {
 	return 0
 }
 

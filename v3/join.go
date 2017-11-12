@@ -51,10 +51,10 @@ func (j join) updateProps(e *expr) {
 	}
 
 	e.props.joinDepth = 1
-	e.props.outerVars = j.requiredInputVars(e)
-	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
+	e.props.outerCols = j.requiredInputCols(e)
+	e.props.outerCols &^= (e.props.outputCols | e.providedInputCols())
 	for _, input := range e.inputs() {
-		e.props.outerVars.unionWith(input.props.outerVars)
+		e.props.outerCols.unionWith(input.props.outerCols)
 		e.props.joinDepth += input.props.joinDepth
 	}
 
@@ -63,10 +63,10 @@ func (j join) updateProps(e *expr) {
 	// TODO(peter): update keys
 }
 
-func (join) requiredInputVars(e *expr) bitmap {
+func (join) requiredInputCols(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v.unionWith(filter.scalarInputVars())
+		v.unionWith(filter.scalarInputCols())
 	}
 	return v
 }

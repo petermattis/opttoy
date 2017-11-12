@@ -65,12 +65,12 @@ type foreignKeyProps struct {
 }
 
 type relationalProps struct {
-	// Output variable set.
-	outputVars bitmap
+	// Output column set.
+	outputCols bitmap
 
-	// Variables that are not defined in the underlying expression tree (i.e. not
+	// Columns that are not defined in the underlying expression tree (i.e. not
 	// supplied by the inputs to the current expression).
-	outerVars bitmap
+	outerCols bitmap
 
 	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
 	// columns flows from the inputs and can also be derived from filters that
@@ -128,16 +128,16 @@ type relationalProps struct {
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
 
-	// TODO(peter): equivVars []bitmap
+	// TODO(peter): equivCols []bitmap
 
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
 }
 
 func (p *relationalProps) init() {
-	p.outputVars = 0
+	p.outputCols = 0
 	for _, col := range p.columns {
-		p.outputVars.set(col.index)
+		p.outputCols.set(col.index)
 	}
 }
 
@@ -251,7 +251,7 @@ func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 func (p *relationalProps) applyFilters(filters []*expr) {
 	for _, filter := range filters {
 		// TODO(peter): !isNullTolerant(filter)
-		for v := filter.scalarInputVars(); v != 0; {
+		for v := filter.scalarInputCols(); v != 0; {
 			i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 			v.clear(i)
 			p.notNullCols.set(i)
@@ -260,9 +260,9 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 }
 
 // A filter is compatible with the relational properties for an expression if
-// all of the input variables used by the filter are provided by the columns.
+// all of the input columns used by the filter are provided by the columns.
 func (p *relationalProps) isFilterCompatible(filter *expr) bool {
-	return filter.scalarInputVars().subsetOf(p.outputVars)
+	return filter.scalarInputCols().subsetOf(p.outputCols)
 }
 
 func initKeys(e *expr, state *queryState) {
