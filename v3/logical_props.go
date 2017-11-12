@@ -21,7 +21,6 @@ type columnProps struct {
 	name   string
 	tables []string
 	index  bitmapIndex
-	// TODO(peter): value constraints.
 }
 
 func (c columnProps) hasColumn(tableName, colName string) bool {
@@ -69,12 +68,19 @@ type foreignKeyProps struct {
 }
 
 type logicalProps struct {
-	columns []columnProps
+	// Output variable set.
+	outputVars bitmap
+
+	// Variables that are not defined in the underlying expression tree (i.e. not
+	// supplied by the inputs to the current expression).
+	// TODO(peter): outerVars bitmap
 
 	// Bitmap indicating which output columns cannot be NULL. The NULL-ability of
 	// columns flows from the inputs and can also be derived from filters that
 	// are NULL-intolerant.
 	notNullCols bitmap
+
+	columns []columnProps
 
 	// A column set is a key if no two rows are equal after projection onto that
 	// set. A requirement for a column set to be a key is for no columns in the
@@ -125,8 +131,17 @@ type logicalProps struct {
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
 
+	// TODO(peter): equivalance classes
+
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
+}
+
+func (p *logicalProps) init() {
+	p.outputVars = 0
+	for _, col := range p.columns {
+		p.outputVars.set(col.index)
+	}
 }
 
 func (p *logicalProps) String() string {
@@ -257,12 +272,11 @@ func (p *logicalProps) isFilterCompatible(filter *expr) bool {
 	return v == 0
 }
 
-func (p *logicalProps) outputVars() bitmap {
-	var b bitmap
-	for _, col := range p.columns {
-		b.set(col.index)
+func initKeys(e *expr, state *queryState) {
+	for _, input := range e.inputs() {
+		initKeys(input, state)
 	}
-	return b
+	e.initKeys(state)
 }
 
 func updateProps(e *expr) {
@@ -270,11 +284,4 @@ func updateProps(e *expr) {
 		updateProps(input)
 	}
 	e.updateProps()
-}
-
-func initKeys(e *expr, state *queryState) {
-	for _, input := range e.inputs() {
-		initKeys(input, state)
-	}
-	e.initKeys(state)
 }

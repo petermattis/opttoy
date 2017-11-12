@@ -125,7 +125,7 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 				})
 			}
 
-			result.updateProps()
+			result.initProps()
 			return result
 		}
 		return result
@@ -152,7 +152,7 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 			unimplemented("%T", source.Cond)
 		}
 
-		result.updateProps()
+		result.initProps()
 		return result
 
 	case *tree.Subquery:
@@ -205,7 +205,7 @@ func buildScan(tab *table, scope *scope) *expr {
 		}
 	}
 
-	result.updateProps()
+	result.initProps()
 	return result
 }
 
@@ -254,7 +254,7 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 				fatalf("unable to resolve name %s", name)
 			}
 			f := newBinaryExpr(eqOp, left, right)
-			f.updateProps()
+			f.initProps()
 			e.addFilter(f)
 		}
 	}
@@ -326,7 +326,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 					}
 					result := newVariableExpr(t.String())
 					result.inputVars.set(col.index)
-					result.updateProps()
+					result.initProps()
 					return result
 				}
 			}
@@ -375,7 +375,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			unimplemented("%T", pexpr)
 		}
 	}
-	result.updateProps()
+	result.initProps()
 	return result
 }
 
@@ -421,13 +421,13 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 		}
 		result = newJoinExpr(innerJoinOp, result, t)
 		buildUsingJoin(result, nil)
-		result.updateProps()
+		result.initProps()
 		scope = scope.push(result.props)
 	}
 
 	if where != nil {
 		result.addFilter(buildScalar(where.Expr, scope))
-		result.updateProps()
+		result.initProps()
 	}
 
 	return result, scope
@@ -459,7 +459,7 @@ func buildGroupBy(
 		result.addFilter(f)
 	}
 
-	result.updateProps()
+	result.initProps()
 	return result, scope
 }
 
@@ -493,7 +493,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 		res = buildGroupByExtractAggregates(g, input, scope) || res
 	}
 	if res {
-		e.updateProps()
+		e.initProps()
 	}
 	return res
 }
@@ -559,7 +559,7 @@ func buildProjections(
 					result.inputs()[0] = input
 				}
 				buildGroupByExtractAggregates(input, p, scope)
-				input.updateProps()
+				input.initProps()
 			}
 
 			name := string(sexpr.As)
@@ -602,7 +602,7 @@ func buildProjections(
 	}
 
 	result.addProjections(projections)
-	result.updateProps()
+	result.initProps()
 	return result, scope.push(result.props)
 }
 
@@ -622,7 +622,7 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 	}
 	result.addGroupings(exprs)
 
-	result.updateProps()
+	result.initProps()
 	return result, scope
 }
 
@@ -637,7 +637,7 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 	result.props.columns = make([]columnProps, len(input.props.columns))
 	copy(result.props.columns, input.props.columns)
 	result.private = orderBy
-	result.updateProps()
+	result.initProps()
 	return result
 }
 
@@ -655,6 +655,6 @@ func buildUnion(clause *tree.UnionClause, scope *scope) *expr {
 	result := newSetExpr(op, left, right)
 	result.props.columns = make([]columnProps, len(left.props.columns))
 	copy(result.props.columns, left.props.columns)
-	result.updateProps()
+	result.initProps()
 	return result
 }

@@ -48,7 +48,7 @@ func maybeExpandJoin(e *expr) {
 		left := e.inputs()[0]
 		right := e.inputs()[1]
 		if right.inputVars != 0 &&
-			(right.inputVars&left.props.outputVars()) == right.inputVars {
+			(right.inputVars&left.props.outputVars) == right.inputVars {
 			e.setApply()
 		}
 	}
@@ -58,7 +58,7 @@ func maybeExpandJoin(e *expr) {
 func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 	for _, input := range filter.inputs() {
 		if input.isRelational() && input.inputVars != 0 &&
-			(input.inputVars&e.props.outputVars()) == input.inputVars {
+			(input.inputVars&e.props.outputVars) == input.inputVars {
 			// The input to the filter is relational and the relational expression
 			// has free variables that are provided by the containing expression.
 
@@ -130,7 +130,7 @@ func maybeExpandApply(e *expr) bool {
 func maybeDecorrelateSelection(e *expr) bool {
 	right := e.inputs()[1]
 	for _, filter := range right.filters() {
-		if (filter.inputVars & e.props.outputVars()) != 0 {
+		if (filter.inputVars & e.props.outputVars) != 0 {
 			right.removeFilter(filter)
 			right.updateProps()
 			e.addFilter(filter)
@@ -181,7 +181,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		loj := newJoinExpr(leftJoinOp, left, right.inputs()[0])
 		buildLeftOuterJoin(loj)
 		loj.setApply()
-		loj.updateProps()
+		loj.initProps()
 
 		// The new vector group by expression which groups over the columns of R
 		// and uses the aggregations from E.
@@ -201,7 +201,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		}
 		g.addGroupings(groupings)
 		g.addFilters(e.filters())
-		g.updateProps()
+		g.initProps()
 
 		// A final projection is necessary to match the outputs of the original
 		// apply expression.
@@ -216,7 +216,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 			projections = append(projections, col.newVariableExpr(col.tables[0], e.props))
 		}
 		e.addProjections(projections)
-		e.updateProps()
+		e.initProps()
 		return true
 	}
 	return false

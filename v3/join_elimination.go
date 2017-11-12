@@ -20,7 +20,7 @@ func joinElimination(e *expr, requiredOutputVars bitmap) {
 	}
 	requiredInputVars := e.requiredInputVars()
 	for _, input := range e.inputs() {
-		joinElimination(input, requiredInputVars&input.props.outputVars())
+		joinElimination(input, requiredInputVars&input.props.outputVars)
 	}
 	e.updateProps()
 }
@@ -28,14 +28,14 @@ func joinElimination(e *expr, requiredOutputVars bitmap) {
 // Check to see if the right side of the join is unnecessary.
 func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bool {
 	// Check to see if the required output vars only depend on the left side of the join.
-	leftOutputVars := left.props.outputVars()
+	leftOutputVars := left.props.outputVars
 	if (requiredOutputVars & leftOutputVars) != requiredOutputVars {
 		return false
 	}
 
 	// Look for a foreign key in the left side of the join which maps to a unique
 	// index on the right side of the join.
-	rightOutputVars := right.props.outputVars()
+	rightOutputVars := right.props.outputVars
 	var fkey *foreignKeyProps
 	for i := range left.props.foreignKeys {
 		fkey = &left.props.foreignKeys[i]

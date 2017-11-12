@@ -42,7 +42,7 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	// Split the filters on the upper and lower joins into new sets.
 	var lowerFilters []*expr
 	var upperFilters []*expr
-	lowerVars := leftLeft.props.outputVars() | right.props.outputVars()
+	lowerVars := leftLeft.props.outputVars | right.props.outputVars
 	for _, filters := range [2][]*expr{e.filters(), left.filters()} {
 		for _, f := range filters {
 			if (lowerVars & f.inputVars) == f.inputVars {
@@ -63,7 +63,7 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	newLower.props.columns = make([]columnProps, len(leftLeft.props.columns)+len(right.props.columns))
 	copy(newLower.props.columns[:], leftLeft.props.columns)
 	copy(newLower.props.columns[len(leftLeft.props.columns):], right.props.columns)
-	newLower.updateProps()
+	newLower.initProps()
 
 	newUpper := newJoinExpr(innerJoinOp, newLower, leftRight)
 	newUpper.addFilters(upperFilters)

@@ -62,7 +62,7 @@ func (scan) initKeys(e *expr, state *queryState) {
 
 func (s scan) updateProps(e *expr) {
 	e.inputVars = s.requiredInputVars(e)
-	e.inputVars &^= e.props.outputVars()
+	e.inputVars &^= e.props.outputVars
 
 	e.props.applyFilters(e.filters())
 }

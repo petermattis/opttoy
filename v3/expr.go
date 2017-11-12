@@ -404,6 +404,13 @@ func (e *expr) initKeys(state *queryState) {
 	e.info().initKeys(e, state)
 }
 
+func (e *expr) initProps() {
+	if e.props != nil {
+		e.props.init()
+	}
+	e.info().updateProps(e)
+}
+
 func (e *expr) updateProps() {
 	e.info().updateProps(e)
 }
@@ -415,7 +422,7 @@ func (e *expr) requiredInputVars() bitmap {
 func (e *expr) providedInputVars() bitmap {
 	var v bitmap
 	for _, input := range e.inputs() {
-		v |= input.props.outputVars()
+		v |= input.props.outputVars
 	}
 	return v
 }
