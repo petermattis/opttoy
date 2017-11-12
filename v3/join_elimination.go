@@ -1,11 +1,5 @@
 package v3
 
-import (
-	"math/bits"
-
-	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
-)
-
 func joinElimination(e *expr, requiredOutputCols bitmap) {
 	if e.op == innerJoinOp {
 		inputs := e.inputs()
@@ -40,6 +34,10 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputCols bitmap) bo
 	var fkey *foreignKeyProps
 	for i := range left.props.foreignKeys {
 		fkey = &left.props.foreignKeys[i]
+		if !fkey.src.subsetOf(left.props.notNullCols) {
+			// The source for the foreign key is a weak key.
+			continue
+		}
 		if fkey.dest.subsetOf(rightOutputCols) {
 			// The target of the foreign key is the right side of the join.
 			break
@@ -78,32 +76,6 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputCols bitmap) bo
 		}
 	}
 	left.props.applyFilters(left.filters())
-
-	// The source columns for the foreign key might be NULL-able. Construct a
-	// filter to ensure rows containing NULLs are removed.
-	//
-	// TODO(peter): Rather than generating the filter here, it would be better to
-	// have pushDownFilters generate IS NOT NULL filters on the join conditions.
-	var notNull []*expr
-	for v := fkey.src & ^left.props.notNullCols; v != 0; {
-		i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
-		v.clear(i)
-		t := newBinaryExpr(isNotOp,
-			left.props.newColumnExprByIndex(i),
-			newConstExpr(tree.DNull))
-		t.updateProps()
-		notNull = append(notNull, t)
-	}
-	if len(notNull) > 1 {
-		t := &expr{
-			op:       orOp,
-			children: notNull,
-		}
-		t.updateProps()
-		left.addFilter(t)
-	} else if len(notNull) == 1 {
-		left.addFilter(notNull[0])
-	}
 
 	*e = *left
 	return true
