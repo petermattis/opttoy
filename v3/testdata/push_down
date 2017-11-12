@@ -67,9 +67,27 @@ inner join
         const (1)
   inputs:
     scan
-      columns: a.x:0 a.y:1
+      columns: a.x:0* a.y:1*
+      filters:
+        comp (IS NOT) [in=0]
+          inputs:
+            variable (a.x) [in=0]
+            const (NULL)
+        comp (IS NOT) [in=1]
+          inputs:
+            variable (a.y) [in=1]
+            const (NULL)
     scan
-      columns: b.x:2 b.z:3
+      columns: b.x:2* b.z:3*
+      filters:
+        comp (IS NOT) [in=2]
+          inputs:
+            variable (b.x) [in=2]
+            const (NULL)
+        comp (IS NOT) [in=3]
+          inputs:
+            variable (b.z) [in=3]
+            const (NULL)
 
 prep,push_down
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
