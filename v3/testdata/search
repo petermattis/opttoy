@@ -19,7 +19,7 @@ table c
   x NULL
   w NULL
 
-search
+memo,search
 SELECT * FROM a NATURAL JOIN b
 ----
 6: [inner join [1 2 5]] [inner join [2 1 5]]
@@ -29,7 +29,7 @@ SELECT * FROM a NATURAL JOIN b
 2: [scan b [-]]
 1: [scan a [-]]
 
-search
+memo,search
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 ----
 10: [inner join [6 7 9]] [inner join [11 2 5]] [inner join [7 6 9]]
@@ -44,7 +44,7 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 2: [scan b [-]]
 1: [scan a [-]]
 
-prep,search
+prep,memo,search
 SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
 ----
 17: [inner join [12 15 16]] [inner join [18 4 11]] [inner join [15 12 16]]

@@ -193,6 +193,9 @@ func TestLogic(t *testing.T) {
 				}
 
 				e := p.build(d.stmt)
+				var m *memo
+				var s *search
+
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
 					case "build":
@@ -202,17 +205,23 @@ func TestLogic(t *testing.T) {
 					case "decorrelate":
 						decorrelate(e)
 					case "memo":
-						m := newMemo()
+						m = newMemo()
 						m.addRoot(e)
-						return m.String()
+						e = nil
 					case "search":
-						s := newSearch(newMemo())
-						s.memo.addRoot(e)
+						s = newSearch(m)
 						s.run()
-						return s.memo.String()
+						m = nil
 					default:
 						t.Fatalf("unknown command: %s", cmd)
 					}
+				}
+
+				if s != nil {
+					return s.memo.String()
+				}
+				if m != nil {
+					return m.String()
 				}
 				return e.String()
 			})
