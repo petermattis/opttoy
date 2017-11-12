@@ -14,8 +14,10 @@ func (joinAssociativity) id() xformID {
 
 func (joinAssociativity) pattern() *expr {
 	return newJoinPattern(innerJoinOp,
-		newJoinPattern(innerJoinOp,
-			nil /* left */, nil /* right */, patternTree /* filter */), /* left */
+		newJoinPattern(innerJoinOp, /* left */
+			nil, /* left */
+			nil, /* right */
+			patternTree /* filter */),
 		nil, /* right */
 		patternTree /* filter */)
 }
