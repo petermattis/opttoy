@@ -4,6 +4,7 @@ type xformID int32
 
 const (
 	xformJoinCommutativityID xformID = iota
+	xformJoinAssociativityID
 
 	numXforms
 )
@@ -92,31 +93,4 @@ func registerXform(xform xform) {
 	if xform.implementation() {
 		implementationXforms[p.op] = append(implementationXforms[p.op], xform.id())
 	}
-}
-
-func init() {
-	registerXform(xformJoinCommutativity{})
-}
-
-type xformJoinCommutativity struct {
-	xformImplementation
-}
-
-func (xformJoinCommutativity) id() xformID {
-	return xformJoinCommutativityID
-}
-
-func (xformJoinCommutativity) pattern() *expr {
-	return newJoinPattern(innerJoinOp, nil, nil, patternTree)
-}
-
-func (xformJoinCommutativity) check(e *expr) bool {
-	return true
-}
-
-func (xformJoinCommutativity) apply(e *expr, results []*expr) []*expr {
-	t := newJoinExpr(e.op, e.children[1], e.children[0])
-	t.children[2] = e.children[2]
-	t.props = e.props
-	return append(results, t)
 }

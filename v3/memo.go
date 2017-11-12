@@ -102,6 +102,9 @@ type memoGroup struct {
 	// scalar expressions.
 	props *logicalProps
 
+	// TODO(peter): Scalar input vars. Really need a scalarProps structure.
+	inputVars bitmap
+
 	// TODO(peter): Cache scalar expressions that do not contain subqueries.
 }
 
@@ -221,6 +224,8 @@ func (m *memo) addExpr(e *expr) int32 {
 			// We have a scalar expression. Use the expression fingerprint as the group
 			// fingerprint.
 			me.loc.group = m.maybeAddGroup(me.fingerprint(), nil)
+			g := m.groups[me.loc.group]
+			g.inputVars = e.inputVars
 		}
 	}
 
@@ -267,6 +272,7 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 	var initChildren bool
 	if cursor == nil {
 		cursor = &expr{props: g.props}
+		cursor.inputVars = g.inputVars
 		initChildren = true
 	}
 	cursor.op = e.op
