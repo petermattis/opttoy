@@ -112,9 +112,10 @@ type expr struct {
 	// queryState.nextVar.
 	inputVars bitmap
 	children  []*expr
-	// Relational properties for relational expressions. This field is nil for
-	// scalar expressions.
+	// Relational properties. Nil for scalar expressions.
 	props *relationalProps
+	// Scalar properties. Nil for relational expressions.
+	scalarProps *scalarProps
 	// Private data used by this expression. For example, scanOp store a pointer
 	// to the underlying table while constOp store a pointer to the constant
 	// value.
@@ -147,18 +148,14 @@ func (e *expr) format(buf *bytes.Buffer, level int) {
 	e.info().format(e, buf, level)
 }
 
-func (e *expr) formatVars(buf *bytes.Buffer) {
-	if e.inputVars != 0 {
-		fmt.Fprintf(buf, " [in=%s]", e.inputVars)
-	}
-}
-
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
 	if e.hasApply() {
 		buf.WriteString(" (apply)")
 	}
-	e.formatVars(buf)
+	if e.props.outerVars != 0 {
+		fmt.Fprintf(buf, " [outer=%s]", e.props.outerVars)
+	}
 	buf.WriteString("\n")
 	e.props.format(buf, level+1)
 }
@@ -173,13 +170,6 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 			}
 		}
 	}
-}
-
-func (e *expr) clone() *expr {
-	t := *e
-	t.children = make([]*expr, len(e.children))
-	copy(t.children, e.children)
-	return &t
 }
 
 func (e *expr) inputCount() int {
@@ -412,6 +402,13 @@ func (e *expr) initProps() {
 
 func (e *expr) updateProps() {
 	e.info().updateProps(e)
+}
+
+func (e *expr) scalarInputVars() bitmap {
+	if e.scalarProps == nil {
+		return 0
+	}
+	return e.scalarProps.inputVars
 }
 
 func (e *expr) requiredInputVars() bitmap {

@@ -56,10 +56,7 @@ func (c columnProps) newVariableExpr(tableName string, props *relationalProps) *
 		ColumnName: tree.Name(c.name),
 	}
 
-	e := newVariableExpr(col.String())
-	e.inputVars.set(c.index)
-	e.updateProps()
-	return e
+	return newVariableExpr(col.String(), c.index)
 }
 
 type foreignKeyProps struct {
@@ -152,9 +149,6 @@ func (p *relationalProps) String() string {
 
 func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
-	if p.outerVars != 0 {
-		fmt.Fprintf(buf, "%souter: %s\n", indent, p.outerVars)
-	}
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
@@ -257,7 +251,7 @@ func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 func (p *relationalProps) applyFilters(filters []*expr) {
 	for _, filter := range filters {
 		// TODO(peter): !isNullTolerant(filter)
-		for v := filter.inputVars; v != 0; {
+		for v := filter.scalarInputVars(); v != 0; {
 			i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 			v.clear(i)
 			p.notNullCols.set(i)
@@ -268,7 +262,7 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 // A filter is compatible with the relational properties for an expression if
 // all of the input variables used by the filter are provided by the columns.
 func (p *relationalProps) isFilterCompatible(filter *expr) bool {
-	return (p.outputVars & filter.inputVars) == filter.inputVars
+	return (p.outputVars & filter.scalarInputVars()) == filter.scalarInputVars()
 }
 
 func initKeys(e *expr, state *queryState) {

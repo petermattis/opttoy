@@ -68,27 +68,37 @@ func newConstExpr(private interface{}) *expr {
 	}
 }
 
-func newFunctionExpr(private interface{}) *expr {
-	return &expr{
-		op:      functionOp,
-		private: private,
+func newFunctionExpr(private interface{}, children []*expr) *expr {
+	e := &expr{
+		op:          functionOp,
+		children:    children,
+		scalarProps: &scalarProps{},
+		private:     private,
 	}
+	e.updateProps()
+	return e
 }
 
 func newUnaryExpr(op operator, input1 *expr) *expr {
-	return &expr{
-		op:       op,
-		extra:    0,
-		children: []*expr{input1},
+	e := &expr{
+		op:          op,
+		extra:       0,
+		children:    []*expr{input1},
+		scalarProps: &scalarProps{},
 	}
+	e.updateProps()
+	return e
 }
 
 func newBinaryExpr(op operator, input1, input2 *expr) *expr {
-	return &expr{
-		op:       op,
-		extra:    0,
-		children: []*expr{input1, input2},
+	e := &expr{
+		op:          op,
+		extra:       0,
+		children:    []*expr{input1, input2},
+		scalarProps: &scalarProps{},
 	}
+	e.updateProps()
+	return e
 }
 
 type scalar struct{}
@@ -103,7 +113,9 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	if e.private != nil {
 		fmt.Fprintf(buf, " (%s)", e.private)
 	}
-	e.formatVars(buf)
+	if e.scalarProps != nil && e.scalarProps.inputVars != 0 {
+		fmt.Fprintf(buf, " [in=%s]", e.scalarProps.inputVars)
+	}
 	buf.WriteString("\n")
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
@@ -112,11 +124,14 @@ func (scalar) initKeys(e *expr, state *queryState) {
 }
 
 func (s scalar) updateProps(e *expr) {
-	// For a scalar operation the required input variables is the union of the
-	// required input variables of its inputs.
-	e.inputVars = 0
-	for _, input := range e.inputs() {
-		e.inputVars |= input.inputVars
+	if e.scalarProps != nil {
+		// For a scalar operation the required input variables is the union of the
+		// required input variables of its inputs.
+		e.scalarProps.inputVars = 0
+		for _, input := range e.inputs() {
+			e.scalarProps.inputVars |= input.scalarInputVars()
+		}
+		e.inputVars = e.scalarProps.inputVars
 	}
 }
 
@@ -129,13 +144,17 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 		return replacement
 	}
 
-	result := e.clone()
+	result := *e
+	result.children = make([]*expr, len(e.children))
+	copy(result.children, e.children)
+	result.scalarProps = &scalarProps{}
+
 	inputs := result.inputs()
 	for i, input := range inputs {
 		inputs[i] = substitute(input, columns, replacement)
 	}
 	result.updateProps()
-	return result
+	return &result
 }
 
 func isAggregate(e *expr) bool {

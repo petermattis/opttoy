@@ -253,9 +253,7 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 			if right == nil {
 				fatalf("unable to resolve name %s", name)
 			}
-			f := newBinaryExpr(eqOp, left, right)
-			f.initProps()
-			e.addFilter(f)
+			e.addFilter(newBinaryExpr(eqOp, left, right))
 		}
 	}
 
@@ -324,10 +322,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 						t.TableName.TableName = tree.Name(col.tables[0])
 						t.TableName.DBNameOriginallyOmitted = true
 					}
-					result := newVariableExpr(t.String())
-					result.inputVars.set(col.index)
-					result.initProps()
-					return result
+					return newVariableExpr(t.String(), col.index)
 				}
 			}
 		}
@@ -348,8 +343,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 		if err != nil {
 			fatalf("%v", err)
 		}
-		result = newFunctionExpr(def)
-		result.children = make([]*expr, 0, len(t.Exprs))
+		children := make([]*expr, 0, len(t.Exprs))
 		for _, pexpr := range t.Exprs {
 			var e *expr
 			if _, ok := pexpr.(tree.UnqualifiedStar); ok {
@@ -357,8 +351,9 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			} else {
 				e = buildScalar(pexpr, scope)
 			}
-			result.children = append(result.children, e)
+			children = append(children, e)
 		}
+		result = newFunctionExpr(def, children)
 
 	case *tree.ExistsExpr:
 		result = newUnaryExpr(existsOp, buildScalar(t.Subquery, scope))
@@ -375,6 +370,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			unimplemented("%T", pexpr)
 		}
 	}
+	// TODO(peter): remove?
 	result.initProps()
 	return result
 }
@@ -427,7 +423,7 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 
 	if where != nil {
 		result.addFilter(buildScalar(where.Expr, scope))
-		result.initProps()
+		result.updateProps()
 	}
 
 	return result, scope
@@ -573,7 +569,7 @@ func buildProjections(
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
 			} else {
-				index = bitmapIndex(bits.TrailingZeros64(uint64(p.inputVars)))
+				index = bitmapIndex(bits.TrailingZeros64(uint64(p.scalarInputVars())))
 				for j, col := range input.props.columns {
 					if index == col.index {
 						if name == "" {

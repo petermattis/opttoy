@@ -48,10 +48,10 @@ func (p project) updateProps(e *expr) {
 func (project) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.inputVars
+		v |= filter.scalarInputVars()
 	}
 	for _, project := range e.projections() {
-		v |= project.inputVars
+		v |= project.scalarInputVars()
 	}
 	return v
 }

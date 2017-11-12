@@ -56,12 +56,12 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 		// TODO(peter): pushDownFilters() should ensure we only have join
 		// conditions here making this test and the one for the left output vars
 		// unnecessary.
-		if (filter.inputVars & rightOutputVars) == filter.inputVars {
+		if (filter.scalarInputVars() & rightOutputVars) == filter.scalarInputVars() {
 			// The filter only utilizes variables from the right hand side of the
 			// join.
 			return false
 		}
-		if (filter.inputVars & leftOutputVars) == filter.inputVars {
+		if (filter.scalarInputVars() & leftOutputVars) == filter.scalarInputVars() {
 			// The filter only utilizes variables from the left hand side of the
 			// join.
 			continue
@@ -74,7 +74,7 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 
 	// Move any filters down to the left hand side of the join.
 	for _, filter := range filters {
-		if (filter.inputVars & leftOutputVars) == filter.inputVars {
+		if (filter.scalarInputVars() & leftOutputVars) == filter.scalarInputVars() {
 			left.addFilter(filter)
 		}
 	}

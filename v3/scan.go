@@ -69,7 +69,7 @@ func (s scan) updateProps(e *expr) {
 func (scan) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.inputVars
+		v |= filter.scalarInputVars()
 	}
 	return v
 }

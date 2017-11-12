@@ -49,13 +49,13 @@ func (g groupBy) updateProps(e *expr) {
 func (groupBy) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.inputVars
+		v |= filter.scalarInputVars()
 	}
 	for _, aggregate := range e.aggregations() {
-		v |= aggregate.inputVars
+		v |= aggregate.scalarInputVars()
 	}
 	for _, grouping := range e.groupings() {
-		v |= grouping.inputVars
+		v |= grouping.scalarInputVars()
 	}
 	return v
 }

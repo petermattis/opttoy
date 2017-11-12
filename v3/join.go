@@ -67,7 +67,7 @@ func (j join) updateProps(e *expr) {
 func (join) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.inputVars
+		v |= filter.scalarInputVars()
 	}
 	return v
 }

@@ -98,20 +98,21 @@ type memoGroup struct {
 	// group.
 	exprMap map[string]int32
 	exprs   []*memoExpr
-	// The relational properties for the group. The relational properties are nil
-	// for scalar expressions.
+	// The relational properties for the group. Nil if the group contains scalar
+	// expressions.
 	props *relationalProps
-
-	// TODO(peter): Scalar input vars. Really need a scalarProps structure.
-	inputVars bitmap
+	// The scalar properties for the group. Nil if the group contains relational
+	// expressions.
+	scalarProps *scalarProps
 
 	// TODO(peter): Cache scalar expressions that do not contain subqueries.
 }
 
-func newMemoGroup(props *relationalProps) *memoGroup {
+func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 	return &memoGroup{
-		exprMap: make(map[string]int32),
-		props:   props,
+		exprMap:     make(map[string]int32),
+		props:       props,
+		scalarProps: scalarProps,
 	}
 }
 
@@ -219,13 +220,11 @@ func (m *memo) addExpr(e *expr) int32 {
 		if e.props != nil {
 			// We have a relational expression. Find the group the memoExpr would exist
 			// in.
-			me.loc.group = m.maybeAddGroup(e.props.fingerprint(), e.props)
+			me.loc.group = m.maybeAddGroup(e.props.fingerprint(), e.props, nil)
 		} else {
 			// We have a scalar expression. Use the expression fingerprint as the group
 			// fingerprint.
-			me.loc.group = m.maybeAddGroup(me.fingerprint(), nil)
-			g := m.groups[me.loc.group]
-			g.inputVars = e.inputVars
+			me.loc.group = m.maybeAddGroup(me.fingerprint(), nil, e.scalarProps)
 		}
 	}
 
@@ -234,11 +233,11 @@ func (m *memo) addExpr(e *expr) int32 {
 	return me.loc.group
 }
 
-func (m *memo) maybeAddGroup(f string, props *relationalProps) int32 {
+func (m *memo) maybeAddGroup(f string, props *relationalProps, sprops *scalarProps) int32 {
 	id, ok := m.groupMap[f]
 	if !ok {
 		id = int32(len(m.groups))
-		m.groups = append(m.groups, newMemoGroup(props))
+		m.groups = append(m.groups, newMemoGroup(props, sprops))
 		m.groupMap[f] = id
 	}
 	return id
@@ -271,8 +270,10 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 	g := m.groups[e.loc.group]
 	var initChildren bool
 	if cursor == nil {
-		cursor = &expr{props: g.props}
-		cursor.inputVars = g.inputVars
+		cursor = &expr{
+			props:       g.props,
+			scalarProps: g.scalarProps,
+		}
 		initChildren = true
 	}
 	cursor.op = e.op

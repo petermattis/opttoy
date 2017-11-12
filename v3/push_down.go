@@ -6,10 +6,10 @@ func findEquivalency(filters []*expr, e *expr) *expr {
 			left := filter.inputs()[0]
 			right := filter.inputs()[1]
 			if left.op == variableOp && right.op == variableOp {
-				if left.inputVars == e.inputVars {
+				if left.scalarInputVars() == e.scalarInputVars() {
 					return right
 				}
-				if right.inputVars == e.inputVars {
+				if right.scalarInputVars() == e.scalarInputVars() {
 					return left
 				}
 			}
@@ -60,8 +60,8 @@ func pushDownFilters(e *expr) {
 		if e.op == projectOp {
 			for i, project := range e.projections() {
 				col := &e.props.columns[i]
-				if filter.inputVars == 1<<col.index {
-					newFilter := substitute(filter, filter.inputVars, project)
+				if filter.scalarInputVars().get(col.index) {
+					newFilter := substitute(filter, filter.scalarInputVars(), project)
 					count += maybePushDownFilter(e, newFilter, filters)
 				}
 			}
@@ -97,7 +97,7 @@ func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
 		// Check to see if creating a new filter by substitution could be pushed down.
 		if replacement := findEquivalency(filters, filter); replacement != nil {
 			if input.props.isFilterCompatible(replacement) {
-				newFilter := substitute(filter, filter.inputVars, replacement)
+				newFilter := substitute(filter, filter.scalarInputVars(), replacement)
 				input.addFilter(newFilter)
 				count++
 				continue

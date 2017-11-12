@@ -130,7 +130,7 @@ func maybeExpandApply(e *expr) bool {
 func maybeDecorrelateSelection(e *expr) bool {
 	right := e.inputs()[1]
 	for _, filter := range right.filters() {
-		if (filter.inputVars & e.props.outputVars) != 0 {
+		if (filter.scalarInputVars() & e.props.outputVars) != 0 {
 			right.removeFilter(filter)
 			right.updateProps()
 			e.addFilter(filter)

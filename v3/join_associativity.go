@@ -45,7 +45,7 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	lowerVars := leftLeft.props.outputVars | right.props.outputVars
 	for _, filters := range [2][]*expr{e.filters(), left.filters()} {
 		for _, f := range filters {
-			if (lowerVars & f.inputVars) == f.inputVars {
+			if (lowerVars & f.scalarInputVars()) == f.scalarInputVars() {
 				lowerFilters = append(lowerFilters, f)
 			} else {
 				upperFilters = append(upperFilters, f)

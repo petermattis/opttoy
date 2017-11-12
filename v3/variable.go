@@ -9,11 +9,16 @@ func init() {
 	registerOperator(variableOp, "variable", variable{})
 }
 
-func newVariableExpr(private interface{}) *expr {
-	return &expr{
-		op:      variableOp,
-		private: private,
+func newVariableExpr(private interface{}, index bitmapIndex) *expr {
+	e := &expr{
+		op:          variableOp,
+		scalarProps: &scalarProps{},
+		private:     private,
 	}
+	e.scalarProps.inputVars.set(index)
+	e.inputVars.set(index)
+	e.updateProps()
+	return e
 }
 
 type variable struct{}
@@ -24,8 +29,8 @@ func (variable) kind() operatorKind {
 
 func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%s%v (%s)", indent, e.op, e.private)
-	e.formatVars(buf)
+	fmt.Fprintf(buf, "%s%v (%s) [in=%s]",
+		indent, e.op, e.private, e.scalarProps.inputVars)
 	buf.WriteString("\n")
 }
 
