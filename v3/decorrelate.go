@@ -179,6 +179,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		// The input to the vector group by is a left outer join over R and E.
 		left := e.inputs()[0]
 		loj := newJoinExpr(leftJoinOp, left, right.inputs()[0])
+		loj.props = &relationalProps{}
 		buildLeftOuterJoin(loj)
 		loj.setApply()
 		loj.initProps()
@@ -186,7 +187,9 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		// The new vector group by expression which groups over the columns of R
 		// and uses the aggregations from E.
 		g := newGroupByExpr(loj)
-		g.props.columns = make([]columnProps, len(left.props.columns)+len(right.props.columns))
+		g.props = &relationalProps{
+			columns: make([]columnProps, len(left.props.columns)+len(right.props.columns)),
+		}
 		copy(g.props.columns[:], left.props.columns)
 		copy(g.props.columns[len(left.props.columns):], right.props.columns)
 

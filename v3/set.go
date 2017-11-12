@@ -15,7 +15,6 @@ func newSetExpr(op operator, input1, input2 *expr) *expr {
 		op:       op,
 		extra:    1,
 		children: []*expr{input1, input2, nil /* filter */},
-		props:    &relationalProps{},
 	}
 }
 

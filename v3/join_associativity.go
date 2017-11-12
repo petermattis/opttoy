@@ -60,7 +60,9 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 
 	newLower := newJoinExpr(innerJoinOp, leftLeft, right)
 	newLower.addFilters(lowerFilters)
-	newLower.props.columns = make([]columnProps, len(leftLeft.props.columns)+len(right.props.columns))
+	newLower.props = &relationalProps{
+		columns: make([]columnProps, len(leftLeft.props.columns)+len(right.props.columns)),
+	}
 	copy(newLower.props.columns[:], leftLeft.props.columns)
 	copy(newLower.props.columns[len(leftLeft.props.columns):], right.props.columns)
 	newLower.initProps()

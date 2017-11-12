@@ -13,7 +13,6 @@ func newOrderByExpr(input *expr) *expr {
 		op:       orderByOp,
 		extra:    0,
 		children: []*expr{input},
-		props:    &relationalProps{},
 	}
 }
 

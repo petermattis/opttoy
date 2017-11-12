@@ -13,7 +13,6 @@ func newRenameExpr(input *expr) *expr {
 		op:       renameOp,
 		extra:    1,
 		children: []*expr{input, nil /* filter */},
-		props:    &relationalProps{},
 	}
 }
 

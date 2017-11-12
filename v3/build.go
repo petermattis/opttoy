@@ -109,7 +109,9 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 
 			tab := result.props
 			result = newRenameExpr(result)
-			result.props.columns = make([]columnProps, 0, len(tab.columns))
+			result.props = &relationalProps{
+				columns: make([]columnProps, 0, len(tab.columns)),
+			}
 
 			tables := []string{string(source.As.Alias)}
 			for i, col := range tab.columns {
@@ -137,6 +139,7 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 		left := buildTable(source.Left, scope)
 		right := buildTable(source.Right, scope.push(left.props))
 		result := newJoinExpr(joinOp(source.Join), left, right)
+		result.props = &relationalProps{}
 
 		switch cond := source.Cond.(type) {
 		case *tree.OnJoinCond:
@@ -166,8 +169,10 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 
 func buildScan(tab *table, scope *scope) *expr {
 	result := newScanExpr(tab)
+	result.props = &relationalProps{
+		columns: make([]columnProps, 0, len(tab.columns)),
+	}
 	props := result.props
-	props.columns = make([]columnProps, 0, len(tab.columns))
 
 	state := scope.state
 	base, ok := state.tables[tab.name]
@@ -414,6 +419,7 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 			continue
 		}
 		result = newJoinExpr(innerJoinOp, result, t)
+		result.props = &relationalProps{}
 		buildUsingJoin(result, nil)
 		result.initProps()
 		scope = scope.push(result.props)
@@ -438,7 +444,9 @@ func buildGroupBy(
 	}
 
 	result := newGroupByExpr(input)
-	result.props.columns = make([]columnProps, len(scope.props.columns))
+	result.props = &relationalProps{
+		columns: make([]columnProps, len(scope.props.columns)),
+	}
 	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(groupBy))
@@ -539,6 +547,7 @@ func buildProjections(
 	}
 
 	result := newProjectExpr(input)
+	result.props = &relationalProps{}
 
 	var projections []*expr
 	passthru := true
@@ -550,6 +559,7 @@ func buildProjections(
 			if containsAggregate(p) {
 				if input.op != groupByOp {
 					input = newGroupByExpr(input)
+					input.props = &relationalProps{}
 					result.inputs()[0] = input
 				}
 				buildGroupByExtractAggregates(input, p, scope)
@@ -608,7 +618,9 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 
 	// Distinct is equivalent to group by without any aggregations.
 	result := newGroupByExpr(input)
-	result.props.columns = make([]columnProps, len(scope.props.columns))
+	result.props = &relationalProps{
+		columns: make([]columnProps, len(scope.props.columns)),
+	}
 	copy(result.props.columns, scope.props.columns)
 
 	exprs := make([]*expr, 0, len(input.props.columns))
@@ -629,7 +641,9 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 	// TODO(peter): order by is not a relational expression, but instead a
 	// required property on the output.
 	result := newOrderByExpr(input)
-	result.props.columns = make([]columnProps, len(input.props.columns))
+	result.props = &relationalProps{
+		columns: make([]columnProps, len(input.props.columns)),
+	}
 	copy(result.props.columns, input.props.columns)
 	result.private = orderBy
 	result.initProps()
@@ -648,7 +662,9 @@ func buildUnion(clause *tree.UnionClause, scope *scope) *expr {
 	left := buildSelect(clause.Left, scope)
 	right := buildSelect(clause.Right, scope)
 	result := newSetExpr(op, left, right)
-	result.props.columns = make([]columnProps, len(left.props.columns))
+	result.props = &relationalProps{
+		columns: make([]columnProps, len(left.props.columns)),
+	}
 	copy(result.props.columns, left.props.columns)
 	result.initProps()
 	return result

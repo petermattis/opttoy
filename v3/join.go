@@ -18,7 +18,6 @@ func newJoinExpr(op operator, left, right *expr) *expr {
 		op:       op,
 		extra:    1,
 		children: []*expr{left, right, nil /* filter */},
-		props:    &relationalProps{},
 	}
 }
 
