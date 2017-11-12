@@ -63,8 +63,9 @@ func init() {
 
 func newConstExpr(private interface{}) *expr {
 	return &expr{
-		op:      constOp,
-		private: private,
+		op:          constOp,
+		scalarProps: &scalarProps{},
+		private:     private,
 	}
 }
 
