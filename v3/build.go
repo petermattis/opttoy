@@ -370,8 +370,6 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			unimplemented("%T", pexpr)
 		}
 	}
-	// TODO(peter): remove?
-	result.initProps()
 	return result
 }
 
