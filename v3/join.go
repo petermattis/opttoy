@@ -47,14 +47,14 @@ func (join) initKeys(e *expr, state *queryState) {
 func (j join) updateProps(e *expr) {
 	e.props.notNullCols = 0
 	for _, input := range e.inputs() {
-		e.props.notNullCols |= input.props.notNullCols
+		e.props.notNullCols.unionWith(input.props.notNullCols)
 	}
 
 	e.props.joinDepth = 1
 	e.props.outerVars = j.requiredInputVars(e)
 	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
 	for _, input := range e.inputs() {
-		e.props.outerVars |= input.props.outerVars
+		e.props.outerVars.unionWith(input.props.outerVars)
 		e.props.joinDepth += input.props.joinDepth
 	}
 
@@ -66,7 +66,7 @@ func (j join) updateProps(e *expr) {
 func (join) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.scalarInputVars()
+		v.unionWith(filter.scalarInputVars())
 	}
 	return v
 }

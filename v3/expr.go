@@ -396,7 +396,7 @@ func (e *expr) requiredInputVars() bitmap {
 func (e *expr) providedInputVars() bitmap {
 	var v bitmap
 	for _, input := range e.inputs() {
-		v |= input.props.outputVars
+		v.unionWith(input.props.outputVars)
 	}
 	return v
 }

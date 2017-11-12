@@ -36,7 +36,7 @@ func (r rename) updateProps(e *expr) {
 	// require.
 	e.props.outerVars = 0
 	for _, input := range e.inputs() {
-		e.props.outerVars |= input.props.outerVars
+		e.props.outerVars.unionWith(input.props.outerVars)
 	}
 
 	e.props.applyFilters(e.filters())

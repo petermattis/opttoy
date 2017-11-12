@@ -37,7 +37,7 @@ func (g groupBy) updateProps(e *expr) {
 	e.props.outerVars = g.requiredInputVars(e)
 	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
 	for _, input := range e.inputs() {
-		e.props.outerVars |= input.props.outerVars
+		e.props.outerVars.unionWith(input.props.outerVars)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -48,13 +48,13 @@ func (g groupBy) updateProps(e *expr) {
 func (groupBy) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.scalarInputVars()
+		v.unionWith(filter.scalarInputVars())
 	}
 	for _, aggregate := range e.aggregations() {
-		v |= aggregate.scalarInputVars()
+		v.unionWith(aggregate.scalarInputVars())
 	}
 	for _, grouping := range e.groupings() {
-		v |= grouping.scalarInputVars()
+		v.unionWith(grouping.scalarInputVars())
 	}
 	return v
 }

@@ -130,7 +130,7 @@ func (s scalar) updateProps(e *expr) {
 		// required input variables of its inputs.
 		e.scalarProps.inputVars = 0
 		for _, input := range e.inputs() {
-			e.scalarProps.inputVars |= input.scalarInputVars()
+			e.scalarProps.inputVars.unionWith(input.scalarInputVars())
 		}
 	}
 }

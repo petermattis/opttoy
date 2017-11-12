@@ -58,7 +58,7 @@ func maybeExpandJoin(e *expr) {
 func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 	for _, input := range filter.inputs() {
 		if input.isRelational() && input.props.outerVars != 0 &&
-			(input.props.outerVars&e.props.outputVars) == input.props.outerVars {
+			input.props.outerVars.subsetOf(e.props.outputVars) {
 			// The input to the filter is relational and the relational expression
 			// has free variables that are provided by the containing expression.
 

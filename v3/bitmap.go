@@ -51,3 +51,11 @@ func (b *bitmap) set(i bitmapIndex) {
 func (b *bitmap) clear(i bitmapIndex) {
 	*b &^= 1 << i
 }
+
+func (b *bitmap) unionWith(rhs bitmap) {
+	*b |= rhs
+}
+
+func (b bitmap) subsetOf(rhs bitmap) bool {
+	return (b & rhs) == b
+}

@@ -29,7 +29,7 @@ func joinElimination(e *expr, requiredOutputVars bitmap) {
 func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bool {
 	// Check to see if the required output vars only depend on the left side of the join.
 	leftOutputVars := left.props.outputVars
-	if (requiredOutputVars & leftOutputVars) != requiredOutputVars {
+	if !requiredOutputVars.subsetOf(leftOutputVars) {
 		return false
 	}
 
@@ -39,7 +39,7 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 	var fkey *foreignKeyProps
 	for i := range left.props.foreignKeys {
 		fkey = &left.props.foreignKeys[i]
-		if (fkey.dest & rightOutputVars) == fkey.dest {
+		if fkey.dest.subsetOf(rightOutputVars) {
 			// The target of the foreign key is the right side of the join.
 			break
 		}
@@ -56,12 +56,12 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 		// TODO(peter): pushDownFilters() should ensure we only have join
 		// conditions here making this test and the one for the left output vars
 		// unnecessary.
-		if (filter.scalarInputVars() & rightOutputVars) == filter.scalarInputVars() {
+		if filter.scalarInputVars().subsetOf(rightOutputVars) {
 			// The filter only utilizes variables from the right hand side of the
 			// join.
 			return false
 		}
-		if (filter.scalarInputVars() & leftOutputVars) == filter.scalarInputVars() {
+		if filter.scalarInputVars().subsetOf(leftOutputVars) {
 			// The filter only utilizes variables from the left hand side of the
 			// join.
 			continue
@@ -74,7 +74,7 @@ func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputVars bitmap) bo
 
 	// Move any filters down to the left hand side of the join.
 	for _, filter := range filters {
-		if (filter.scalarInputVars() & leftOutputVars) == filter.scalarInputVars() {
+		if filter.scalarInputVars().subsetOf(leftOutputVars) {
 			left.addFilter(filter)
 		}
 	}

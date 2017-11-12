@@ -175,7 +175,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	buf.WriteString("\n")
 	for _, key := range p.weakKeys {
 		var prefix string
-		if (key & p.notNullCols) != key {
+		if !key.subsetOf(p.notNullCols) {
 			prefix = "weak "
 		}
 		fmt.Fprintf(buf, "%s%skey: %s\n", indent, prefix, key)
@@ -262,7 +262,7 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 // A filter is compatible with the relational properties for an expression if
 // all of the input variables used by the filter are provided by the columns.
 func (p *relationalProps) isFilterCompatible(filter *expr) bool {
-	return (p.outputVars & filter.scalarInputVars()) == filter.scalarInputVars()
+	return filter.scalarInputVars().subsetOf(p.outputVars)
 }
 
 func initKeys(e *expr, state *queryState) {

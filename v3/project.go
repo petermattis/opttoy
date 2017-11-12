@@ -36,7 +36,7 @@ func (p project) updateProps(e *expr) {
 	e.props.outerVars = p.requiredInputVars(e)
 	e.props.outerVars &^= (e.props.outputVars | e.providedInputVars())
 	for _, input := range e.inputs() {
-		e.props.outerVars |= input.props.outerVars
+		e.props.outerVars.unionWith(input.props.outerVars)
 	}
 
 	e.props.applyFilters(e.filters())
@@ -47,10 +47,10 @@ func (p project) updateProps(e *expr) {
 func (project) requiredInputVars(e *expr) bitmap {
 	var v bitmap
 	for _, filter := range e.filters() {
-		v |= filter.scalarInputVars()
+		v.unionWith(filter.scalarInputVars())
 	}
 	for _, project := range e.projections() {
-		v |= project.scalarInputVars()
+		v.unionWith(project.scalarInputVars())
 	}
 	return v
 }
