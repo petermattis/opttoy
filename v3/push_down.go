@@ -88,7 +88,7 @@ func pushDownFilters(e *expr) {
 func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
 	var count int
 	for _, input := range e.inputs() {
-		if input.props.isFilterCompatible(filter) {
+		if filter.scalarInputCols().subsetOf(input.props.outputCols) {
 			input.addFilter(filter)
 			count++
 			continue
@@ -96,7 +96,7 @@ func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
 
 		// Check to see if creating a new filter by substitution could be pushed down.
 		if replacement := findEquivalency(filters, filter); replacement != nil {
-			if input.props.isFilterCompatible(replacement) {
+			if replacement.scalarInputCols().subsetOf(input.props.outputCols) {
 				newFilter := substitute(filter, filter.scalarInputCols(), replacement)
 				input.addFilter(newFilter)
 				count++

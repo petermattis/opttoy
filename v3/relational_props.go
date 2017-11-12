@@ -128,7 +128,10 @@ type relationalProps struct {
 	//   WHERE e.dept_id IS NOT NULL
 	foreignKeys []foreignKeyProps
 
-	// TODO(peter): equivCols []bitmap
+	// Column equivalency groups. Each entry contains a set of equivalent columns
+	// and an entry must contain at least 2 columns. No column may appear in more
+	// than one entry.
+	equivCols []bitmap
 
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
@@ -257,12 +260,8 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 			p.notNullCols.set(i)
 		}
 	}
-}
 
-// A filter is compatible with the relational properties for an expression if
-// all of the input columns used by the filter are provided by the columns.
-func (p *relationalProps) isFilterCompatible(filter *expr) bool {
-	return filter.scalarInputCols().subsetOf(p.outputCols)
+	// TODO(peter): find equivalent columns.
 }
 
 func initKeys(e *expr, state *queryState) {
