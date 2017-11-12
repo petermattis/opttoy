@@ -1,18 +1,18 @@
 package v3
 
 func init() {
-	registerXform(xformJoinAssociativity{})
+	registerXform(joinAssociativity{})
 }
 
-type xformJoinAssociativity struct {
-	xformImplementation
+type joinAssociativity struct {
+	xformExploration
 }
 
-func (xformJoinAssociativity) id() xformID {
+func (joinAssociativity) id() xformID {
 	return xformJoinAssociativityID
 }
 
-func (xformJoinAssociativity) pattern() *expr {
+func (joinAssociativity) pattern() *expr {
 	return newJoinPattern(innerJoinOp,
 		newJoinPattern(innerJoinOp,
 			nil /* left */, nil /* right */, patternTree /* filter */), /* left */
@@ -20,12 +20,12 @@ func (xformJoinAssociativity) pattern() *expr {
 		patternTree /* filter */)
 }
 
-func (xformJoinAssociativity) check(e *expr) bool {
+func (joinAssociativity) check(e *expr) bool {
 	return true
 }
 
 // (RS)T -> (RT)S
-func (xformJoinAssociativity) apply(e *expr, results []*expr) []*expr {
+func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	left := e.children[0]
 	leftLeft := left.children[0]
 	leftRight := left.children[1]
