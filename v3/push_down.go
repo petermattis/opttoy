@@ -1,23 +1,5 @@
 package v3
 
-func findEquivalency(filters []*expr, e *expr) *expr {
-	for _, filter := range filters {
-		if filter.op == eqOp {
-			left := filter.inputs()[0]
-			right := filter.inputs()[1]
-			if left.op == variableOp && right.op == variableOp {
-				if left.scalarInputCols() == e.scalarInputCols() {
-					return right
-				}
-				if right.scalarInputCols() == e.scalarInputCols() {
-					return left
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // TODO(peter): The current code is likely incorrect in various ways. Below is
 // what we should be doing.
 //
@@ -58,9 +40,8 @@ func pushDownFilters(e *expr) {
 		// the need for an operator-specific interface for inferring predicates
 		// from other predicates.
 		if e.op == projectOp {
-			for i, project := range e.projections() {
-				col := &e.props.columns[i]
-				if filter.scalarInputCols().get(col.index) {
+			for _, project := range e.projections() {
+				if filter.scalarInputCols() == project.scalarProps.definedCols {
 					newFilter := substitute(filter, filter.scalarInputCols(), project)
 					count += maybePushDownFilter(e, newFilter, filters)
 				}
@@ -92,16 +73,6 @@ func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
 			input.addFilter(filter)
 			count++
 			continue
-		}
-
-		// Check to see if creating a new filter by substitution could be pushed down.
-		if replacement := findEquivalency(filters, filter); replacement != nil {
-			if replacement.scalarInputCols().subsetOf(input.props.outputCols) {
-				newFilter := substitute(filter, filter.scalarInputCols(), replacement)
-				input.addFilter(newFilter)
-				count++
-				continue
-			}
 		}
 	}
 	return count

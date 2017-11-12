@@ -12,7 +12,7 @@ table b
   x NULL
   z NULL
 
-push_down
+prep,push_down
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -39,16 +39,16 @@ project
         scan
           columns: b.x:2* b.z:3*
           filters:
-            comp (>) [in=2]
-              inputs:
-                variable (b.x) [in=2]
-                const (7)
             comp (=) [in=3]
               inputs:
                 variable (b.z) [in=3]
                 const (3)
+            comp (>) [in=2]
+              inputs:
+                variable (b.x) [in=2]
+                const (7)
 
-push_down
+prep,push_down
 SELECT * FROM a JOIN b ON (a.x = b.x) WHERE a.y + b.z > 1
 ----
 inner join
@@ -71,7 +71,7 @@ inner join
     scan
       columns: b.x:2 b.z:3
 
-push_down
+prep,push_down
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
 ----
 rename
