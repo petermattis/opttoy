@@ -16,7 +16,6 @@ func newVariableExpr(private interface{}, index bitmapIndex) *expr {
 		private:     private,
 	}
 	e.scalarProps.inputVars.set(index)
-	e.inputVars.set(index)
 	e.updateProps()
 	return e
 }

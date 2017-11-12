@@ -42,21 +42,6 @@ const (
 // This is akin to the way parser.IndexedVar works except that we're taking
 // care to make the indexes unique across the entire statement.
 //
-// Expressions keep track of required input variables (a.k.a. free variables)
-// in the expr.inputVars bitmap. The required input variables for a scalar
-// expression are any variables used by the expression. The required input
-// variables for a relational expression are on variables required by filters
-// or projections that are not otherwise provided by inputs.
-//
-// For relational expressions, a non-empty input variables set indicates a
-// correlated subquery.
-//
-// For scalar expressions the input variables bitmap allows an easy
-// determination of whether the expression is constant (the bitmap is empty)
-// and, if not, which variables it uses. Predicate push down can use this
-// bitmap to quickly determine whether a filter can be pushed below a
-// relational operator.
-//
 // Relational expressions are composed of inputs, optional filters and optional
 // auxiliary expressions. The output columns are derived by the operator from
 // the inputs and stored in expr.props.columns.
@@ -102,16 +87,9 @@ type expr struct {
 	apply bool
 	// Location of the expression in the memo.
 	loc memoLoc
-	// The input vars bitmap specifies required input variables (a.k.a. free
-	// variables) that are not otherwise provided by inputs. For scalar
-	// operators, this will by the set of all variables referenced by the scalar
-	// expression. For relational operators, this is the set of variables needed
-	// by the operator that are not provided by the inputs. The only reason a
-	// relational operator will have input variables that are not provided by its
-	// inputs are correlated subqueries. The indexes are allocated via
-	// queryState.nextVar.
-	inputVars bitmap
-	children  []*expr
+	// Child expressions. The interpretation of the children is operator
+	// dependent.
+	children []*expr
 	// Relational properties. Nil for scalar expressions.
 	props *relationalProps
 	// Scalar properties. Nil for relational expressions.

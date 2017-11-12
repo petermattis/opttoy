@@ -131,7 +131,6 @@ func (s scalar) updateProps(e *expr) {
 		for _, input := range e.inputs() {
 			e.scalarProps.inputVars |= input.scalarInputVars()
 		}
-		e.inputVars = e.scalarProps.inputVars
 	}
 }
 
@@ -140,7 +139,7 @@ func (scalar) requiredInputVars(e *expr) bitmap {
 }
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
-	if e.op == variableOp && e.inputVars == columns {
+	if e.op == variableOp && e.scalarInputVars() == columns {
 		return replacement
 	}
 
