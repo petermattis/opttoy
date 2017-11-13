@@ -92,6 +92,50 @@ scan
         const (10)
 
 build
+SELECT * FROM a JOIN b USING (x)
+----
+project
+  columns: a.x:0 a.y:1 b.z:3
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
+    variable (b.z) [in=3]
+  inputs:
+    inner join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
+
+build
+SELECT b.* FROM a JOIN b USING (x)
+----
+project
+  columns: b.z:3
+  projections:
+    variable (b.z) [in=3]
+  inputs:
+    inner join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
+
+build
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
 project
@@ -150,12 +194,12 @@ build
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
 project
-  columns: {a,b}.x:0
+  columns: b.x:2
   projections:
-    variable (b.x) [in=0]
+    variable (b.x) [in=2]
   inputs:
     inner join
-      columns: {a,b}.x:0* a.y:1 b.z:3*
+      columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -179,12 +223,12 @@ build
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
 project
-  columns: {a,b}.x:0
+  columns: b.x:2
   projections:
-    variable (b.x) [in=0]
+    variable (b.x) [in=2]
   inputs:
     inner join
-      columns: {a,b}.x:0* a.y:1 b.z:3*
+      columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
           inputs:
@@ -207,50 +251,71 @@ project
 build
 SELECT * FROM a LEFT JOIN b USING (x)
 ----
-left join
-  columns: {a,b}.x:0* a.y:1 b.z:3
-  filters:
-    comp (=) [in=0,2]
-      inputs:
-        variable (a.x) [in=0]
-        variable (b.x) [in=2]
+project
+  columns: a.x:0 a.y:1 b.z:3
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
+    variable (b.z) [in=3]
   inputs:
-    scan
-      columns: a.x:0 a.y:1
-    scan
-      columns: b.x:2 b.z:3
+    left join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
 
 build
 SELECT * FROM a RIGHT JOIN b USING (x)
 ----
-right join
-  columns: {a,b}.x:0* a.y:1 b.z:3
-  filters:
-    comp (=) [in=0,2]
-      inputs:
-        variable (a.x) [in=0]
-        variable (b.x) [in=2]
+project
+  columns: a.x:0 a.y:1 b.z:3
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
+    variable (b.z) [in=3]
   inputs:
-    scan
-      columns: a.x:0 a.y:1
-    scan
-      columns: b.x:2 b.z:3
+    right join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
 
 build
 SELECT * FROM a FULL JOIN b USING (x)
 ----
-full join
-  columns: {a,b}.x:0* a.y:1 b.z:3
-  filters:
-    comp (=) [in=0,2]
-      inputs:
-        variable (a.x) [in=0]
-        variable (b.x) [in=2]
+project
+  columns: a.x:0 a.y:1 b.z:3
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
+    variable (b.z) [in=3]
   inputs:
-    scan
-      columns: a.x:0 a.y:1
-    scan
-      columns: b.x:2 b.z:3
+    full join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
+      filters:
+        comp (=) [in=0,2]
+          inputs:
+            variable (a.x) [in=0]
+            variable (b.x) [in=2]
+      inputs:
+        scan
+          columns: a.x:0 a.y:1
+        scan
+          columns: b.x:2 b.z:3
 
 build
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a

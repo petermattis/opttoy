@@ -15,25 +15,32 @@ table b
 prep
 SELECT * FROM a NATURAL JOIN b WHERE a.x > 1
 ----
-inner join
-  columns: {a,b}.x:0* a.y:1 b.z:3
-  filters:
-    comp (=) [in=0,2]
-      inputs:
-        variable (a.x) [in=0]
-        variable (b.x) [in=2]
+project
+  columns: a.x:0 a.y:1 b.z:3
+  projections:
+    variable (a.x) [in=0]
+    variable (a.y) [in=1]
+    variable (b.z) [in=3]
   inputs:
-    scan
-      columns: a.x:0* a.y:1
+    inner join
+      columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
-        comp (>) [in=0]
+        comp (=) [in=0,2]
           inputs:
             variable (a.x) [in=0]
-            const (1)
-    scan
-      columns: b.x:2* b.z:3
-      filters:
-        comp (>) [in=2]
-          inputs:
             variable (b.x) [in=2]
-            const (1)
+      inputs:
+        scan
+          columns: a.x:0* a.y:1
+          filters:
+            comp (>) [in=0]
+              inputs:
+                variable (a.x) [in=0]
+                const (1)
+        scan
+          columns: b.x:2* b.z:3
+          filters:
+            comp (>) [in=2]
+              inputs:
+                variable (b.x) [in=2]
+                const (1)

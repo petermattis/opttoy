@@ -21,6 +21,7 @@ type columnProps struct {
 	name   string
 	tables []string
 	index  bitmapIndex
+	hidden bool
 }
 
 func (c columnProps) hasColumn(tableName, colName string) bool {

@@ -34,15 +34,14 @@ build
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
 ----
 project
-  columns: {c,d}.x:0 d.z:3 {c,d}.x:0 c.y:1
+  columns: d.z:3 c.x:0 c.y:1
   projections:
-    variable (d.x) [in=0]
     variable (d.z) [in=3]
     variable (c.x) [in=0]
     variable (c.y) [in=1]
   inputs:
     inner join
-      columns: {c,d}.x:0* c.y:1 d.z:3
+      columns: c.x:0* c.y:1 d.x:2* d.z:3
       filters:
         comp (=) [in=0,2]
           inputs:

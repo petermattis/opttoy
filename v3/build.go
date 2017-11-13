@@ -227,14 +227,17 @@ func buildNaturalJoin(e *expr) {
 	inputs := e.inputs()
 	names := make(tree.NameList, 0, len(inputs[0].props.columns))
 	for _, col := range inputs[0].props.columns {
-		names = append(names, tree.Name(col.name))
+		if !col.hidden {
+			names = append(names, tree.Name(col.name))
+		}
 	}
 	for _, input := range inputs[1:] {
 		var common tree.NameList
 		for _, colName := range names {
 			for _, col := range input.props.columns {
-				if colName == tree.Name(col.name) {
+				if !col.hidden && colName == tree.Name(col.name) {
 					common = append(common, colName)
+					break
 				}
 			}
 		}
@@ -244,45 +247,45 @@ func buildNaturalJoin(e *expr) {
 }
 
 func buildUsingJoin(e *expr, names tree.NameList) {
-	joined := make(map[string]int, len(names))
 	inputs := e.inputs()
+	left := inputs[0].props
+	right := inputs[1].props
+	e.props.columns = make([]columnProps, 0, len(left.columns)+len(right.columns))
+
+	joined := make(map[string]struct{}, len(names))
 	for _, name := range names {
-		joined[string(name)] = -1
+		name := string(name)
+		joined[name] = struct{}{}
 		// For every adjacent pair of tables, add an equality predicate.
 		for i := 1; i < len(inputs); i++ {
-			left := inputs[i-1].props.newColumnExpr(string(name))
+			left := inputs[i-1].props.newColumnExpr(name)
 			if left == nil {
 				fatalf("unable to resolve name %s", name)
 			}
-			right := inputs[i].props.newColumnExpr(string(name))
+			right := inputs[i].props.newColumnExpr(name)
 			if right == nil {
 				fatalf("unable to resolve name %s", name)
 			}
 			e.addFilter(newBinaryExpr(eqOp, left, right))
 		}
+
+		for _, col := range left.columns {
+			if col.name == name {
+				e.props.columns = append(e.props.columns, col)
+				break
+			}
+		}
 	}
 
-	for _, input := range inputs {
-		for _, col := range input.props.columns {
-			if idx, ok := joined[col.name]; ok {
-				if idx != -1 {
-					oldCol := e.props.columns[idx]
-					e.props.columns[idx] = columnProps{
-						index:  oldCol.index,
-						name:   oldCol.name,
-						tables: append(oldCol.tables, col.tables[0]),
-					}
-					continue
-				}
-				joined[col.name] = len(e.props.columns)
-			}
-
-			e.props.columns = append(e.props.columns, columnProps{
-				index:  col.index,
-				name:   col.name,
-				tables: []string{col.tables[0]},
-			})
+	for _, col := range left.columns {
+		if _, ok := joined[col.name]; ok {
+			continue
 		}
+		e.props.columns = append(e.props.columns, col)
+	}
+	for _, col := range right.columns {
+		_, col.hidden = joined[col.name]
+		e.props.columns = append(e.props.columns, col)
 	}
 }
 
@@ -505,7 +508,9 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 	case tree.UnqualifiedStar:
 		var projections []*expr
 		for _, col := range scope.props.columns {
-			projections = append(projections, col.newVariableExpr("", scope.props))
+			if !col.hidden {
+				projections = append(projections, col.newVariableExpr("", scope.props))
+			}
 		}
 		if len(projections) == 0 {
 			fatalf("failed to expand *")
@@ -516,7 +521,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		tableName := t.TableName.Table()
 		var projections []*expr
 		for _, col := range scope.props.columns {
-			if col.hasTable(tableName) {
+			if col.hasTable(tableName) && !col.hidden {
 				projections = append(projections, col.newVariableExpr(tableName, scope.props))
 			}
 		}

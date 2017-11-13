@@ -22,6 +22,10 @@ table c
 memo,search
 SELECT * FROM a NATURAL JOIN b
 ----
+10: [project [6 9 -]]
+9: [list [3 7 8]]
+8: [variable b.z]
+7: [variable a.y]
 6: [inner join [1 2 5]] [inner join [2 1 5]]
 5: [comp (=) [3 4]]
 4: [variable b.x]
@@ -32,8 +36,13 @@ SELECT * FROM a NATURAL JOIN b
 memo,search
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 ----
-10: [inner join [6 7 9]] [inner join [11 2 5]] [inner join [7 6 9]]
-11: [inner join [1 7 9]] [inner join [7 1 9]]
+15: [project [10 14 -]]
+14: [list [3 11 12 13]]
+13: [variable c.w]
+12: [variable b.z]
+11: [variable a.y]
+10: [inner join [6 7 9]] [inner join [16 2 5]] [inner join [7 6 9]]
+16: [inner join [1 7 9]] [inner join [7 1 9]]
 9: [comp (=) [3 8]]
 8: [variable c.x]
 7: [scan c [-]]
