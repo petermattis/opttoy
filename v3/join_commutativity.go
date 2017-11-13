@@ -13,7 +13,14 @@ func (joinCommutativity) id() xformID {
 }
 
 func (joinCommutativity) pattern() *expr {
-	return newJoinPattern(innerJoinOp, nil, nil, patternTree)
+	return &expr{
+		op: innerJoinOp,
+		children: []*expr{
+			nil,         /* left */
+			nil,         /* right */
+			patternTree, /* filter */
+		},
+	}
 }
 
 func (joinCommutativity) check(e *expr) bool {

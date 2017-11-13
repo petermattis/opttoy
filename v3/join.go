@@ -20,13 +20,6 @@ func newJoinExpr(op operator, left, right *expr) *expr {
 	}
 }
 
-func newJoinPattern(op operator, left, right, filter *expr) *expr {
-	return &expr{
-		op:       op,
-		children: []*expr{left, right, filter},
-	}
-}
-
 type join struct{}
 
 func (join) kind() operatorKind {

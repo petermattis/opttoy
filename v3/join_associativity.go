@@ -13,13 +13,21 @@ func (joinAssociativity) id() xformID {
 }
 
 func (joinAssociativity) pattern() *expr {
-	return newJoinPattern(innerJoinOp,
-		newJoinPattern(innerJoinOp, /* left */
-			nil, /* left */
-			nil, /* right */
-			patternTree /* filter */),
-		nil, /* right */
-		patternTree /* filter */)
+	return &expr{
+		op: innerJoinOp,
+		children: []*expr{
+			&expr{ /* left */
+				op: innerJoinOp,
+				children: []*expr{
+					nil,         /* left */
+					nil,         /* right */
+					patternTree, /* filter */
+				},
+			},
+			nil,         /* right */
+			patternTree, /* filter */
+		},
+	}
 }
 
 func (joinAssociativity) check(e *expr) bool {
