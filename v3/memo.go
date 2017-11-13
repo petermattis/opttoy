@@ -47,7 +47,6 @@ type memoExpr struct {
 	state    searchState
 	loc      memoLoc
 	op       operator
-	apply    bool
 	children []int32
 	private  interface{}
 }
@@ -61,9 +60,6 @@ func (e *memoExpr) match(pattern *expr) bool {
 func (e *memoExpr) fingerprint() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s", e.op)
-	if e.apply {
-		buf.WriteString(" (apply)")
-	}
 
 	switch t := e.private.(type) {
 	case nil:
@@ -202,7 +198,6 @@ func (m *memo) addExpr(e *expr) int32 {
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
 		op:       e.op,
-		apply:    e.apply,
 		loc:      e.loc,
 		children: make([]int32, len(e.children)),
 		private:  e.private,
@@ -275,7 +270,6 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 		initChildren = true
 	}
 	cursor.op = e.op
-	cursor.apply = e.apply
 	cursor.loc = e.loc
 	cursor.private = e.private
 

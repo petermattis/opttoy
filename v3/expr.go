@@ -69,10 +69,7 @@ import (
 //      +----| scan a |
 //           +--------+
 type expr struct {
-	// NB: op and apply are placed next to each other in order to reduce space
-	// wastage due to padding.
-	op    operator
-	apply bool
+	op operator
 	// Location of the expression in the memo.
 	loc memoLoc
 	// Child expressions. The interpretation of the children is operator
@@ -128,9 +125,6 @@ func (e *expr) format(buf *bytes.Buffer, level int) {
 
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
-	if e.hasApply() {
-		buf.WriteString(" (apply)")
-	}
 	if e.props.outerCols != 0 {
 		fmt.Fprintf(buf, " [outer=%s]", e.props.outerCols)
 	}
@@ -298,15 +292,15 @@ func (e *expr) addAggregations(exprs []*expr) {
 }
 
 func (e *expr) setApply() {
-	e.apply = true
+	e.op = setApply[e.op]
 }
 
 func (e *expr) clearApply() {
-	e.apply = false
+	e.op = clearApply[e.op]
 }
 
 func (e *expr) hasApply() bool {
-	return e.apply
+	return hasApply[e.op]
 }
 
 func (e *expr) isRelational() bool {

@@ -25,6 +25,13 @@ const (
 	semiJoinOp
 	antiJoinOp
 
+	innerJoinApplyOp
+	leftJoinApplyOp
+	rightJoinApplyOp
+	fullJoinApplyOp
+	semiJoinApplyOp
+	antiJoinApplyOp
+
 	projectOp
 
 	groupByOp

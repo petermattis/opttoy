@@ -38,6 +38,7 @@ func maybeExpandNotExists(e *expr, filter *expr) bool {
 	}
 
 	e.op = antiJoinOp
+	e.setApply()
 	return true
 }
 
