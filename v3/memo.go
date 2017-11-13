@@ -5,35 +5,6 @@ import (
 	"fmt"
 )
 
-type searchState uint8
-
-var searchStateName = [...]string{
-	stateUnexplored:   "unexplored",
-	stateExploring:    "exploring",
-	stateExplored:     "explored",
-	stateImplementing: "implementing",
-	stateImplemented:  "implemented",
-	stateOptimizing:   "optimizing",
-	stateOptimized:    "optimized",
-}
-
-func (i searchState) String() string {
-	if i < 0 || i >= searchState(len(searchStateName)-1) {
-		return fmt.Sprintf("searchState(%d)", i)
-	}
-	return searchStateName[i]
-}
-
-const (
-	stateUnexplored searchState = iota
-	stateExploring
-	stateExplored
-	stateImplementing
-	stateImplemented
-	stateOptimizing
-	stateOptimized
-)
-
 type memoLoc struct {
 	group int32
 	expr  int32
@@ -45,7 +16,6 @@ func (l memoLoc) String() string {
 
 type memoExpr struct {
 	loc      memoLoc
-	state    searchState
 	op       operator
 	children []int32
 	private  interface{}
@@ -87,7 +57,10 @@ func (e *memoExpr) fingerprint() string {
 }
 
 type memoGroup struct {
-	state searchState
+	id          int32
+	explored    int32
+	implemented int32
+
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
@@ -230,7 +203,9 @@ func (m *memo) maybeAddGroup(f string, props *relationalProps, sprops *scalarPro
 	id, ok := m.groupMap[f]
 	if !ok {
 		id = int32(len(m.groups))
-		m.groups = append(m.groups, newMemoGroup(props, sprops))
+		g := newMemoGroup(props, sprops)
+		g.id = id
+		m.groups = append(m.groups, g)
 		m.groupMap[f] = id
 	}
 	return id

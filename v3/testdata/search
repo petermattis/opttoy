@@ -41,7 +41,7 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 13: [variable c.w]
 12: [variable b.z]
 11: [variable a.y]
-10: [inner join [6 7 9]] [inner join [16 2 5]] [inner join [7 6 9]]
+10: [inner join [6 7 9]] [inner join [16 2 5]] [inner join [7 6 9]] [inner join [2 16 5]]
 16: [inner join [1 7 9]] [inner join [7 1 9]]
 9: [comp (=) [3 8]]
 8: [variable c.x]
@@ -56,7 +56,7 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 prep,memo,search
 SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
 ----
-17: [inner join [12 15 16]] [inner join [18 4 11]] [inner join [15 12 16]]
+17: [inner join [12 15 16]] [inner join [18 4 11]] [inner join [15 12 16]] [inner join [4 18 11]]
 18: [inner join [10 15 16]] [inner join [15 10 16]]
 16: [comp (=) [5 13]]
 15: [scan c [14]]

@@ -1,5 +1,9 @@
 package v3
 
+import (
+	"container/heap"
+)
+
 // Search is modelled as a series of tasks that optimize an
 // expression. Conceptually, the tasks form a dependency tree very much like
 // the dependency tree formed by tools like make. The current implementation of
@@ -32,8 +36,85 @@ package v3
 //   7. transform: applies a transform to the forest of expressions rooted at a
 //      particular group expression.
 
+type searchTask struct {
+	fn       func()
+	parent   *searchTask
+	deps     int
+	priority int
+	sequence int
+	index    int
+}
+
+func newSearchTask(s *search, parent *searchTask, fn func()) *searchTask {
+	t := &searchTask{
+		fn:       fn,
+		parent:   nil,
+		sequence: s.sequence,
+		index:    -1,
+	}
+	s.sequence++
+	if parent != nil {
+		parent.addChild(t)
+	}
+	return t
+}
+
+func (t *searchTask) addChild(child *searchTask) {
+	if child.parent != nil {
+		fatalf("task already has parent")
+	}
+	child.parent = t
+	t.deps++
+}
+
+type searchQueue struct {
+	tasks []*searchTask
+}
+
+func (q *searchQueue) Len() int {
+	return len(q.tasks)
+}
+
+func (q *searchQueue) Swap(i, j int) {
+	q.tasks[i], q.tasks[j] = q.tasks[j], q.tasks[i]
+	q.tasks[i].index = i
+	q.tasks[j].index = j
+}
+
+func (q *searchQueue) Less(i, j int) bool {
+	qi, qj := q.tasks[i], q.tasks[j]
+	if qi.priority == qj.priority {
+		return qi.sequence < qj.sequence
+	}
+	return qi.priority > qj.priority
+}
+
+func (q *searchQueue) Push(x interface{}) {
+	t := x.(*searchTask)
+	t.index = len(q.tasks)
+	q.tasks = append(q.tasks, t)
+}
+
+func (q *searchQueue) Pop() interface{} {
+	n := len(q.tasks)
+	t := q.tasks[n-1]
+	t.index = -1
+	q.tasks = q.tasks[:n-1]
+	return t
+}
+
+func (q *searchQueue) push(t *searchTask) {
+	heap.Push(q, t)
+}
+
+func (q *searchQueue) pop() *searchTask {
+	return heap.Pop(q).(*searchTask)
+}
+
 type search struct {
-	memo *memo
+	memo     *memo
+	runnable searchQueue
+	sequence int
 }
 
 func newSearch(memo *memo) *search {
@@ -43,132 +124,130 @@ func newSearch(memo *memo) *search {
 }
 
 func (s *search) run() {
-	s.implementGroup(s.memo.groups[s.memo.root])
+	s.exploreGroup(s.memo.groups[s.memo.root], nil)
+
+	// Run tasks until there is nothing left to do.
+	for s.runnable.Len() > 0 {
+		t := s.runnable.pop()
+		if t.deps > 0 {
+			fatalf("%d unfinished deps", t.deps)
+		}
+		t.fn()
+		if t.parent != nil {
+			t.parent.deps--
+			s.schedule(t.parent)
+		}
+	}
 }
 
-func (s *search) optimizeGroup(g *memoGroup) {
-	// Before optimizing a group, we need to implement it.
-	s.implementGroup(g)
-
-	if g == nil || g.state >= stateOptimizing {
+func (s *search) schedule(t *searchTask) {
+	if t == nil {
 		return
 	}
-	g.state = stateOptimizing
-
-	// Optimize each expression in the group.
-	for _, e := range g.exprs {
-		s.optimizeGroupExpr(e)
+	if t.deps == 0 {
+		s.runnable.push(t)
 	}
-
-	g.state = stateImplemented
 }
 
-func (s *search) optimizeGroupExpr(e *memoExpr) {
-	if e.state >= stateOptimizing {
+func (s *search) optimizeGroup(g *memoGroup, parent *searchTask) {
+	s.implementGroup(g, parent)
+}
+
+func (s *search) implementGroup(g *memoGroup, parent *searchTask) {
+	if g == nil {
 		return
 	}
-	e.state = stateOptimizing
 
-	// Optimize children groups first.
+	s.exploreGroup(g, parent)
+	exprs := g.exprs[g.implemented:]
+	g.implemented = int32(len(g.exprs))
+
+	for _, expr := range exprs {
+		s.schedule(s.implementGroupExpr(expr, parent))
+	}
+}
+
+func (s *search) implementGroupExpr(e *memoExpr, parent *searchTask) *searchTask {
+	t := newSearchTask(s, parent, func() {
+		s.scheduleImplementationTransforms(e, parent)
+	})
+
+	// Explore children groups.
 	for _, c := range e.children {
-		s.optimizeGroup(s.memo.groups[c])
+		s.implementGroup(s.memo.groups[c], t)
 	}
-
-	// TODO(peter): unimplemented.
-	e.state = stateOptimized
+	return t
 }
 
-func (s *search) implementGroup(g *memoGroup) {
-	// Before implementing a group, we need to explore it.
-	s.exploreGroup(g)
-
-	if g == nil || g.state >= stateImplementing {
+func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
+	if g == nil {
 		return
 	}
-	g.state = stateImplementing
 
-	// Implement each expression in the group.
-	for _, e := range g.exprs {
-		s.implementGroupExpr(e)
+	exprs := g.exprs[g.explored:]
+	g.explored = int32(len(g.exprs))
+
+	for _, expr := range exprs {
+		s.schedule(s.exploreGroupExpr(expr, parent))
 	}
-
-	g.state = stateImplemented
 }
 
-func (s *search) implementGroupExpr(e *memoExpr) {
-	if e.state >= stateImplementing {
-		return
+func (s *search) exploreGroupExpr(e *memoExpr, parent *searchTask) *searchTask {
+	if len(e.children) == 0 {
+		s.scheduleExplorationTransforms(e, parent)
+		return nil
 	}
-	e.state = stateImplementing
 
-	// Implement children groups first.
+	t := newSearchTask(s, parent, func() {
+		s.scheduleExplorationTransforms(e, parent)
+	})
+
+	// Explore children groups.
 	for _, c := range e.children {
-		s.implementGroup(s.memo.groups[c])
+		s.exploreGroup(s.memo.groups[c], t)
 	}
-
-	// Apply implementation transformations.
-	for _, xid := range implementationXforms[e.op] {
-		s.transform(e, xid)
-	}
-
-	e.state = stateImplemented
+	return t
 }
 
-func (s *search) exploreGroup(g *memoGroup) {
-	if g == nil || g.state >= stateExploring {
-		return
-	}
-	g.state = stateExploring
-
-	// Explore each expression in the group.
-	for _, e := range g.exprs {
-		s.exploreGroupExpr(e)
-	}
-
-	g.state = stateExplored
-}
-
-func (s *search) exploreGroupExpr(e *memoExpr) {
-	if e.state >= stateExploring {
-		return
-	}
-	e.state = stateExploring
-
-	// Explore children groups first.
-	for _, c := range e.children {
-		s.exploreGroup(s.memo.groups[c])
-	}
-
-	// Apply exploration transformations.
+func (s *search) scheduleExplorationTransforms(e *memoExpr, parent *searchTask) {
 	for _, xid := range explorationXforms[e.op] {
-		s.transform(e, xid)
+		s.schedule(s.transform(e, xid, parent))
 	}
-
-	e.state = stateExplored
 }
 
-func (s *search) transform(e *memoExpr, xid xformID) {
-	xform := xforms[xid]
-	pattern := xform.pattern()
-	var results []*expr
-
-	for cursor := (*expr)(nil); ; {
-		cursor = s.memo.bind(e, pattern, cursor)
-		if cursor == nil {
-			break
-		}
-		if !xform.check(cursor) {
-			continue
-		}
-		results = xform.apply(cursor, results)
+func (s *search) scheduleImplementationTransforms(e *memoExpr, parent *searchTask) {
+	for _, xid := range implementationXforms[e.op] {
+		s.schedule(s.transform(e, xid, parent))
 	}
+}
 
-	// TODO(peter): Adding the expressions back to the memo might create more
-	// groups or add expressions to existing groups.
-	for _, r := range results {
-		// The group that the top-level expressions get added back to is required
-		// to be the source group.
-		r.loc = memoLoc{e.loc.group, -1}
-		s.memo.addExpr(r)
-	}
+func (s *search) transform(e *memoExpr, xid xformID, parent *searchTask) *searchTask {
+	t := newSearchTask(s, parent, func() {
+		xform := xforms[xid]
+		pattern := xform.pattern()
+		var results []*expr
+
+		for cursor := (*expr)(nil); ; {
+			cursor = s.memo.bind(e, pattern, cursor)
+			if cursor == nil {
+				break
+			}
+			if !xform.check(cursor) {
+				continue
+			}
+			results = xform.apply(cursor, results)
+		}
+
+		for _, r := range results {
+			// The group that the top-level expressions get added back to is required
+			// to be the source group.
+			r.loc = memoLoc{e.loc.group, -1}
+			s.memo.addExpr(r)
+			// Adding the expressions back to the memo might create more groups or
+			// add expressions to existing groups. Schedule the source group for
+			// exploration again.
+			s.exploreGroup(s.memo.groups[e.loc.group], parent)
+		}
+	})
+	return t
 }

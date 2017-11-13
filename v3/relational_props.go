@@ -174,17 +174,7 @@ func (p *relationalProps) fingerprint() string {
 	// format encoding columns and keys using varints might be faster and more
 	// compact.
 	var buf bytes.Buffer
-	buf.WriteString("[")
-	for i, col := range p.columns {
-		if i > 0 {
-			buf.WriteString(" ")
-		}
-		fmt.Fprintf(&buf, "%d", col.index)
-		if p.notNullCols.get(col.index) {
-			buf.WriteString("*")
-		}
-	}
-	buf.WriteString("]")
+	fmt.Fprintf(&buf, "[%s %s %s]", p.outputCols, p.outerCols, p.notNullCols)
 	if len(p.weakKeys) > 0 {
 		buf.WriteString(" [")
 		for i, key := range p.weakKeys {
