@@ -45,6 +45,12 @@ func (pattern) kind() operatorKind {
 	return relationalKind
 }
 
+func (pattern) layout() exprLayout {
+	return exprLayout{
+		numAux: 0,
+	}
+}
+
 func (pattern) format(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%s\n", spaces[level*2], e.op)
 }

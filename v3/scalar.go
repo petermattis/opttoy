@@ -83,7 +83,6 @@ func newFunctionExpr(private interface{}, children []*expr) *expr {
 func newUnaryExpr(op operator, input1 *expr) *expr {
 	e := &expr{
 		op:          op,
-		extra:       0,
 		children:    []*expr{input1},
 		scalarProps: &scalarProps{},
 	}
@@ -94,7 +93,6 @@ func newUnaryExpr(op operator, input1 *expr) *expr {
 func newBinaryExpr(op operator, input1, input2 *expr) *expr {
 	e := &expr{
 		op:          op,
-		extra:       0,
 		children:    []*expr{input1, input2},
 		scalarProps: &scalarProps{},
 	}
@@ -106,6 +104,12 @@ type scalar struct{}
 
 func (scalar) kind() operatorKind {
 	return scalarKind
+}
+
+func (scalar) layout() exprLayout {
+	return exprLayout{
+		numAux: 0,
+	}
 }
 
 func (scalar) format(e *expr, buf *bytes.Buffer, level int) {

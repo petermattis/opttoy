@@ -26,6 +26,12 @@ func (variable) kind() operatorKind {
 	return scalarKind
 }
 
+func (variable) layout() exprLayout {
+	return exprLayout{
+		numAux: 0,
+	}
+}
+
 func (variable) format(e *expr, buf *bytes.Buffer, level int) {
 	indent := spaces[:2*level]
 	fmt.Fprintf(buf, "%s%v (%s) [in=%s]",

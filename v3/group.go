@@ -11,7 +11,6 @@ func init() {
 func newGroupByExpr(input *expr) *expr {
 	return &expr{
 		op:       groupByOp,
-		extra:    3,
 		children: []*expr{input, nil /* grouping */, nil /* projection */, nil /* filter */},
 	}
 }
@@ -20,6 +19,15 @@ type groupBy struct{}
 
 func (groupBy) kind() operatorKind {
 	return relationalKind
+}
+
+func (groupBy) layout() exprLayout {
+	return exprLayout{
+		numAux:       3,
+		groupings:    1,
+		aggregations: 2,
+		filters:      3,
+	}
 }
 
 func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {

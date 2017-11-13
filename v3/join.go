@@ -16,7 +16,6 @@ func init() {
 func newJoinExpr(op operator, left, right *expr) *expr {
 	return &expr{
 		op:       op,
-		extra:    1,
 		children: []*expr{left, right, nil /* filter */},
 	}
 }
@@ -24,7 +23,6 @@ func newJoinExpr(op operator, left, right *expr) *expr {
 func newJoinPattern(op operator, left, right, filter *expr) *expr {
 	return &expr{
 		op:       op,
-		extra:    1,
 		children: []*expr{left, right, filter},
 	}
 }
@@ -33,6 +31,13 @@ type join struct{}
 
 func (join) kind() operatorKind {
 	return relationalKind
+}
+
+func (join) layout() exprLayout {
+	return exprLayout{
+		numAux:  1,
+		filters: 2,
+	}
 }
 
 func (join) format(e *expr, buf *bytes.Buffer, level int) {

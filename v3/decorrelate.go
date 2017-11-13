@@ -18,7 +18,6 @@ func maybeExpandExists(e *expr, filter, filterTop *expr) bool {
 
 	*e = expr{
 		op:       semiJoinOp,
-		extra:    1,
 		children: []*expr{&t, subquery, nil /* filter */},
 		props:    t.props,
 	}
@@ -89,7 +88,6 @@ func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 
 			*e = expr{
 				op:       innerJoinOp,
-				extra:    1,
 				children: []*expr{&t, &subquery, nil /* filter */},
 				props:    t.props,
 			}
@@ -148,7 +146,6 @@ func maybeDecorrelateProjection(e *expr) bool {
 		t := *e
 		*e = expr{
 			op:       projectOp,
-			extra:    2,
 			children: []*expr{&t, nil /* projection */, nil /* filter */},
 			props:    t.props,
 		}
@@ -210,7 +207,6 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		// apply expression.
 		*e = expr{
 			op:       projectOp,
-			extra:    2,
 			children: []*expr{g, nil /* projection */, nil /* filter */},
 			props:    e.props,
 		}

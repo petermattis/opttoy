@@ -11,7 +11,6 @@ func init() {
 func newOrderByExpr(input *expr) *expr {
 	return &expr{
 		op:       orderByOp,
-		extra:    0,
 		children: []*expr{input},
 	}
 }
@@ -20,6 +19,12 @@ type orderBy struct{}
 
 func (orderBy) kind() operatorKind {
 	return relationalKind
+}
+
+func (orderBy) layout() exprLayout {
+	return exprLayout{
+		numAux: 0,
+	}
 }
 
 func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {

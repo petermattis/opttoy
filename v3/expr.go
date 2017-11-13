@@ -5,25 +5,17 @@ import (
 	"fmt"
 )
 
-// Offsets of operator specific sub-expressions from the end of the
-// expr.children slice.
-const (
-	filterOffset      = 0
-	projectionOffset  = 1
-	aggregationOffset = 1
-	groupingOffset    = 2
-)
-
 // expr is a unified interface for both relational and scalar expressions in a
-// query. Expressions have optional inputs and filters. Specific operators also
-// maintain additional sub-expressions. In particular, projectOp stores the
-// projection expressions at projectionOffset from the end of the children
-// slice, groupByOp stores the grouping expressions at groupingOffset and the
-// aggregations aggregationOffset. All relational expressions store filters at
-// filterOffset.
+// query. Expressions have optional inputs. Specific operators also maintain
+// additional auxiliary sub-expressions. In particular, projectOp maintains the
+// projection expressions, groupByOp maintains the grouping and aggregation
+// expressions. All relational expressions maintain filters. The position of
+// these auxiliary expressions within expr.children is specified by an
+// exprLayout.
 //
-// Expressions contain a pointer to their relational properties. For scalar
-// expressions, the relational properties are nil.
+// Expressions maintain properties. For relational expressions the properties
+// are stored in expr.props. For scalar expressions the properties are stored
+// in expr.scalarProps.
 //
 // Every unique column and every projection (that is more than just a pass
 // through of a column) is given a column index within the query. The column
@@ -77,13 +69,9 @@ const (
 //      +----| scan a |
 //           +--------+
 type expr struct {
-	// NB: op, extran and apply are placed next to each other in order to reduce
-	// space wastage due to padding.
-	op operator
-	// The inputs, projections and filters are all stored in the children slice
-	// to minimize overhead. extra indicates how many of these extra expressions
-	// are present.
-	extra uint8
+	// NB: op and apply are placed next to each other in order to reduce space
+	// wastage due to padding.
+	op    operator
 	apply bool
 	// Location of the expression in the memo.
 	loc memoLoc
@@ -98,6 +86,18 @@ type expr struct {
 	// to the underlying table while constOp store a pointer to the constant
 	// value.
 	private interface{}
+}
+
+// exprLayout describe the layout of auxiliary children expressions. The layout
+// is operator specific and accessed via the operatorLayout table. It is
+// convention that the filters occupy the last auxiliary slot (i.e. the last
+// slot in expr.children).
+type exprLayout struct {
+	numAux       int
+	aggregations int
+	filters      int
+	groupings    int
+	projections  int
 }
 
 func (e *expr) String() string {
@@ -150,19 +150,11 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 	}
 }
 
-func (e *expr) inputCount() int {
-	return len(e.children) - int(e.extra)
-}
-
 func (e *expr) inputs() []*expr {
-	return e.children[:e.inputCount()]
+	return e.children[:len(e.children)-e.layout().numAux]
 }
 
-func (e *expr) aux(offset int) []*expr {
-	if int(e.extra) <= offset {
-		fatalf("%s: invalid use of auxiliary expression", e.op)
-	}
-	i := len(e.children) - 1 - offset
+func (e *expr) aux(i int) []*expr {
 	t := e.children[i : i+1]
 	if t[0] == nil {
 		return nil
@@ -173,12 +165,7 @@ func (e *expr) aux(offset int) []*expr {
 	return t
 }
 
-func (e *expr) addAux1(offset int, aux *expr) {
-	if int(e.extra) <= offset {
-		fatalf("%s: invalid use of auxiliary expression", e.op)
-	}
-
-	i := len(e.children) - 1 - offset
+func (e *expr) addAux1(i int, aux *expr) {
 	if t := e.children[i]; t == nil {
 		e.children[i] = aux
 	} else if t.op != listOp {
@@ -191,12 +178,7 @@ func (e *expr) addAux1(offset int, aux *expr) {
 	}
 }
 
-func (e *expr) addAuxN(offset int, aux []*expr) {
-	if int(e.extra) <= offset {
-		fatalf("%s: invalid use of auxiliary expression", e.op)
-	}
-
-	i := len(e.children) - 1 - offset
+func (e *expr) addAuxN(i int, aux []*expr) {
 	if t := e.children[i]; t == nil && len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else if t == nil {
@@ -216,12 +198,7 @@ func (e *expr) addAuxN(offset int, aux []*expr) {
 	}
 }
 
-func (e *expr) replaceAuxN(offset int, aux []*expr) {
-	if int(e.extra) <= offset {
-		fatalf("%s: invalid use of auxiliary expression", e.op)
-	}
-
-	i := len(e.children) - 1 - offset
+func (e *expr) replaceAuxN(i int, aux []*expr) {
 	if len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else {
@@ -232,20 +209,19 @@ func (e *expr) replaceAuxN(offset int, aux []*expr) {
 	}
 }
 
-func (e *expr) removeAux1(offset int, aux *expr) {
-	j := len(e.children) - 1 - offset
+func (e *expr) removeAux1(j int, aux *expr) {
 	if e.children[j] == aux {
 		e.children[j] = nil
 		return
 	}
 
-	exprs := e.aux(offset)
+	exprs := e.aux(j)
 	for i := range exprs {
 		if exprs[i] == aux {
 			copy(exprs[i:], exprs[i+1:])
 			exprs = exprs[:len(exprs)-1]
 			if len(exprs) == 0 {
-				e.removeAuxN(offset)
+				e.removeAuxN(j)
 			}
 			return
 		}
@@ -253,13 +229,12 @@ func (e *expr) removeAux1(offset int, aux *expr) {
 	fatalf("expression not found!")
 }
 
-func (e *expr) removeAuxN(offset int) {
-	i := len(e.children) - 1 - offset
+func (e *expr) removeAuxN(i int) {
 	e.children[i] = nil
 }
 
 func (e *expr) filters() []*expr {
-	return e.aux(filterOffset)
+	return e.aux(e.layout().filters)
 }
 
 func (e *expr) addFilter(f *expr) {
@@ -273,7 +248,7 @@ func (e *expr) addFilter(f *expr) {
 		return
 	}
 
-	e.addAux1(filterOffset, f)
+	e.addAux1(e.layout().filters, f)
 }
 
 func (e *expr) addFilters(filters []*expr) {
@@ -283,64 +258,43 @@ func (e *expr) addFilters(filters []*expr) {
 }
 
 func (e *expr) removeFilter(f *expr) {
-	e.removeAux1(filterOffset, f)
+	e.removeAux1(e.layout().filters, f)
 }
 
 func (e *expr) removeFilters() {
-	e.removeAuxN(filterOffset)
+	e.removeAuxN(e.layout().filters)
 }
 
 func (e *expr) replaceFilters(filters []*expr) {
-	e.replaceAuxN(filterOffset, filters)
+	e.replaceAuxN(e.layout().filters, filters)
 }
 
 func (e *expr) projections() []*expr {
-	if e.op != projectOp {
-		fatalf("%s: invalid use of projections", e.op)
-	}
-	return e.aux(projectionOffset)
+	return e.aux(e.layout().projections)
 }
 
 func (e *expr) addProjections(exprs []*expr) {
-	if e.op != projectOp {
-		fatalf("%s: invalid use of projections", e.op)
-	}
-	e.addAuxN(projectionOffset, exprs)
+	e.addAuxN(e.layout().projections, exprs)
 }
 
 func (e *expr) groupings() []*expr {
-	if e.op != groupByOp {
-		fatalf("%s: invalid use of groupings", e.op)
-	}
-	return e.aux(groupingOffset)
+	return e.aux(e.layout().groupings)
 }
 
 func (e *expr) addGroupings(exprs []*expr) {
-	if e.op != groupByOp {
-		fatalf("%s: invalid use of groupings", e.op)
-	}
-	e.addAuxN(groupingOffset, exprs)
+	e.addAuxN(e.layout().groupings, exprs)
 }
 
 func (e *expr) aggregations() []*expr {
-	if e.op != groupByOp {
-		fatalf("%s: invalid use of aggregations", e.op)
-	}
-	return e.aux(aggregationOffset)
+	return e.aux(e.layout().aggregations)
 }
 
 func (e *expr) addAggregation(a *expr) {
-	if e.op != groupByOp {
-		fatalf("%s: invalid use of aggregations", e.op)
-	}
-	e.addAux1(aggregationOffset, a)
+	e.addAux1(e.layout().aggregations, a)
 }
 
 func (e *expr) addAggregations(exprs []*expr) {
-	if e.op != groupByOp {
-		fatalf("%s: invalid use of aggregations", e.op)
-	}
-	e.addAuxN(aggregationOffset, exprs)
+	e.addAuxN(e.layout().aggregations, exprs)
 }
 
 func (e *expr) setApply() {
@@ -361,6 +315,10 @@ func (e *expr) isRelational() bool {
 
 func (e *expr) isScalar() bool {
 	return e.info().kind() == scalarKind
+}
+
+func (e *expr) layout() exprLayout {
+	return operatorLayout[e.op]
 }
 
 func (e *expr) info() operatorInfo {

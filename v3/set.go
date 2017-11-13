@@ -13,7 +13,6 @@ func init() {
 func newSetExpr(op operator, input1, input2 *expr) *expr {
 	return &expr{
 		op:       op,
-		extra:    1,
 		children: []*expr{input1, input2, nil /* filter */},
 	}
 }
@@ -22,6 +21,13 @@ type union struct{}
 
 func (union) kind() operatorKind {
 	return relationalKind
+}
+
+func (union) layout() exprLayout {
+	return exprLayout{
+		numAux:  1,
+		filters: 2,
+	}
 }
 
 func (union) format(e *expr, buf *bytes.Buffer, level int) {

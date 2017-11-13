@@ -47,7 +47,6 @@ type memoExpr struct {
 	state    searchState
 	loc      memoLoc
 	op       operator
-	extra    uint8
 	apply    bool
 	children []int32
 	private  interface{}
@@ -203,7 +202,6 @@ func (m *memo) addExpr(e *expr) int32 {
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
 		op:       e.op,
-		extra:    e.extra,
 		apply:    e.apply,
 		loc:      e.loc,
 		children: make([]int32, len(e.children)),
@@ -277,7 +275,6 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 		initChildren = true
 	}
 	cursor.op = e.op
-	cursor.extra = e.extra
 	cursor.apply = e.apply
 	cursor.loc = e.loc
 	cursor.private = e.private

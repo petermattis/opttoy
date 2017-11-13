@@ -11,7 +11,6 @@ func init() {
 func newRenameExpr(input *expr) *expr {
 	return &expr{
 		op:       renameOp,
-		extra:    1,
 		children: []*expr{input, nil /* filter */},
 	}
 }
@@ -20,6 +19,13 @@ type rename struct{}
 
 func (rename) kind() operatorKind {
 	return relationalKind
+}
+
+func (rename) layout() exprLayout {
+	return exprLayout{
+		numAux:  1,
+		filters: 1,
+	}
 }
 
 func (rename) format(e *expr, buf *bytes.Buffer, level int) {

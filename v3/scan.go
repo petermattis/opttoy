@@ -11,7 +11,6 @@ func init() {
 func newScanExpr(tab *table) *expr {
 	return &expr{
 		op:       scanOp,
-		extra:    1,
 		children: []*expr{nil /* filter */},
 		private:  tab,
 	}
@@ -21,6 +20,13 @@ type scan struct{}
 
 func (scan) kind() operatorKind {
 	return relationalKind
+}
+
+func (scan) layout() exprLayout {
+	return exprLayout{
+		numAux:  1,
+		filters: 0,
+	}
 }
 
 func (scan) format(e *expr, buf *bytes.Buffer, level int) {

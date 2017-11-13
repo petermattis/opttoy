@@ -11,7 +11,6 @@ func init() {
 func newProjectExpr(input *expr) *expr {
 	return &expr{
 		op:       projectOp,
-		extra:    2,
 		children: []*expr{input, nil /* projection */, nil /* filter */},
 	}
 }
@@ -20,6 +19,14 @@ type project struct{}
 
 func (project) kind() operatorKind {
 	return relationalKind
+}
+
+func (project) layout() exprLayout {
+	return exprLayout{
+		numAux:      2,
+		projections: 1,
+		filters:     2,
+	}
 }
 
 func (project) format(e *expr, buf *bytes.Buffer, level int) {
