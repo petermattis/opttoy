@@ -34,7 +34,7 @@ func (c columnProps) hasColumn(tableName, colName string) bool {
 	return c.table == tableName
 }
 
-func (c columnProps) newVariableExpr(tableName string, props *relationalProps) *expr {
+func (c columnProps) newVariableExpr(tableName string) *expr {
 	if tableName == "" {
 		tableName = c.table
 	}
@@ -211,22 +211,23 @@ func (p *relationalProps) fingerprint() string {
 	return buf.String()
 }
 
-func (p *relationalProps) newColumnExpr(name string) *expr {
-	for _, col := range p.columns {
+func (p *relationalProps) findColumn(name string) *columnProps {
+	for i := range p.columns {
+		col := &p.columns[i]
 		if col.name == name {
-			return col.newVariableExpr(col.table, p)
+			return col
 		}
 	}
 	return nil
 }
 
-func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
-	for _, col := range p.columns {
+func (p *relationalProps) findColumnByIndex(index bitmapIndex) *columnProps {
+	for i := range p.columns {
+		col := &p.columns[i]
 		if col.index == index {
-			return col.newVariableExpr(col.table, p)
+			return col
 		}
 	}
-	fatalf("unable to find column index %d", index)
 	return nil
 }
 

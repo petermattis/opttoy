@@ -255,24 +255,16 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 		name := string(name)
 		joined[name] = struct{}{}
 		// For every adjacent pair of tables, add an equality predicate.
-		for i := 1; i < len(inputs); i++ {
-			left := inputs[i-1].props.newColumnExpr(name)
-			if left == nil {
-				fatalf("unable to resolve name %s", name)
-			}
-			right := inputs[i].props.newColumnExpr(name)
-			if right == nil {
-				fatalf("unable to resolve name %s", name)
-			}
-			e.addFilter(newBinaryExpr(eqOp, left, right))
+		leftCol := left.findColumn(name)
+		if leftCol == nil {
+			fatalf("unable to resolve name %s", name)
 		}
-
-		for _, col := range left.columns {
-			if col.name == name {
-				e.props.columns = append(e.props.columns, col)
-				break
-			}
+		rightCol := right.findColumn(name)
+		if rightCol == nil {
+			fatalf("unable to resolve name %s", name)
 		}
+		e.addFilter(newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr("")))
+		e.props.columns = append(e.props.columns, *leftCol)
 	}
 
 	for _, col := range left.columns {
@@ -472,7 +464,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 		for i, a := range g.aggregations() {
 			if a.equal(e) {
 				col := g.props.columns[i+len(g.inputs()[0].props.columns)]
-				*e = *col.newVariableExpr("", g.props)
+				*e = *col.newVariableExpr("")
 				return true
 			}
 		}
@@ -487,7 +479,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 			index: index,
 			name:  name,
 		})
-		*e = *g.props.columns[len(g.props.columns)-1].newVariableExpr("", g.props)
+		*e = *g.props.columns[len(g.props.columns)-1].newVariableExpr("")
 		return true
 	}
 
@@ -507,7 +499,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		var projections []*expr
 		for _, col := range scope.props.columns {
 			if !col.hidden {
-				projections = append(projections, col.newVariableExpr("", scope.props))
+				projections = append(projections, col.newVariableExpr(""))
 			}
 		}
 		if len(projections) == 0 {
@@ -520,7 +512,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		var projections []*expr
 		for _, col := range scope.props.columns {
 			if !col.hidden && col.table == tableName {
-				projections = append(projections, col.newVariableExpr(tableName, scope.props))
+				projections = append(projections, col.newVariableExpr(tableName))
 			}
 		}
 		if len(projections) == 0 {
@@ -628,7 +620,7 @@ func buildDistinct(input *expr, distinct bool, scope *scope) (*expr, *scope) {
 
 	exprs := make([]*expr, 0, len(input.props.columns))
 	for _, col := range input.props.columns {
-		exprs = append(exprs, col.newVariableExpr("", input.props))
+		exprs = append(exprs, col.newVariableExpr(""))
 	}
 	result.addGroupings(exprs)
 

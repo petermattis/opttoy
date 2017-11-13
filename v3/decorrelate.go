@@ -66,7 +66,7 @@ func maybeExpandFilter(e *expr, filter, filterTop *expr) bool {
 			// filter with a variable. Note that the subquery must have a single
 			// output column in order to be usable in this context.
 			subquery := *input
-			*input = *subquery.props.columns[0].newVariableExpr("", subquery.props)
+			*input = *subquery.props.columns[0].newVariableExpr("")
 			updateProps(filterTop)
 
 			// Replace "e" with an inner join apply expression where the left child
@@ -198,7 +198,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 
 		groupings := make([]*expr, 0, len(left.props.columns))
 		for _, col := range left.props.columns {
-			groupings = append(groupings, col.newVariableExpr(col.table, left.props))
+			groupings = append(groupings, col.newVariableExpr(col.table))
 		}
 		g.addGroupings(groupings)
 		g.addFilters(e.filters())
@@ -213,7 +213,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		}
 		projections := make([]*expr, 0, len(e.props.columns))
 		for _, col := range e.props.columns {
-			projections = append(projections, col.newVariableExpr(col.table, e.props))
+			projections = append(projections, col.newVariableExpr(col.table))
 		}
 		e.addProjections(projections)
 		e.initProps()

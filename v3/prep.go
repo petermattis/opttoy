@@ -48,7 +48,8 @@ func inferEquivFilters(e *expr) {
 				if filterCol == i {
 					continue
 				}
-				replacement := e.props.newColumnExprByIndex(i)
+
+				replacement := e.props.findColumnByIndex(i).newVariableExpr("")
 				newFilter := substitute(filter, filterInputCols, replacement)
 				inferredFilters = append(inferredFilters, newFilter)
 			}
@@ -96,7 +97,7 @@ func inferNotNullFilters(e *expr) {
 		v.clear(i)
 
 		newFilter := newBinaryExpr(isNotOp,
-			e.props.newColumnExprByIndex(i),
+			e.props.findColumnByIndex(i).newVariableExpr(""),
 			newConstExpr(tree.DNull))
 		newFilter.updateProps()
 		e.addFilter(newFilter)
