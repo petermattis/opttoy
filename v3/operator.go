@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type operator int16
+type operator uint8
 
 const (
 	unknownOp operator = iota

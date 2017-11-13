@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type searchState int32
+type searchState uint8
 
 var searchStateName = [...]string{
 	stateUnexplored:   "unexplored",
@@ -44,8 +44,8 @@ func (l memoLoc) String() string {
 }
 
 type memoExpr struct {
-	state    searchState
 	loc      memoLoc
+	state    searchState
 	op       operator
 	children []int32
 	private  interface{}
