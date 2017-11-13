@@ -48,17 +48,9 @@ func inferEquivFilters(e *expr) {
 				if filterCol == i {
 					continue
 				}
-				// TODO(peter): We should be able to generate the replacement from
-				// e.props, but natural and using joins currently don't output all of
-				// their input columns which is a mistake.
-				for _, input := range e.inputs() {
-					if input.props.outputCols.get(i) {
-						replacement := input.props.newColumnExprByIndex(i)
-						newFilter := substitute(filter, filterInputCols, replacement)
-						inferredFilters = append(inferredFilters, newFilter)
-						break
-					}
-				}
+				replacement := e.props.newColumnExprByIndex(i)
+				newFilter := substitute(filter, filterInputCols, replacement)
+				inferredFilters = append(inferredFilters, newFilter)
 			}
 		}
 	}
@@ -103,16 +95,10 @@ func inferNotNullFilters(e *expr) {
 		i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 		v.clear(i)
 
-		// TODO(peter): See comment in inferEquivFilters(). We should be able to
-		// generate from e.props, but currently we can't.
-		for _, input := range e.inputs() {
-			if input.props.outputCols.get(i) {
-				newFilter := newBinaryExpr(isNotOp,
-					input.props.newColumnExprByIndex(i),
-					newConstExpr(tree.DNull))
-				newFilter.updateProps()
-				e.addFilter(newFilter)
-			}
-		}
+		newFilter := newBinaryExpr(isNotOp,
+			e.props.newColumnExprByIndex(i),
+			newConstExpr(tree.DNull))
+		newFilter.updateProps()
+		e.addFilter(newFilter)
 	}
 }

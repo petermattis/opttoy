@@ -41,6 +41,10 @@ project
       key: 0
       foreign key: 1 -> 4
       filters:
+        comp (IS NOT) [in=0]
+          inputs:
+            variable (e.emp_id) [in=0]
+            const (NULL)
         comp (IS NOT) [in=1]
           inputs:
             variable (e.dept_id) [in=1]
@@ -62,6 +66,10 @@ project
       key: 2
       foreign key: 3 -> 0
       filters:
+        comp (IS NOT) [in=2]
+          inputs:
+            variable (e.emp_id) [in=2]
+            const (NULL)
         comp (!=) [in=3]
           inputs:
             variable (e.dept_id) [in=3]
@@ -92,6 +100,10 @@ project
           key: 0
           foreign key: 1 -> 4
           filters:
+            comp (IS NOT) [in=0]
+              inputs:
+                variable (e.emp_id) [in=0]
+                const (NULL)
             comp (IS NOT) [in=1]
               inputs:
                 variable (e.dept_id) [in=1]
@@ -99,3 +111,8 @@ project
         scan
           columns: d.dept_id:4* d.name:5
           key: 4
+          filters:
+            comp (IS NOT) [in=4]
+              inputs:
+                variable (d.dept_id) [in=4]
+                const (NULL)
