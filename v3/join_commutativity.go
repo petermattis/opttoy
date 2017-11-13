@@ -16,8 +16,8 @@ func (joinCommutativity) pattern() *expr {
 	return &expr{
 		op: innerJoinOp,
 		children: []*expr{
-			nil,         /* left */
-			nil,         /* right */
+			patternLeaf, /* left */
+			patternLeaf, /* right */
 			patternTree, /* filter */
 		},
 	}

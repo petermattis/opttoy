@@ -19,12 +19,12 @@ func (joinAssociativity) pattern() *expr {
 			&expr{ /* left */
 				op: innerJoinOp,
 				children: []*expr{
-					nil,         /* left */
-					nil,         /* right */
+					patternLeaf, /* left */
+					patternLeaf, /* right */
 					patternTree, /* filter */
 				},
 			},
-			nil,         /* right */
+			patternLeaf, /* right */
 			patternTree, /* filter */
 		},
 	}

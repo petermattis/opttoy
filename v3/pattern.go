@@ -37,6 +37,7 @@ func init() {
 	registerOperator(patternOp, "pattern", pattern{})
 }
 
+var patternLeaf = &expr{}
 var patternTree = &expr{op: patternOp}
 
 type pattern struct{}
@@ -70,7 +71,7 @@ func isPatternOp(pattern *expr) bool {
 }
 
 func isPatternLeaf(pattern *expr) bool {
-	return pattern == nil
+	return pattern == patternLeaf
 }
 
 func isPatternTree(pattern *expr) bool {
