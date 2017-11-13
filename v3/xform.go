@@ -79,7 +79,7 @@ var implementationXforms = [numOperators][]xformID{}
 
 func registerXform(xform xform) {
 	p := xform.pattern()
-	if isPatternOp(p) {
+	if isPatternExpr(p) {
 		fatalf("patterns need to be rooted in a non-pattern operator: %s", p)
 	}
 

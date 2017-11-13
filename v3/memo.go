@@ -52,7 +52,7 @@ type memoExpr struct {
 }
 
 func (e *memoExpr) match(pattern *expr) bool {
-	return isPatternOp(pattern) || pattern.op == e.op
+	return isPatternExpr(pattern) || pattern.op == e.op
 }
 
 // fingerprint returns a string which uniquely identifies the expression within
@@ -302,7 +302,7 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 					// Pattern failed to match.
 					return nil
 				}
-			} else if !isPatternOp(pattern) {
+			} else if !isPatternExpr(pattern) {
 				// No child present and pattern failed to match.
 				return nil
 			}

@@ -94,9 +94,6 @@ const (
 
 	functionOp
 
-	// Pattern operator
-	patternOp
-
 	numOperators
 )
 
