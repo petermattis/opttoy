@@ -113,7 +113,6 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 				columns: make([]columnProps, 0, len(tab.columns)),
 			}
 
-			tables := []string{string(source.As.Alias)}
 			for i, col := range tab.columns {
 				name := col.name
 				if i < len(source.As.Cols) {
@@ -121,9 +120,9 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 				}
 
 				result.props.columns = append(result.props.columns, columnProps{
-					index:  col.index,
-					name:   name,
-					tables: tables,
+					index: col.index,
+					name:  name,
+					table: string(source.As.Alias),
 				})
 			}
 
@@ -182,13 +181,12 @@ func buildScan(tab *table, scope *scope) *expr {
 		state.nextVar += bitmapIndex(len(tab.columns))
 	}
 
-	tables := []string{tab.name}
 	for i, col := range tab.columns {
 		index := base + bitmapIndex(i)
 		props.columns = append(props.columns, columnProps{
-			index:  index,
-			name:   col.name,
-			tables: tables,
+			index: index,
+			name:  col.name,
+			table: tab.name,
 		})
 	}
 
@@ -326,8 +324,8 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 		for s := scope; s != nil; s = s.parent {
 			for _, col := range s.props.columns {
 				if col.hasColumn(tableName, colName) {
-					if tableName == "" && len(col.tables) > 0 {
-						t.TableName.TableName = tree.Name(col.tables[0])
+					if tableName == "" && col.table != "" {
+						t.TableName.TableName = tree.Name(col.table)
 						t.TableName.DBNameOriginallyOmitted = true
 					}
 					return newVariableExpr(t.String(), col.index)
@@ -521,7 +519,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		tableName := t.TableName.Table()
 		var projections []*expr
 		for _, col := range scope.props.columns {
-			if col.hasTable(tableName) && !col.hidden {
+			if !col.hidden && col.table == tableName {
 				projections = append(projections, col.newVariableExpr(tableName, scope.props))
 			}
 		}
@@ -572,7 +570,7 @@ func buildProjections(
 			}
 
 			name := string(sexpr.As)
-			var tables []string
+			var table string
 
 			var index bitmapIndex
 			if p.op != variableOp {
@@ -592,16 +590,16 @@ func buildProjections(
 						} else {
 							passthru = false
 						}
-						tables = col.tables
+						table = col.table
 						break
 					}
 				}
 			}
 
 			result.props.columns = append(result.props.columns, columnProps{
-				index:  index,
-				name:   name,
-				tables: tables,
+				index: index,
+				name:  name,
+				table: table,
 			})
 		}
 	}

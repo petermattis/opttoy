@@ -19,7 +19,7 @@ type queryState struct {
 
 type columnProps struct {
 	name   string
-	tables []string
+	table  string
 	index  bitmapIndex
 	hidden bool
 }
@@ -31,23 +31,12 @@ func (c columnProps) hasColumn(tableName, colName string) bool {
 	if tableName == "" {
 		return true
 	}
-	return c.hasTable(tableName)
-}
-
-func (c columnProps) hasTable(tableName string) bool {
-	for _, t := range c.tables {
-		if t == tableName {
-			return true
-		}
-	}
-	return false
+	return c.table == tableName
 }
 
 func (c columnProps) newVariableExpr(tableName string, props *relationalProps) *expr {
 	if tableName == "" {
-		if len(c.tables) > 0 {
-			tableName = c.tables[0]
-		}
+		tableName = c.table
 	}
 	col := &tree.ColumnItem{
 		TableName: tree.TableName{
@@ -156,18 +145,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
-		if tables := col.tables; len(tables) > 1 {
-			buf.WriteString("{")
-			for j, table := range tables {
-				if j > 0 {
-					buf.WriteString(",")
-				}
-				buf.WriteString(table)
-			}
-			buf.WriteString("}")
-		} else if len(tables) == 1 {
-			buf.WriteString(tables[0])
-		}
+		buf.WriteString(col.table)
 		buf.WriteString(".")
 		buf.WriteString(col.name)
 		buf.WriteString(":")
@@ -236,7 +214,7 @@ func (p *relationalProps) fingerprint() string {
 func (p *relationalProps) newColumnExpr(name string) *expr {
 	for _, col := range p.columns {
 		if col.name == name {
-			return col.newVariableExpr(col.tables[0], p)
+			return col.newVariableExpr(col.table, p)
 		}
 	}
 	return nil
@@ -245,7 +223,7 @@ func (p *relationalProps) newColumnExpr(name string) *expr {
 func (p *relationalProps) newColumnExprByIndex(index bitmapIndex) *expr {
 	for _, col := range p.columns {
 		if col.index == index {
-			return col.newVariableExpr(col.tables[0], p)
+			return col.newVariableExpr(col.table, p)
 		}
 	}
 	fatalf("unable to find column index %d", index)

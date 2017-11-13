@@ -198,7 +198,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 
 		groupings := make([]*expr, 0, len(left.props.columns))
 		for _, col := range left.props.columns {
-			groupings = append(groupings, col.newVariableExpr(col.tables[0], left.props))
+			groupings = append(groupings, col.newVariableExpr(col.table, left.props))
 		}
 		g.addGroupings(groupings)
 		g.addFilters(e.filters())
@@ -213,7 +213,7 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 		}
 		projections := make([]*expr, 0, len(e.props.columns))
 		for _, col := range e.props.columns {
-			projections = append(projections, col.newVariableExpr(col.tables[0], e.props))
+			projections = append(projections, col.newVariableExpr(col.table, e.props))
 		}
 		e.addProjections(projections)
 		e.initProps()
