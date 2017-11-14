@@ -44,7 +44,3 @@ func (variable) initKeys(e *expr, state *queryState) {
 
 func (variable) updateProps(e *expr) {
 }
-
-func (variable) requiredInputCols(e *expr) bitmap {
-	return 0
-}

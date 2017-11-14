@@ -49,7 +49,3 @@ func (r rename) updateProps(e *expr) {
 
 	// TODO(peter): update keys
 }
-
-func (rename) requiredInputCols(e *expr) bitmap {
-	return e.providedInputCols()
-}

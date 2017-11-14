@@ -49,7 +49,7 @@ func (j join) updateProps(e *expr) {
 	}
 
 	e.props.joinDepth = 1
-	e.props.outerCols = j.requiredInputCols(e)
+	e.props.outerCols = e.requiredInputCols()
 	e.props.outerCols &^= (e.props.outputCols | e.providedInputCols())
 	for _, input := range e.inputs() {
 		e.props.outerCols.unionWith(input.props.outerCols)
@@ -59,14 +59,6 @@ func (j join) updateProps(e *expr) {
 	e.props.applyFilters(e.filters())
 
 	// TODO(peter): update keys
-}
-
-func (join) requiredInputCols(e *expr) bitmap {
-	var v bitmap
-	for _, filter := range e.filters() {
-		v.unionWith(filter.scalarInputCols())
-	}
-	return v
 }
 
 func joinOp(s string) operator {

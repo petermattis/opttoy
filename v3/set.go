@@ -51,7 +51,3 @@ func (u union) updateProps(e *expr) {
 
 	// TODO(peter): update keys
 }
-
-func (union) requiredInputCols(e *expr) bitmap {
-	return e.providedInputCols()
-}

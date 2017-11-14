@@ -40,8 +40,3 @@ func (orderBy) initKeys(e *expr, state *queryState) {
 func (orderBy) updateProps(e *expr) {
 	unimplemented("%s.updateProperties", e.op)
 }
-
-func (orderBy) requiredInputCols(e *expr) bitmap {
-	unimplemented("%s.requiredInputCols", e.op)
-	return 0
-}

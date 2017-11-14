@@ -353,7 +353,21 @@ func (e *expr) requiredFilterCols() bitmap {
 }
 
 func (e *expr) requiredInputCols() bitmap {
-	return e.info().requiredInputCols(e)
+	exprs := e.children[len(e.inputs()):]
+	var v bitmap
+	for _, e := range exprs {
+		if e == nil {
+			continue
+		}
+		if e.op == listOp {
+			for _, c := range e.children {
+				v.unionWith(c.scalarInputCols())
+			}
+		} else {
+			v.unionWith(e.scalarInputCols())
+		}
+	}
+	return v
 }
 
 func (e *expr) providedInputCols() bitmap {

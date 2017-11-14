@@ -139,10 +139,6 @@ func (s scalar) updateProps(e *expr) {
 	}
 }
 
-func (scalar) requiredInputCols(e *expr) bitmap {
-	return e.providedInputCols()
-}
-
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	if e.op == variableOp && e.scalarInputCols() == columns {
 		return replacement

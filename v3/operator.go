@@ -118,10 +118,6 @@ type operatorInfo interface {
 	// Update the logical properties based on the internal state of the
 	// expression.
 	updateProps(e *expr)
-
-	// Required input columns is the set of input columns that the expression
-	// requires.
-	requiredInputCols(e *expr) bitmap
 }
 
 var (
