@@ -7,6 +7,7 @@ import (
 )
 
 // TODO(peter):
+// - Column numbering pass
 // - Normalize filters
 func prep(e *expr) {
 	trimOutputCols(e, e.props.outputCols)

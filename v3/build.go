@@ -2,7 +2,6 @@ package v3
 
 import (
 	"fmt"
-	"math/bits"
 
 	_ "github.com/cockroachdb/cockroach/pkg/sql/sem/builtins"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -120,9 +119,9 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 				}
 
 				result.props.columns = append(result.props.columns, columnProps{
-					index: col.index,
 					name:  name,
 					table: string(source.As.Alias),
+					index: col.index,
 				})
 			}
 
@@ -320,7 +319,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 						t.TableName.TableName = tree.Name(col.table)
 						t.TableName.DBNameOriginallyOmitted = true
 					}
-					return newVariableExpr(t.String(), col.index)
+					return col.newVariableExpr("")
 				}
 			}
 		}
@@ -562,37 +561,32 @@ func buildProjections(
 			}
 
 			name := string(sexpr.As)
-			var table string
-
-			var index bitmapIndex
 			if p.op != variableOp {
-				index = scope.state.nextVar
+				passthru = false
+				index := scope.state.nextVar
 				scope.state.nextVar++
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
 				p.scalarProps.definedCols.set(index)
+				result.props.columns = append(result.props.columns, columnProps{
+					index: index,
+					name:  name,
+				})
 			} else {
-				index = bitmapIndex(bits.TrailingZeros64(uint64(p.scalarInputCols())))
-				for j, col := range input.props.columns {
-					if index == col.index {
-						if name == "" {
-							name = col.name
-							passthru = passthru && j == len(result.props.columns)
-						} else {
-							passthru = false
-						}
-						table = col.table
+				col := p.private.(columnProps)
+				for j := range input.props.columns {
+					if col == input.props.columns[j] {
+						passthru = passthru && j == len(result.props.columns)
 						break
 					}
 				}
+				if name != "" {
+					col.name = name
+					passthru = false
+				}
+				result.props.columns = append(result.props.columns, col)
 			}
-
-			result.props.columns = append(result.props.columns, columnProps{
-				index: index,
-				name:  name,
-				table: table,
-			})
 		}
 	}
 

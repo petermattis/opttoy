@@ -24,6 +24,13 @@ type columnProps struct {
 	hidden bool
 }
 
+func (c columnProps) String() string {
+	if c.table == "" {
+		return tree.Name(c.name).String()
+	}
+	return fmt.Sprintf("%s.%s", tree.Name(c.table), tree.Name(c.name))
+}
+
 func (c columnProps) hasColumn(tableName, colName string) bool {
 	if colName != c.name {
 		return false
@@ -35,18 +42,10 @@ func (c columnProps) hasColumn(tableName, colName string) bool {
 }
 
 func (c columnProps) newVariableExpr(tableName string) *expr {
-	if tableName == "" {
-		tableName = c.table
+	if tableName != "" {
+		c.table = tableName
 	}
-	col := &tree.ColumnItem{
-		TableName: tree.TableName{
-			TableName:               tree.Name(tableName),
-			DBNameOriginallyOmitted: true,
-		},
-		ColumnName: tree.Name(c.name),
-	}
-
-	return newVariableExpr(col.String(), c.index)
+	return newVariableExpr(c, c.index)
 }
 
 type foreignKeyProps struct {
