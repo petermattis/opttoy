@@ -53,6 +53,7 @@ func (p *planner) build(stmt tree.Statement) *expr {
 		props: &relationalProps{},
 		state: state,
 	})
+	updateProps(e)
 	initKeys(e, state)
 	return e
 }

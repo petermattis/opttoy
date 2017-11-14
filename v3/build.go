@@ -419,7 +419,6 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 
 	if where != nil {
 		result.addFilter(buildScalar(where.Expr, scope))
-		result.updateProps()
 	}
 
 	return result, scope

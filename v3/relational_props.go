@@ -266,8 +266,10 @@ func initKeys(e *expr, state *queryState) {
 }
 
 func updateProps(e *expr) {
-	for _, input := range e.inputs() {
-		updateProps(input)
+	for _, child := range e.children {
+		if child != nil {
+			updateProps(child)
+		}
 	}
 	e.updateProps()
 }
