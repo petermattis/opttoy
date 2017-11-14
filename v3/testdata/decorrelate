@@ -15,7 +15,7 @@ table b
 decorrelate
 SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
-semi-join
+semi-join [out=0-1]
   columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
@@ -23,15 +23,15 @@ semi-join
         variable (a.x) [in=0]
         variable (b.x) [in=2]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0* a.y:1
-    scan
+    scan [out=2-3]
       columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE EXISTS (SELECT 1 FROM b WHERE a.x = b.x)
 ----
-semi-join
+semi-join [out=0-1]
   columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
@@ -39,15 +39,15 @@ semi-join
         variable (a.x) [in=0]
         variable (b.x) [in=2]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0* a.y:1
-    scan
+    scan [out=2-3]
       columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE NOT EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
-anti-join
+anti-join [out=0-1]
   columns: a.x:0* a.y:1
   filters:
     comp (=) [in=0,2]
@@ -55,15 +55,15 @@ anti-join
         variable (a.x) [in=0]
         variable (b.x) [in=2]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0* a.y:1
-    scan
+    scan [out=2-3]
       columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a, (SELECT * FROM b WHERE a.x = b.x)
 ----
-inner join
+inner join [out=0-3]
   columns: a.x:0* a.y:1 b.x:2* b.z:3
   filters:
     comp (=) [in=0,2]
@@ -71,18 +71,18 @@ inner join
         variable (a.x) [in=0]
         variable (b.x) [in=2]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
-    scan
+    scan [out=2-3]
       columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a, (SELECT b.x FROM b WHERE a.x = b.x)
 ----
-project
+project [out=0-2]
   columns: a.x:0* a.y:1 b.x:2*
   inputs:
-    inner join
+    inner join [out=0-2]
       columns: a.x:0* a.y:1 b.x:2*
       filters:
         comp (=) [in=0,2]
@@ -90,21 +90,21 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2* b.z:3
 
 decorrelate
 SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
 ----
-project
+project [out=0-1]
   columns: a.x:0 a.y:1
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
-    groupBy
+    groupBy [out=0-1,4]
       columns: a.x:0 a.y:1 .column1:4*
       groupings:
         variable (a.x) [in=0]
@@ -119,7 +119,7 @@ project
             const (1000000)
             variable (column1) [in=4]
       inputs:
-        left join
+        left join [out=0-3]
           columns: a.x:0* a.y:1 b.x:2* b.z:3
           filters:
             comp (=) [in=0,2]
@@ -127,7 +127,7 @@ project
                 variable (a.x) [in=0]
                 variable (b.x) [in=2]
           inputs:
-            scan
+            scan [out=0-1]
               columns: a.x:0 a.y:1
-            scan
+            scan [out=2-3]
               columns: b.x:2* b.z:3

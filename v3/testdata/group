@@ -8,70 +8,70 @@ table a
 build
 SELECT y FROM a GROUP BY x
 ----
-project
+project [out=1]
   columns: a.y:1
   projections:
     variable (a.y) [in=1]
   inputs:
-    groupBy
+    groupBy [out=0-1]
       columns: a.x:0 a.y:1
       groupings:
         variable (a.x) [in=0]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
 
 build
 SELECT y FROM a GROUP BY y, x
 ----
-project
+project [out=1]
   columns: a.y:1
   projections:
     variable (a.y) [in=1]
   inputs:
-    groupBy
+    groupBy [out=0-1]
       columns: a.x:0 a.y:1
       groupings:
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
 
 build
 SELECT DISTINCT * FROM a
 ----
-groupBy
+groupBy [out=0-1]
   columns: a.x:0 a.y:1
   groupings:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT COUNT(*) FROM a
 ----
-groupBy
+groupBy [out=2]
   columns: .column1:2
   aggregations:
     func (count)
       inputs:
         const (1)
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT COUNT(*) FROM a GROUP BY x
 ----
-project
+project [out=2]
   columns: .column3:2
   projections:
     variable (column3) [in=2]
   inputs:
-    groupBy
+    groupBy [out=0-2]
       columns: a.x:0 a.y:1 .column3:2
       groupings:
         variable (a.x) [in=0]
@@ -80,18 +80,18 @@ project
           inputs:
             const (1)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
 
 build
 SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
 ----
-project
+project [out=0]
   columns: a.x:0
   projections:
     variable (a.x) [in=0]
   inputs:
-    groupBy
+    groupBy [out=0-2]
       columns: a.x:0 a.y:1 .column3:2*
       groupings:
         variable (a.x) [in=0]
@@ -105,19 +105,19 @@ project
             variable (column3) [in=2]
             const (0)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
 
 build
 SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
 ----
-project
+project [out=0,2]
   columns: a.x:0 .column3:2
   projections:
     variable (a.x) [in=0]
     variable (column3) [in=2]
   inputs:
-    groupBy
+    groupBy [out=0-2]
       columns: a.x:0 a.y:1 .column3:2*
       groupings:
         variable (a.x) [in=0]
@@ -131,5 +131,5 @@ project
             variable (column3) [in=2]
             const (0)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1

@@ -200,6 +200,10 @@ func TestLogic(t *testing.T) {
 					switch cmd {
 					case "build":
 						// Already done.
+					case "trim":
+						trimOutputCols(e, e.props.outputCols)
+					case "infer":
+						inferFilters(e)
 					case "prep":
 						prep(e)
 					case "decorrelate":

@@ -1,6 +1,6 @@
 package v3
 
-func joinElimination(e *expr, requiredOutputCols bitmap) {
+func joinElimination(e *expr) {
 	if e.op == innerJoinOp {
 		inputs := e.inputs()
 		left := inputs[0]
@@ -8,23 +8,22 @@ func joinElimination(e *expr, requiredOutputCols bitmap) {
 		// Try to eliminate the right side of the join. Because inner join is
 		// symmetric, we can use the same code to try and eliminate the left side
 		// of the join.
-		if !maybeEliminateInnerJoin(e, left, right, requiredOutputCols) {
-			maybeEliminateInnerJoin(e, right, left, requiredOutputCols)
+		if !maybeEliminateInnerJoin(e, left, right) {
+			maybeEliminateInnerJoin(e, right, left)
 		}
 	}
-	requiredInputCols := e.requiredInputCols()
 	for _, input := range e.inputs() {
-		joinElimination(input, requiredInputCols&input.props.outputCols)
+		joinElimination(input)
 	}
 	e.updateProps()
 }
 
 // Check to see if the right side of the join is unnecessary.
-func maybeEliminateInnerJoin(e, left, right *expr, requiredOutputCols bitmap) bool {
+func maybeEliminateInnerJoin(e, left, right *expr) bool {
 	// Check to see if the required output columns only depend on the left side
 	// of the join.
 	leftOutputCols := left.props.outputCols
-	if !requiredOutputCols.subsetOf(leftOutputCols) {
+	if !e.props.outputCols.subsetOf(leftOutputCols) {
 		return false
 	}
 

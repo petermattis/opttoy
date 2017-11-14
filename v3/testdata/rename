@@ -15,32 +15,32 @@ table b
 build
 SELECT * FROM (SELECT * FROM a) AS b
 ----
-rename
+rename [out=0-1]
   columns: b.x:0 b.y:1
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
-rename
+rename [out=0-1]
   columns: b.e:0 b.f:1
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
 ----
-project
+project [out=0-1,3]
   columns: d.z:3 c.x:0 c.y:1
   projections:
     variable (d.z) [in=3]
     variable (c.x) [in=0]
     variable (c.y) [in=1]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: c.x:0* c.y:1 d.x:2* d.z:3
       filters:
         comp (=) [in=0,2]
@@ -48,35 +48,35 @@ project
             variable (c.x) [in=0]
             variable (d.x) [in=2]
       inputs:
-        rename
+        rename [out=0-1]
           columns: c.x:0 c.y:1
           inputs:
-            scan
+            scan [out=0-1]
               columns: a.x:0 a.y:1
-        rename
+        rename [out=2-3]
           columns: d.x:2 d.z:3
           inputs:
-            scan
+            scan [out=2-3]
               columns: b.x:2 b.z:3
 
 build
 SELECT x AS e FROM a
 ----
-project
+project [out=0]
   columns: a.e:0
   projections:
     variable (a.x) [in=0]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT * FROM (SELECT x AS e FROM a)
 ----
-project
+project [out=0]
   columns: a.e:0
   projections:
     variable (a.x) [in=0]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1

@@ -30,21 +30,17 @@ SELECT e.name, e.salary
 FROM e, d
 WHERE e.dept_id = d.dept_id
 ----
-project
+project [out=2-3]
   columns: e.name:2 e.salary:3
   projections:
     variable (e."name") [in=2]
     variable (e.salary) [in=3]
   inputs:
-    scan
+    scan [out=1-3]
       columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3
       key: 0
       foreign key: 1 -> 4
       filters:
-        comp (IS NOT) [in=0]
-          inputs:
-            variable (e.emp_id) [in=0]
-            const (NULL)
         comp (IS NOT) [in=1]
           inputs:
             variable (e.dept_id) [in=1]
@@ -55,21 +51,17 @@ SELECT e.name, e.salary
 FROM d, e
 WHERE e.dept_id = d.dept_id AND e.dept_id != 0
 ----
-project
+project [out=4-5]
   columns: e.name:4 e.salary:5
   projections:
     variable (e."name") [in=4]
     variable (e.salary) [in=5]
   inputs:
-    scan
+    scan [out=3-5]
       columns: e.emp_id:2* e.dept_id:3* e.name:4 e.salary:5
       key: 2
       foreign key: 3 -> 0
       filters:
-        comp (IS NOT) [in=2]
-          inputs:
-            variable (e.emp_id) [in=2]
-            const (NULL)
         comp (!=) [in=3]
           inputs:
             variable (e.dept_id) [in=3]
@@ -80,14 +72,14 @@ SELECT e.name, e.salary, d.name
 FROM e, d
 WHERE e.dept_id = d.dept_id
 ----
-project
+project [out=2-3,5]
   columns: e.name:2 e.salary:3 d.name:5
   projections:
     variable (e."name") [in=2]
     variable (e.salary) [in=3]
     variable (d."name") [in=5]
   inputs:
-    inner join
+    inner join [out=2-3,5]
       columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3 d.dept_id:4* d.name:5
       filters:
         comp (=) [in=1,4]
@@ -95,20 +87,16 @@ project
             variable (e.dept_id) [in=1]
             variable (d.dept_id) [in=4]
       inputs:
-        scan
+        scan [out=1-3]
           columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3
           key: 0
           foreign key: 1 -> 4
           filters:
-            comp (IS NOT) [in=0]
-              inputs:
-                variable (e.emp_id) [in=0]
-                const (NULL)
             comp (IS NOT) [in=1]
               inputs:
                 variable (e.dept_id) [in=1]
                 const (NULL)
-        scan
+        scan [out=4-5]
           columns: d.dept_id:4* d.name:5
           key: 4
           filters:

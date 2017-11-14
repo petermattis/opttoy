@@ -15,35 +15,35 @@ table b
 build
 SELECT y FROM a
 ----
-project
+project [out=1]
   columns: a.y:1
   projections:
     variable (a.y) [in=1]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT a.* FROM a
 ----
-scan
+scan [out=0-1]
   columns: a.x:0 a.y:1
 
 build
 SELECT * FROM (SELECT a.x FROM a)
 ----
-project
+project [out=0]
   columns: a.x:0
   projections:
     variable (a.x) [in=0]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT * FROM (SELECT a.x+1 FROM a)
 ----
-project
+project [out=2]
   columns: .column1:2
   projections:
     binary (+) [in=0]
@@ -51,25 +51,25 @@ project
         variable (a.x) [in=0]
         const (1)
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT a.y, a.x FROM a
 ----
-project
+project [out=0-1]
   columns: a.y:1 a.x:0
   projections:
     variable (a.y) [in=1]
     variable (a.x) [in=0]
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT a.y+1 FROM a
 ----
-project
+project [out=2]
   columns: .column1:2
   projections:
     binary (+) [in=1]
@@ -77,13 +77,13 @@ project
         variable (a.y) [in=1]
         const (1)
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
 
 build
 SELECT * FROM b WHERE b.z > 10
 ----
-scan
+scan [out=0-1]
   columns: b.x:0 b.z:1*
   filters:
     comp (>) [in=1]
@@ -94,14 +94,14 @@ scan
 build
 SELECT * FROM a JOIN b USING (x)
 ----
-project
+project [out=0-1,3]
   columns: a.x:0 a.y:1 b.z:3
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
     variable (b.z) [in=3]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
         comp (=) [in=0,2]
@@ -109,20 +109,20 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT b.* FROM a JOIN b USING (x)
 ----
-project
+project [out=3]
   columns: b.z:3
   projections:
     variable (b.z) [in=3]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
         comp (=) [in=0,2]
@@ -130,21 +130,21 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
 ----
-project
+project [out=1,3]
   columns: a.y:1 b.z:3
   projections:
     variable (a.y) [in=1]
     variable (b.z) [in=3]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
@@ -160,20 +160,20 @@ project
             variable (b.z) [in=3]
             const (3)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
 ----
-project
+project [out=2]
   columns: b.x:2
   projections:
     variable (b.x) [in=2]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2 b.z:3*
       filters:
         comp (>) [in=0]
@@ -185,20 +185,20 @@ project
             variable (b.z) [in=3]
             const (3)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
 ----
-project
+project [out=2]
   columns: b.x:2
   projections:
     variable (b.x) [in=2]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
@@ -214,20 +214,20 @@ project
             variable (b.z) [in=3]
             const (3)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
 ----
-project
+project [out=2]
   columns: b.x:2
   projections:
     variable (b.x) [in=2]
   inputs:
-    inner join
+    inner join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3*
       filters:
         comp (=) [in=0,2]
@@ -243,22 +243,22 @@ project
             variable (b.z) [in=3]
             const (3)
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT * FROM a LEFT JOIN b USING (x)
 ----
-project
+project [out=0-1,3]
   columns: a.x:0 a.y:1 b.z:3
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
     variable (b.z) [in=3]
   inputs:
-    left join
+    left join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
         comp (=) [in=0,2]
@@ -266,22 +266,22 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT * FROM a RIGHT JOIN b USING (x)
 ----
-project
+project [out=0-1,3]
   columns: a.x:0 a.y:1 b.z:3
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
     variable (b.z) [in=3]
   inputs:
-    right join
+    right join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
         comp (=) [in=0,2]
@@ -289,22 +289,22 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT * FROM a FULL JOIN b USING (x)
 ----
-project
+project [out=0-1,3]
   columns: a.x:0 a.y:1 b.z:3
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
     variable (b.z) [in=3]
   inputs:
-    full join
+    full join [out=0-3]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       filters:
         comp (=) [in=0,2]
@@ -312,24 +312,24 @@ project
             variable (a.x) [in=0]
             variable (b.x) [in=2]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1
-        scan
+        scan [out=2-3]
           columns: b.x:2 b.z:3
 
 build
 SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
 ----
-union
+union [out=0-1]
   columns: a.x:0 a.y:1
   inputs:
-    scan
+    scan [out=0-1]
       columns: a.x:0 a.y:1
-    project
+    project [out=0-1]
       columns: a.y:1 a.x:0
       projections:
         variable (a.y) [in=1]
         variable (a.x) [in=0]
       inputs:
-        scan
+        scan [out=0-1]
           columns: a.x:0 a.y:1

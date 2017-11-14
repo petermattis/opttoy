@@ -125,6 +125,9 @@ func (e *expr) format(buf *bytes.Buffer, level int) {
 
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
+	if e.props.outputCols != 0 {
+		fmt.Fprintf(buf, " [out=%s]", e.props.outputCols)
+	}
 	if e.props.outerCols != 0 {
 		fmt.Fprintf(buf, " [outer=%s]", e.props.outerCols)
 	}
@@ -339,6 +342,14 @@ func (e *expr) scalarInputCols() bitmap {
 		return 0
 	}
 	return e.scalarProps.inputCols
+}
+
+func (e *expr) requiredFilterCols() bitmap {
+	var v bitmap
+	for _, f := range e.filters() {
+		v.unionWith(f.scalarInputCols())
+	}
+	return v
 }
 
 func (e *expr) requiredInputCols() bitmap {

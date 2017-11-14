@@ -9,9 +9,20 @@ import (
 // TODO(peter):
 // - Normalize filers
 func prep(e *expr) {
+	trimOutputCols(e, e.props.outputCols)
 	inferFilters(e)
 	pushDownFilters(e)
-	joinElimination(e, 0)
+	joinElimination(e)
+}
+
+// Push down required output columns from the root of the expression to leaves.
+func trimOutputCols(e *expr, requiredOutputCols bitmap) {
+	e.props.outputCols = requiredOutputCols
+	requiredInputCols := e.requiredInputCols() | requiredOutputCols
+	for _, input := range e.inputs() {
+		trimOutputCols(input, requiredInputCols&input.props.outputCols)
+	}
+	e.updateProps()
 }
 
 func inferFilters(e *expr) {
@@ -79,6 +90,9 @@ func inferNotNullFilters(e *expr) {
 		inputNotNullCols.unionWith(input.props.notNullCols)
 	}
 	newNotNullCols := e.props.notNullCols & ^inputNotNullCols
+
+	// Only infer filters for required output columns.
+	newNotNullCols &= (e.props.outputCols | e.requiredFilterCols())
 
 	// Remove any columns for which a filter already exists on only that column
 	// which filters NULLs.
