@@ -1,30 +1,54 @@
 package v3
 
-func joinElimination(e *expr) {
-	if e.op == innerJoinOp {
-		inputs := e.inputs()
-		left := inputs[0]
-		right := inputs[1]
-		// Try to eliminate the right side of the join. Because inner join is
-		// symmetric, we can use the same code to try and eliminate the left side
-		// of the join.
-		if !maybeEliminateInnerJoin(e, left, right) {
-			maybeEliminateInnerJoin(e, right, left)
-		}
+func init() {
+	registerXform(joinElimination{})
+}
+
+type joinElimination struct {
+	xformExploration
+}
+
+func (joinElimination) id() xformID {
+	return xformJoinEliminationID
+}
+
+func (joinElimination) pattern() *expr {
+	return &expr{ /* left */
+		op: innerJoinOp,
+		children: []*expr{
+			patternLeaf, /* left */
+			patternLeaf, /* right */
+			patternTree, /* filter */
+		},
 	}
-	for _, input := range e.inputs() {
-		joinElimination(input)
+}
+
+func (joinElimination) check(e *expr) bool {
+	return true
+}
+
+func (joinElimination) apply(e *expr, results []*expr) []*expr {
+	// Try to eliminate the right side of the join. Because inner join is
+	// symmetric, we can use the same code to try and eliminate the left side
+	// of the join.
+	left := e.children[0]
+	right := e.children[1]
+	if result := maybeEliminateInnerJoin(e, left, right); result != nil {
+		return append(results, result)
 	}
-	e.updateProps()
+	if result := maybeEliminateInnerJoin(e, right, left); result != nil {
+		return append(results, result)
+	}
+	return results
 }
 
 // Check to see if the right side of the join is unnecessary.
-func maybeEliminateInnerJoin(e, left, right *expr) bool {
+func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 	// Check to see if the required output columns only depend on the left side
 	// of the join.
 	leftOutputCols := left.props.outputCols
 	if !e.props.outputCols.subsetOf(leftOutputCols) {
-		return false
+		return nil
 	}
 
 	// Look for a foreign key in the left side of the join which maps to a unique
@@ -44,7 +68,7 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 		fkey = nil
 	}
 	if fkey == nil {
-		return false
+		return nil
 	}
 
 	// Make sure any filters present other than the join condition only apply to
@@ -56,7 +80,7 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 		// unnecessary.
 		if filter.scalarInputCols().subsetOf(rightOutputCols) {
 			// The filter only utilizes columns from the right hand side of the join.
-			return false
+			return nil
 		}
 		if filter.scalarInputCols().subsetOf(leftOutputCols) {
 			// The filter only utilizes columns from the left hand side of the join.
@@ -75,7 +99,6 @@ func maybeEliminateInnerJoin(e, left, right *expr) bool {
 		}
 	}
 	left.props.applyFilters(left.filters())
-
-	*e = *left
-	return true
+	left.updateProps()
+	return left
 }

@@ -5,6 +5,7 @@ type xformID int32
 const (
 	xformJoinCommutativityID xformID = iota
 	xformJoinAssociativityID
+	xformJoinEliminationID
 
 	numXforms
 )
@@ -83,6 +84,9 @@ func registerXform(xform xform) {
 		fatalf("patterns need to be rooted in a non-pattern operator: %s", p)
 	}
 
+	if xforms[xform.id()] != nil {
+		fatalf("xform %d already defined", xform.id())
+	}
 	xforms[xform.id()] = xform
 
 	// Add the transform to the per-op lists of exploration and implementation
@@ -92,5 +96,22 @@ func registerXform(xform xform) {
 	}
 	if xform.implementation() {
 		implementationXforms[p.op] = append(implementationXforms[p.op], xform.id())
+	}
+}
+
+func xformApplyAll(xform xform, e *expr) {
+	pattern := xform.pattern()
+	xformApplyAllInternal(xform, pattern, e)
+}
+
+func xformApplyAllInternal(xform xform, pattern, e *expr) {
+	if patternMatch(pattern, e) && xform.check(e) {
+		results := xform.apply(e, nil)
+		if len(results) > 0 {
+			*e = *results[0]
+		}
+	}
+	for _, input := range e.inputs() {
+		xformApplyAllInternal(xform, pattern, input)
 	}
 }

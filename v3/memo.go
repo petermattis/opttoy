@@ -277,7 +277,7 @@ func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 					// Pattern failed to match.
 					return nil
 				}
-			} else if !isPatternExpr(pattern) {
+			} else if !isPatternExpr(childPattern) {
 				// No child present and pattern failed to match.
 				return nil
 			}

@@ -7,12 +7,12 @@ import (
 )
 
 // TODO(peter):
-// - Normalize filers
+// - Normalize filters
 func prep(e *expr) {
 	trimOutputCols(e, e.props.outputCols)
 	inferFilters(e)
 	pushDownFilters(e)
-	joinElimination(e)
+	xformApplyAll(joinElimination{}, e)
 }
 
 // Push down required output columns from the root of the expression to leaves.

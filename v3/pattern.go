@@ -39,3 +39,29 @@ func isPatternLeaf(pattern *expr) bool {
 func isPatternTree(pattern *expr) bool {
 	return pattern == patternTree
 }
+
+// patternMatch determines if a pattern expression matches the specified
+// expression. Used for matching a pattern against an expression outside of the
+// memo. If an expression has been extracted from the memo using memo.bind() it
+// is not necessary to match against the pattern used for extraction again.
+func patternMatch(pattern, e *expr) bool {
+	if isPatternExpr(pattern) {
+		return true
+	}
+	if pattern.op != e.op {
+		return false
+	}
+	if len(pattern.children) != len(e.children) {
+		return false
+	}
+	for i := range pattern.children {
+		if e.children[i] != nil {
+			if !patternMatch(pattern.children[i], e.children[i]) {
+				return false
+			}
+		} else if !isPatternExpr(pattern.children[i]) {
+			return false
+		}
+	}
+	return true
+}
