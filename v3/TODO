@@ -52,19 +52,33 @@ Stats
 - Basic stats infrastructure. Specify a histogram per
   table/column. Retrieve stats for columns referenced in a query as a
   prep pass. Provide routines for computing the cardinality of an
-  expression based on its inputs.
+  expression based on its inputs. Specification could be done via a
+  special INSERT command:
+
+    INSERT INTO stats.tableName.colName VALUES buckets...;
 
 Testing
 -------
 
 - Add html output that allows stepping through memo search.
 
-- Add facility for testing expression binding.
+- Add facility for testing expression binding. Probably add something
+  to logic-test like "bind:x.y" which means iterate through all of the
+  bindings at memo location x.y and output the resulting
+  `expr.MemoString()`.
 
 - Verify that computing the logical properties for a transformed
   expression results in the same properties as the originating
   expression. That is, transformations only create logically
   equivalent expressions.
+
+- Use a query and associated schema to create random table data that
+  tickles various problematic conditions in the query. For example,
+  various possibilities for duplicate values (no duplicates, 1
+  duplicate, many duplicates) and the various possibilities for
+  NULL-able columns. This would essentially be a walk over the query
+  tree looking for interesting nodes and recording variations in the
+  table data to generate.
 
 Transformations
 ---------------
@@ -76,9 +90,7 @@ Transformations
 
 - Group-by push-down. Push group-by below a join.
 
-- Scan to table scan.
-
-- Scan to index scan.
+- Scan to table/index scan.
 
 - Convert decorrelation to be a regular transformation.
 
