@@ -91,18 +91,10 @@ inner join [out=0-5]
       inputs:
         variable (b.x) [in=2]
         variable (c.x) [in=4]
-    comp (=) [in=2,4]
-      inputs:
-        variable (c.x) [in=4]
-        variable (b.x) [in=2]
     comp (=) [in=0,4]
       inputs:
         variable (a.x) [in=0]
         variable (c.x) [in=4]
-    comp (=) [in=0,2]
-      inputs:
-        variable (b.x) [in=2]
-        variable (a.x) [in=0]
     comp (IS NOT) [in=0]
       inputs:
         variable (a.x) [in=0]

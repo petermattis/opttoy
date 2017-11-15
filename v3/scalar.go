@@ -160,6 +160,44 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	return &result
 }
 
+func normalize(e *expr) {
+	if e == nil {
+		return
+	}
+	normalizeScalarEq(e)
+	for _, input := range e.children {
+		normalize(input)
+	}
+}
+
+func normalizeScalarEq(e *expr) {
+	if e.op != eqOp {
+		return
+	}
+
+	left := e.children[0]
+	right := e.children[1]
+
+	// Normalize "a = b" such that the variable with the lower index is on the
+	// left side of the equality.
+	if left.op == variableOp && right.op == variableOp {
+		leftCol := left.private.(columnProps)
+		rightCol := right.private.(columnProps)
+		if leftCol.index > rightCol.index {
+			e.children[0] = right
+			e.children[1] = left
+			return
+		}
+	}
+
+	// Normalize "<expr> = <var>" to "<var> = <expr".
+	if left.op != variableOp && right.op == variableOp {
+		e.children[0] = right
+		e.children[1] = left
+		return
+	}
+}
+
 func isAggregate(e *expr) bool {
 	if e.op != functionOp {
 		return false

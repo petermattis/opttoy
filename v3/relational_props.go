@@ -250,13 +250,14 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 	p.equivCols = nil
 	for _, filter := range filters {
 		if filter.op == eqOp {
-			left := filter.inputs()[0]
-			right := filter.inputs()[1]
+			left := filter.children[0]
+			right := filter.children[1]
 			if left.op == variableOp && right.op == variableOp {
 				v := left.scalarProps.inputCols
 				v.unionWith(right.scalarProps.inputCols)
 				p.addEquivColumns(v)
 			}
+			// TODO(peter): Support tuple comparisons such as "(a, b) = (c, d)".
 		}
 	}
 }

@@ -11,6 +11,7 @@ import (
 // - Normalize filters
 func prep(e *expr) {
 	trimOutputCols(e, e.props.outputCols)
+	normalize(e)
 	inferFilters(e)
 	pushDownFilters(e)
 	xformApplyAll(joinElimination{}, e)
@@ -74,6 +75,7 @@ func inferEquivFilters(e *expr) {
 					var t bitmap
 					t.set(j)
 					newFilter := substitute(filter, t, replacement)
+					normalize(newFilter)
 					inferredFilters = append(inferredFilters, newFilter)
 				}
 			}
