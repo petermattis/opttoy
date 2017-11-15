@@ -59,6 +59,13 @@ Testing
 
 - Add html output that allows stepping through memo search.
 
+- Add facility for testing expression binding.
+
+- Verify that computing the logical properties for a transformed
+  expression results in the same properties as the originating
+  expression. That is, transformations only create logically
+  equivalent expressions.
+
 Transformations
 ---------------
 
