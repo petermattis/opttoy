@@ -64,7 +64,7 @@ package v3
 var patternLeaf = &expr{}
 var patternTree = &expr{}
 
-func isPatternExpr(pattern *expr) bool {
+func isPatternSentinel(pattern *expr) bool {
 	return isPatternLeaf(pattern) || isPatternTree(pattern)
 }
 
@@ -81,7 +81,7 @@ func isPatternTree(pattern *expr) bool {
 // memo. If an expression has been extracted from the memo using memo.bind() it
 // is not necessary to match against the pattern used for extraction again.
 func patternMatch(pattern, e *expr) bool {
-	if isPatternExpr(pattern) {
+	if isPatternSentinel(pattern) {
 		return true
 	}
 	if pattern.op != e.op {
@@ -95,7 +95,7 @@ func patternMatch(pattern, e *expr) bool {
 			if !patternMatch(pattern.children[i], e.children[i]) {
 				return false
 			}
-		} else if !isPatternExpr(pattern.children[i]) {
+		} else if !isPatternSentinel(pattern.children[i]) {
 			return false
 		}
 	}
