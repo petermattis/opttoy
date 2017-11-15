@@ -101,3 +101,10 @@ func patternMatch(pattern, e *expr) bool {
 	}
 	return true
 }
+
+func childPattern(pattern *expr, childIdx int) *expr {
+	if isPatternTree(pattern) {
+		return patternTree
+	}
+	return pattern.children[childIdx]
+}

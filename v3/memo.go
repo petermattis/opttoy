@@ -21,7 +21,7 @@ type memoExpr struct {
 	private  interface{}
 }
 
-func (e *memoExpr) match(pattern *expr) bool {
+func (e *memoExpr) matchOp(pattern *expr) bool {
 	return isPatternSentinel(pattern) || pattern.op == e.op
 }
 
@@ -218,139 +218,150 @@ func (m *memo) addExpr(e *expr) int32 {
 	return me.loc.group
 }
 
-// Bind creates a cursor expression rooted at the specified location. The
-// pattern specifies the structure of the cursor. Returns nil if the pattern
-// does not match an expression rooted at the specified location. The cursor
-// can be iterated by passing the result from a previous call to bind() as the
-// cursor argument.
+// Bind creates a cursor expression rooted at the specified location that
+// matches the pattern. The cursor can be advanced with calls to advance().
 //
-// Note that the returned expression is only valid until the next call to
-// bind().
-func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
-	if !e.match(pattern) {
+// Returns nil if the pattern does not match any expression rooted at the
+// specified location.
+func (m *memo) bind(e *memoExpr, pattern *expr) *expr {
+	if !e.matchOp(pattern) {
 		return nil
 	}
 
-	if cursor != nil && e.loc != cursor.loc {
-		fatalf("invalid bind expr: %s != %s", e.loc, cursor.loc)
-	}
-
 	g := m.groups[e.loc.group]
-	var initChildren bool
-	if cursor == nil {
-		cursor = &expr{
-			props:       g.props,
-			scalarProps: g.scalarProps,
-		}
-		initChildren = true
-	}
-	cursor.op = e.op
-	cursor.loc = e.loc
-	cursor.private = e.private
-
-	if len(cursor.children) != len(e.children) {
-		if cap(cursor.children) >= len(e.children) {
-			cursor.children = cursor.children[:len(e.children)]
-			for i := range cursor.children {
-				cursor.children[i] = nil
-			}
-		} else {
-			cursor.children = make([]*expr, len(e.children))
-		}
+	cursor := &expr{
+		props:       g.props,
+		scalarProps: g.scalarProps,
+		op:          e.op,
+		loc:         e.loc,
+		children:    make([]*expr, len(e.children)),
+		private:     e.private,
 	}
 
 	if isPatternLeaf(pattern) {
 		return cursor
 	}
 
-	if initChildren {
-		// Initialize the child cursors.
-		for i, g := range e.children {
-			childPattern := pattern
-			if !isPatternTree(pattern) {
-				childPattern = pattern.children[i]
-			}
-
-			if g != 0 {
-				cursor.children[i] = m.bindGroup(m.groups[g], childPattern, nil)
-				if cursor.children[i] == nil {
-					// Pattern failed to match.
-					return nil
-				}
-			} else if !isPatternSentinel(childPattern) {
-				// No child present and pattern failed to match.
+	// Initialize the child cursors.
+	for i, g := range e.children {
+		childPattern := childPattern(pattern, i)
+		if g == 0 {
+			// No child present.
+			if !isPatternSentinel(childPattern) {
 				return nil
 			}
-		}
-		return cursor
-	}
-
-	var valid int
-	for _, c := range cursor.children {
-		if c != nil {
-			valid++
-		}
-	}
-	if valid == 0 {
-		// If we're at a leaf node, there is nothing further to advance.
-		return nil
-	}
-
-	// Advance the child cursors.
-	var exhausted int
-	for i, n := 0, len(cursor.children); i < n; i++ {
-		childCursor := cursor.children[i]
-		if childCursor == nil {
+			// Leave the nil cursor, it will be skipped by advance.
 			continue
 		}
 
-		childPattern := pattern
-		if !isPatternTree(pattern) {
-			childPattern = pattern.children[i]
-		}
-
-		g := m.groups[childCursor.loc.group]
-		childCursor = m.bindGroup(g, childPattern, childCursor)
-		if childCursor != nil {
-			// We successfully advanced a child.
-			cursor.children[i] = childCursor
-			return cursor
-		}
-
-		exhausted++
-		if exhausted >= valid {
-			// We exhausted all of the child cursors. Nothing more for us to do.
+		cursor.children[i] = m.bindGroup(m.groups[g], childPattern)
+		if cursor.children[i] == nil {
+			// Pattern failed to match.
 			return nil
 		}
-
-		// Reset the child cursor.
-		cursor.children[i] = m.bindGroup(g, childPattern, nil)
 	}
 	return cursor
 }
 
-func (m *memo) bindGroup(g *memoGroup, pattern, cursor *expr) *expr {
-	exprs := g.exprs
-	if cursor != nil {
-		exprs = g.exprs[cursor.loc.expr:]
+// advance returns the next cursor expression that matches the pattern.
+// The cursor must have been obtained from a previous call to bind() or
+// advance().
+//
+// Returns nil if there are no more expressions that match.
+func (m *memo) advance(e *memoExpr, pattern, cursor *expr) *expr {
+	if e.loc != cursor.loc || !e.matchOp(pattern) {
+		fatalf("cursor mismatch: e: %s %s  cursor: %s %s", e.op, e.loc, cursor.op, cursor.loc)
 	}
 
 	if isPatternLeaf(pattern) {
-		// For leaf patterns we do not iterate on groups.
-		if cursor != nil {
-			// If a leaf was extracted before, we've exhaused the group.
-			return nil
-		}
-		return m.bind(g.exprs[0], pattern, cursor)
+		// For a leaf pattern we have only the initial binding.
+		return nil
 	}
 
-	for _, e := range exprs {
-		if !e.match(pattern) {
+	// We first advance the first child cursor; when that is exhausted, we reset
+	// it and advance the second cursor. Next time we will start over with
+	// advancing the first child cursor until it is exhausted.
+	//
+	// For example, say we have three children with 2 bindings each:
+	//            child 0  child 1  child 2
+	// bind:      0        0        0
+	// advance:   1        0        0
+	// advance:   0        1        0
+	// advance:   1        1        0
+	// advance:   0        0        1
+	// advance:   1        0        1
+	// advance:   0        1        1
+	// advance:   1        1        1
+	// advance:   done
+	//
+	// This is somewhat analogous to incrementing an integer (children are digits,
+	// in reverse order).
+	for i, childCursor := range cursor.children {
+		if childCursor == nil {
+			// Skip the missing child (it must be a pattern leaf).
 			continue
 		}
-		cursor = m.bind(e, pattern, cursor)
-		if cursor != nil {
+
+		childPattern := childPattern(pattern, i)
+
+		g := m.groups[childCursor.loc.group]
+		cursor.children[i] = m.advanceGroup(g, childPattern, childCursor)
+		if cursor.children[i] != nil {
+			// We successfully advanced a child.
 			return cursor
+		}
+
+		// Reset the child cursor and advance to the next child.
+		cursor.children[i] = m.bindGroup(g, childPattern)
+	}
+	// We exhausted all child cursors. Nothing more for us to do.
+	return nil
+}
+
+// bindGroup is similar to bind, except that it can bind any expression
+// rooted in the given group.
+//
+// Returns a cursor expression that can be advanced with advanceGroup().
+//
+// Returns nil if the pattern does not match any expression rooted at the
+// specified location.
+func (m *memo) bindGroup(g *memoGroup, pattern *expr) *expr {
+	for _, e := range g.exprs {
+		if !e.matchOp(pattern) {
+			continue
+		}
+		if cursor := m.bind(e, pattern); cursor != nil {
+			return cursor
+		}
+	}
+
+	// The group has no expressions that match the pattern.
+	return nil
+}
+
+// advanceGroup advances a cursor expression obtained from a previous call to
+// bindGroup() or advanceGroup().
+//
+// Returns nil if there are no more expressions in the group that match the
+// pattern.
+func (m *memo) advanceGroup(g *memoGroup, pattern, cursor *expr) *expr {
+	if isPatternLeaf(pattern) {
+		// For leaf patterns we do not iterate on groups.
+		return nil
+	}
+
+	// Try to advance the binding for the current expression.
+	if c := m.advance(g.exprs[cursor.loc.expr], pattern, cursor); c != nil {
+		return c
+	}
+
+	// Find another expression to bind.
+	for _, e := range g.exprs[(cursor.loc.expr + 1):] {
+		if !e.matchOp(pattern) {
+			continue
+		}
+		if c := m.bind(e, pattern); c != nil {
+			return c
 		}
 	}
 
