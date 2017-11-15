@@ -47,6 +47,4 @@ func (r rename) updateProps(e *expr) {
 
 	e.props.applyFilters(e.filters())
 	e.props.applyInputs(e.inputs())
-
-	// TODO(peter): update keys
 }

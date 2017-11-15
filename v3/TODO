@@ -1,0 +1,88 @@
+Memo
+----
+
+- Cache scalar expressions that do not contain subqueries.
+
+- Figure out a way to reuse the cursor memory. One challenge is that
+  transformations can hold on to cursors across calls to bind. Perhaps
+  we can add an API where we start a bind iteration has an associated
+  arena to allocate from and when the iteration ends we bulk free all
+  of the expressions. We'd also want to use this arena for the
+  expressions created by the transformation.
+
+Operators
+---------
+
+- Investigate adding an explicit selectOp.
+
+Prep
+----
+
+- Add column numbering pass instead of performing column numbering
+  during build().
+
+- More extensive scalar expression normalization.
+
+Properties
+----------
+
+- Add planProperties which contains an ordering specification.
+
+- Compute keys for relational expressions.
+
+- Add check for null intolerant filters.
+
+Search
+------
+
+- Add optimization context which specifies required plan properties.
+
+- Internalize the following from the Cascades paper:
+
+  A group is explored using transformation rules only on demand, and
+  it is explored only to create members of the group that match a
+  given pattern. Thus exploring a group or an expression means
+  deriving all logical expressions that match a given pattern. The
+  pattern, which is part of the task definition, is a sub-tree of the
+  rule's antecedent or "before" pattern.
+
+Stats
+-----
+
+- Basic stats infrastructure. Specify a histogram per
+  table/column. Retrieve stats for columns referenced in a query as a
+  prep pass. Provide routines for computing the cardinality of an
+  expression based on its inputs.
+
+Testing
+-------
+
+- Add html output that allows stepping through memo search.
+
+Transformations
+---------------
+
+- Distinct/group-by elimination. If the grouping columns are a key
+  from the input, we don't need to perform the grouping.
+
+- Group-by pull-up. Pull group-by above a join.
+
+- Group-by push-down. Push group-by below a join.
+
+- Scan to table scan.
+
+- Scan to index scan.
+
+- Convert decorrelation to be a regular transformation.
+
+- Convert push-down to be a regular transformation. Is there a
+  separate push-down transformation per relational expression? This is
+  yet another argument in favor of a selectOp.
+
+- Experiment with a transformation language.
+
+- Allow transforms to specify their compatibility with other
+  transforms. Memo expressions can store which transformation created
+  them which allows skipping transforms. For example, the join
+  commutativity transform is not applied to an expression that was
+  created by the join commutatitivity transform.

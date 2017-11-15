@@ -6,9 +6,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
-// TODO(peter):
-// - Column numbering pass
-// - Normalize filters
 func prep(e *expr) {
 	trimOutputCols(e, e.props.outputCols)
 	normalize(e)

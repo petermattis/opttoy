@@ -1,12 +1,3 @@
-// TODO(peter): transformations
-//
-// - Distinct/group-by elimination. If the grouping columns are a key from the
-//   input, we don't need to perform the grouping.
-//
-// - Group-by pull-up. Pull group-by above a join.
-//
-// - Group-by push-down. Push group-by below a join.
-
 package v3
 
 import (

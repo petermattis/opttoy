@@ -211,15 +211,6 @@ func (s *search) implementGroupExpr(loc memoLoc, parent *searchTask) {
 	}
 }
 
-// TODO(peter): internalize the following from the Cascades paper
-//
-//   A group is explored using transformation rules only on demand, and it is
-//   explored only to create members of the group that match a given
-//   pattern. Thus exploring a group or an expression means deriving all
-//   logical expressions that match a given pattern. The pattern, which is part
-//   of the task definition, is a sub-tree of the rule's antecedent or "before"
-//   pattern.
-
 func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
 	if g == nil {
 		return

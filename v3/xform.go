@@ -24,12 +24,6 @@ const (
 // must be a concrete operator (i.e. it can't be patternOp or nil). A check()
 // method can provide additional checking for whether the transformation can be
 // applied to a specific expression.
-//
-// TODO(peter): Allow transforms to specify their compatibility with other
-// transforms. Memo expressions store which transformation created them which
-// allows skipping transforms. For example, the join commutativity transform is
-// not applied to an expression that was created by the join commutatitivity
-// transform.
 type xform interface {
 	// The ID of the transform.
 	id() xformID

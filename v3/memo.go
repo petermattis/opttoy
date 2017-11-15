@@ -72,8 +72,6 @@ type memoGroup struct {
 	// The scalar properties for the group. Nil if the group contains relational
 	// expressions.
 	scalarProps *scalarProps
-
-	// TODO(peter): Cache scalar expressions that do not contain subqueries.
 }
 
 func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
@@ -228,13 +226,6 @@ func (m *memo) addExpr(e *expr) int32 {
 //
 // Note that the returned expression is only valid until the next call to
 // bind().
-//
-// TODO(peter): Figure out a way to reuse the cursor memory. One challenge is
-// that transformations can hold on to cursors across calls to bind. Perhaps we
-// can add an API where we start a bind iteration has an associated arena to
-// allocate from and when the iteration ends we bulk free all of the
-// expressions. We'd also want to use this arena for the expressions created by
-// the transformation.
 func (m *memo) bind(e *memoExpr, pattern, cursor *expr) *expr {
 	if !e.match(pattern) {
 		return nil
