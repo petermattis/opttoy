@@ -4,11 +4,13 @@ import (
 	"container/heap"
 )
 
-// TODO(peter): The description below needs to be updated.
-//
 // Search is modelled as a series of tasks that optimize an
 // expression. Conceptually, the tasks form a dependency tree very much like
-// the dependency tree formed by tools like make.
+// the dependency tree formed by tools like make. Each task has a count of its
+// unfinished dependencies (searchTask.deps) and a pointer to its parent
+// task. A task is runnable if it has 0 unfinished dependencies. After a task
+// is run, it decrements its parent tasks and schedules it for execution if it
+// was the last dependency.
 //
 // Search begins with optimization of the group for the root expression.
 //
@@ -16,26 +18,27 @@ import (
 //      generates implementations for the expressions in the group, then
 //      selects the plan with the least estimated cost.
 //
-//   2. optimizeGroupExpr: optimizes all of the child groups (via
-//      optimizeGroup), then selects the plan rooted at the group expression
-//      with the least estimated cost.
-//
-//   3. implementGroup: explores the group (via exploreGroup) which generates
+//   2. implementGroup: explores the group (via exploreGroup) which generates
 //      more logical expressions in the group, then generates implementations
 //      for all of the logical expressions.
 //
-//   4. implementGroupExpr: implements all of the child groups (via
+//   3. implementGroupExpr: implements all of the child groups (via
 //      implementGroup), then applies any applicable implementation
 //      transformations to the expression.
 //
-//   5. exploreGroup: explores each expression in the group
+//   4. exploreGroup: explores each expression in the group
 //
-//   6. exploreGroupExpr: explores all of the child groups (via exploreGroup),
+//   5. exploreGroupExpr: explores all of the child groups (via exploreGroup),
 //      then applies any applicable exploration transformations to the
 //      expression.
 //
-//   7. transform: applies a transform to the forest of expressions rooted at a
-//      particular group expression.
+//   6. transform: applies a transform to the forest of expressions rooted at a
+//      particular group expression. There are two flavors of transformation
+//      task: exploration transformation and imlementation transformation. The
+//      primary difference is the state transition after the task finishes. An
+//      exploration transformation recursively schedules exploration of the
+//      group it is associated with. An implementation transformation schedules
+//      optimization of the inputs.
 
 type taskID int16
 
@@ -75,6 +78,24 @@ func (t *searchTask) addChild(child *searchTask) {
 	}
 	child.parent = t
 	t.deps++
+}
+
+func (t *searchTask) run(s *search) {
+	switch t.id {
+	case implementGroupExprTask:
+		s.implementGroupExpr(t.loc, t.parent)
+	case implementTransformTask:
+		s.applyTransform(t.loc, t.xid, t.parent, t.id)
+	case exploreGroupExprTask:
+		s.exploreGroupExpr(t.loc, t.parent)
+	case exploreTransformTask:
+		s.applyTransform(t.loc, t.xid, t.parent, t.id)
+	}
+
+	if t.parent != nil {
+		t.parent.deps--
+		s.schedule(t.parent)
+	}
 }
 
 type searchQueue struct {
@@ -140,22 +161,9 @@ func (s *search) run() {
 	for s.runnable.Len() > 0 {
 		t := s.runnable.pop()
 		if t.deps > 0 {
-			fatalf("%d unfinished deps", t.deps)
+			fatalf("runnable task with %d unfinished deps", t.deps)
 		}
-		switch t.id {
-		case implementGroupExprTask:
-			s.implementGroupExpr(t.loc, t.parent)
-		case implementTransformTask:
-			s.applyTransform(t.loc, t.xid, t.parent, t.id)
-		case exploreGroupExprTask:
-			s.exploreGroupExpr(t.loc, t.parent)
-		case exploreTransformTask:
-			s.applyTransform(t.loc, t.xid, t.parent, t.id)
-		}
-		if t.parent != nil {
-			t.parent.deps--
-			s.schedule(t.parent)
-		}
+		t.run(s)
 	}
 }
 
@@ -178,21 +186,18 @@ func (s *search) implementGroup(g *memoGroup, parent *searchTask) {
 	exprs := g.exprs[g.implemented:]
 	g.implemented = int32(len(g.exprs))
 
-	for _, expr := range exprs {
-		s.schedule(s.implementGroupExprTask(expr, parent))
-	}
-}
+	for _, e := range exprs {
+		t := newSearchTask(s, parent)
+		t.id = implementGroupExprTask
+		t.loc = e.loc
 
-func (s *search) implementGroupExprTask(e *memoExpr, parent *searchTask) *searchTask {
-	t := newSearchTask(s, parent)
-	t.id = implementGroupExprTask
-	t.loc = e.loc
+		// Implement children groups.
+		for _, c := range e.children {
+			s.implementGroup(s.memo.groups[c], t)
+		}
 
-	// Implement children groups.
-	for _, c := range e.children {
-		s.implementGroup(s.memo.groups[c], t)
+		s.schedule(t)
 	}
-	return t
 }
 
 func (s *search) implementGroupExpr(loc memoLoc, parent *searchTask) {
@@ -223,21 +228,18 @@ func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
 	exprs := g.exprs[g.explored:]
 	g.explored = int32(len(g.exprs))
 
-	for _, expr := range exprs {
-		s.schedule(s.exploreGroupExprTask(expr, parent))
-	}
-}
+	for _, e := range exprs {
+		t := newSearchTask(s, parent)
+		t.id = exploreGroupExprTask
+		t.loc = e.loc
 
-func (s *search) exploreGroupExprTask(e *memoExpr, parent *searchTask) *searchTask {
-	t := newSearchTask(s, parent)
-	t.id = exploreGroupExprTask
-	t.loc = e.loc
+		// Explore children groups.
+		for _, c := range e.children {
+			s.exploreGroup(s.memo.groups[c], t)
+		}
 
-	// Explore children groups.
-	for _, c := range e.children {
-		s.exploreGroup(s.memo.groups[c], t)
+		s.schedule(t)
 	}
-	return t
 }
 
 func (s *search) exploreGroupExpr(loc memoLoc, parent *searchTask) {
