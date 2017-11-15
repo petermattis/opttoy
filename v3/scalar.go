@@ -140,8 +140,11 @@ func (s scalar) updateProps(e *expr) {
 }
 
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
-	if e.op == variableOp && e.scalarInputCols() == columns {
-		return replacement
+	if e.op == variableOp {
+		if e.scalarInputCols() == columns {
+			return replacement
+		}
+		return e
 	}
 
 	result := *e

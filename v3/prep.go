@@ -56,29 +56,47 @@ func inferEquivFilters(e *expr) {
 	// via substitution.
 	var inferredFilters []*expr
 	for _, equiv := range e.props.equivCols {
-		var count int
 		for _, filter := range e.filters() {
 			filterInputCols := filter.scalarInputCols()
+			if filterInputCols == 0 {
+				// The filter doesn't have any input columns.
+				continue
+			}
+			if filterInputCols == equiv {
+				// The filter input columns are exactly the equivalent columns. No
+				// substitutions are possible.
+				continue
+			}
 			if (filterInputCols & equiv) == 0 {
+				// The filter input columns do not overlap the equivalent columns. No
+				// substitutiosn are possible.
 				continue
 			}
-			if filterInputCols.count() != 1 {
-				continue
-			}
-			count++
-			filterCol := bitmapIndex(bits.TrailingZeros64(uint64(filterInputCols)))
+
 			// Loop over the equivalent columns and create new expressions by
 			// substitution.
-			for v := equiv; v != 0; {
+			for v := equiv & ^filterInputCols; v != 0; {
 				i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 				v.clear(i)
-				if filterCol == i {
+				col := e.props.findColumnByIndex(i)
+				if col == nil {
+					// The equivalent column is not needed by the expression, so don't
+					// create a filter using it.
 					continue
 				}
+				replacement := col.newVariableExpr("")
 
-				replacement := e.props.findColumnByIndex(i).newVariableExpr("")
-				newFilter := substitute(filter, filterInputCols, replacement)
-				inferredFilters = append(inferredFilters, newFilter)
+				for u := filterInputCols; u != 0; {
+					j := bitmapIndex(bits.TrailingZeros64(uint64(u)))
+					u.clear(j)
+					if i == j {
+						continue
+					}
+					var t bitmap
+					t.set(j)
+					newFilter := substitute(filter, t, replacement)
+					inferredFilters = append(inferredFilters, newFilter)
+				}
 			}
 		}
 	}
