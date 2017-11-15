@@ -84,16 +84,10 @@ func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 	}
 }
 
-func (g *memoGroup) maybeAddExpr(e *memoExpr) {
-	f := e.fingerprint()
-	if _, ok := g.exprMap[f]; !ok {
-		e.loc.expr = int32(len(g.exprs))
-		g.exprMap[f] = e.loc.expr
-		g.exprs = append(g.exprs, e)
-	}
-}
-
 type memo struct {
+	// A map from expression fingerprint to the index of the group the expression
+	// resides in.
+	exprMap map[string]int32
 	// A map from group fingerprint to the index of the group in the groups
 	// slice. For relational groups, the fingerprint for a group is the
 	// fingerprint of the relational properties. For scalar groups, the
@@ -107,6 +101,7 @@ func newMemo() *memo {
 	// NB: group 0 is reserved and intentionally nil so that the 0 group index
 	// can indicate that we don't know the group for an expression.
 	return &memo{
+		exprMap:  make(map[string]int32),
 		groupMap: make(map[string]int32),
 		groups:   make([]*memoGroup, 1),
 	}
@@ -181,34 +176,48 @@ func (m *memo) addExpr(e *expr) int32 {
 		}
 	}
 
+	ef := me.fingerprint()
 	if me.loc.group == 0 {
-		// Determine which group the expression belongs in.
-		if e.props != nil {
-			// We have a relational expression. Find the group the memoExpr would exist
-			// in.
-			me.loc.group = m.maybeAddGroup(e.props.fingerprint(), e.props, nil)
-		} else {
-			// We have a scalar expression. Use the expression fingerprint as the group
-			// fingerprint.
-			me.loc.group = m.maybeAddGroup(me.fingerprint(), nil, e.scalarProps)
+		if group, ok := m.exprMap[ef]; ok {
+			// Expression already exists in the memo.
+			if e.props != nil {
+				// Check that the logical properties map to the group the expression
+				// already exists in.
+				if newGroup := m.groupMap[e.props.fingerprint()]; group != newGroup {
+					fatalf("group mismatch for existing expression\n%d: [%s]\n%d: [%s]\n%s",
+						group, m.groups[group].props.fingerprint(),
+						newGroup, e.props.fingerprint(),
+						e)
+				}
+			}
+			return group
 		}
+
+		// Determine which group the expression belongs in, creating it if
+		// necessary.
+		pf := ef
+		if e.props != nil {
+			pf = e.props.fingerprint()
+		}
+		group, ok := m.groupMap[pf]
+		if !ok {
+			group = int32(len(m.groups))
+			g := newMemoGroup(e.props, e.scalarProps)
+			g.id = group
+			m.groups = append(m.groups, g)
+			m.groupMap[pf] = group
+		}
+		me.loc.group = group
 	}
 
 	g := m.groups[me.loc.group]
-	g.maybeAddExpr(me)
-	return me.loc.group
-}
-
-func (m *memo) maybeAddGroup(f string, props *relationalProps, sprops *scalarProps) int32 {
-	id, ok := m.groupMap[f]
-	if !ok {
-		id = int32(len(m.groups))
-		g := newMemoGroup(props, sprops)
-		g.id = id
-		m.groups = append(m.groups, g)
-		m.groupMap[f] = id
+	if _, ok := g.exprMap[ef]; !ok {
+		me.loc.expr = int32(len(g.exprs))
+		g.exprMap[ef] = me.loc.expr
+		g.exprs = append(g.exprs, me)
 	}
-	return id
+	m.exprMap[ef] = me.loc.group
+	return me.loc.group
 }
 
 // Bind creates a cursor expression rooted at the specified location. The
