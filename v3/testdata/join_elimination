@@ -32,6 +32,7 @@ WHERE e.dept_id = d.dept_id
 ----
 project [out=2-3]
   columns: e.name:2 e.salary:3
+  equiv: 1,4
   projections:
     variable (e."name") [in=2]
     variable (e.salary) [in=3]
@@ -53,6 +54,7 @@ WHERE e.dept_id = d.dept_id AND e.dept_id != 0
 ----
 project [out=4-5]
   columns: e.name:4 e.salary:5
+  equiv: 0,3
   projections:
     variable (e."name") [in=4]
     variable (e.salary) [in=5]
@@ -74,6 +76,7 @@ WHERE e.dept_id = d.dept_id
 ----
 project [out=2-3,5]
   columns: e.name:2 e.salary:3 d.name:5
+  equiv: 1,4
   projections:
     variable (e."name") [in=2]
     variable (e.salary) [in=3]
@@ -81,6 +84,7 @@ project [out=2-3,5]
   inputs:
     inner join [out=2-3,5]
       columns: e.dept_id:1* e.name:2 e.salary:3 d.dept_id:4* d.name:5
+      equiv: 1,4
       filters:
         comp (=) [in=1,4]
           inputs:

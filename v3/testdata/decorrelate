@@ -17,6 +17,7 @@ SELECT * FROM a WHERE EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
 semi-join [out=0-1]
   columns: a.x:0* a.y:1
+  equiv: 0,2
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -25,6 +26,7 @@ semi-join [out=0-1]
   inputs:
     scan [out=0-1]
       columns: a.x:0* a.y:1
+      equiv: 0,2
     scan [out=2-3]
       columns: b.x:2* b.z:3
 
@@ -33,6 +35,7 @@ SELECT * FROM a WHERE EXISTS (SELECT 1 FROM b WHERE a.x = b.x)
 ----
 semi-join [out=0-1]
   columns: a.x:0* a.y:1
+  equiv: 0,2
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -41,6 +44,7 @@ semi-join [out=0-1]
   inputs:
     scan [out=0-1]
       columns: a.x:0* a.y:1
+      equiv: 0,2
     scan [out=2-3]
       columns: b.x:2* b.z:3
 
@@ -49,6 +53,7 @@ SELECT * FROM a WHERE NOT EXISTS (SELECT * FROM b WHERE a.x = b.x)
 ----
 anti-join [out=0-1]
   columns: a.x:0* a.y:1
+  equiv: 0,2
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -57,6 +62,7 @@ anti-join [out=0-1]
   inputs:
     scan [out=0-1]
       columns: a.x:0* a.y:1
+      equiv: 0,2
     scan [out=2-3]
       columns: b.x:2* b.z:3
 
@@ -65,6 +71,7 @@ SELECT * FROM a, (SELECT * FROM b WHERE a.x = b.x)
 ----
 inner join [out=0-3]
   columns: a.x:0* a.y:1 b.x:2* b.z:3
+  equiv: 0,2
   filters:
     comp (=) [in=0,2]
       inputs:
@@ -100,12 +107,14 @@ SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
 ----
 project [out=0-1]
   columns: a.x:0 a.y:1
+  equiv: 0,2
   projections:
     variable (a.x) [in=0]
     variable (a.y) [in=1]
   inputs:
     groupBy [out=0-1,4]
       columns: a.x:0 a.y:1 .column1:4*
+      equiv: 0,2
       groupings:
         variable (a.x) [in=0]
         variable (a.y) [in=1]
@@ -121,6 +130,7 @@ project [out=0-1]
       inputs:
         left join [out=0-3]
           columns: a.x:0* a.y:1 b.x:2* b.z:3
+          equiv: 0,2
           filters:
             comp (=) [in=0,2]
               inputs:
@@ -129,5 +139,6 @@ project [out=0-1]
           inputs:
             scan [out=0-1]
               columns: a.x:0 a.y:1
+              equiv: 0,2
             scan [out=2-3]
               columns: b.x:2* b.z:3

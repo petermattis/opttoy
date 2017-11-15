@@ -164,6 +164,13 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	for _, fkey := range p.foreignKeys {
 		fmt.Fprintf(buf, "%sforeign key: %s -> %s\n", indent, fkey.src, fkey.dest)
 	}
+	if len(p.equivCols) > 0 {
+		fmt.Fprintf(buf, "%sequiv:", indent)
+		for _, equiv := range p.equivCols {
+			fmt.Fprintf(buf, " %s", equiv)
+		}
+		buf.WriteString("\n")
+	}
 }
 
 // fingerprint returns a string which uniquely identifies the relational
@@ -240,22 +247,31 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 			left := filter.inputs()[0]
 			right := filter.inputs()[1]
 			if left.op == variableOp && right.op == variableOp {
-				p.addEquivColumns(left.scalarProps.inputCols, right.scalarProps.inputCols)
+				v := left.scalarProps.inputCols
+				v.unionWith(right.scalarProps.inputCols)
+				p.addEquivColumns(v)
 			}
 		}
 	}
 }
 
-func (p *relationalProps) addEquivColumns(a, b bitmap) {
+func (p *relationalProps) applyInputs(inputs []*expr) {
+	// Propagate equivalent columns from inputs.
+	for _, input := range inputs {
+		for _, equiv := range input.props.equivCols {
+			p.addEquivColumns(equiv)
+		}
+	}
+}
+
+func (p *relationalProps) addEquivColumns(v bitmap) {
 	for i, equiv := range p.equivCols {
-		if a.subsetOf(equiv) || b.subsetOf(equiv) {
-			p.equivCols[i].unionWith(a)
-			p.equivCols[i].unionWith(b)
+		if (v & equiv) != 0 {
+			p.equivCols[i].unionWith(v)
 			return
 		}
 	}
-	a.unionWith(b)
-	p.equivCols = append(p.equivCols, a)
+	p.equivCols = append(p.equivCols, v)
 }
 
 func initKeys(e *expr, state *queryState) {
