@@ -144,6 +144,9 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%scolumns:", indent)
 	for _, col := range p.columns {
 		buf.WriteString(" ")
+		if col.hidden {
+			buf.WriteString("(")
+		}
 		buf.WriteString(col.table)
 		buf.WriteString(".")
 		buf.WriteString(col.name)
@@ -151,6 +154,9 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		fmt.Fprintf(buf, "%d", col.index)
 		if p.notNullCols.get(col.index) {
 			buf.WriteString("*")
+		}
+		if col.hidden {
+			buf.WriteString(")")
 		}
 	}
 	buf.WriteString("\n")

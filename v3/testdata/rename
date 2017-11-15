@@ -42,7 +42,7 @@ project [out=0-1,3]
     variable (c.y) [in=1]
   inputs:
     inner join [out=0-3]
-      columns: c.x:0* c.y:1 d.x:2* d.z:3
+      columns: c.x:0* c.y:1 (d.x:2*) d.z:3
       equiv: 0,2
       filters:
         comp (=) [in=0,2]
