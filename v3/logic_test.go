@@ -208,6 +208,8 @@ func TestLogic(t *testing.T) {
 						prep(e)
 					case "decorrelate":
 						decorrelate(e)
+					case "normalize":
+						normalize(e)
 					case "memo":
 						m = newMemo()
 						m.addRoot(e)

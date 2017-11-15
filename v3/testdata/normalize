@@ -1,0 +1,28 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+build,normalize
+SELECT a.y FROM a WHERE a.y = a.x AND 1 = a.y
+----
+project [out=1]
+  columns: a.y:1
+  equiv: 0-1
+  projections:
+    variable (a.y) [in=1]
+  inputs:
+    scan [out=0-1]
+      columns: a.x:0* a.y:1*
+      equiv: 0-1
+      filters:
+        comp (=) [in=0-1]
+          inputs:
+            variable (a.x) [in=0]
+            variable (a.y) [in=1]
+        comp (=) [in=1]
+          inputs:
+            variable (a.y) [in=1]
+            const (1)
