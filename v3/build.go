@@ -249,10 +249,9 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 	right := inputs[1].props
 	e.props.columns = make([]columnProps, 0, len(left.columns)+len(right.columns))
 
-	joined := make(map[string]struct{}, len(names))
+	joined := make(map[string]*columnProps, len(names))
 	for _, name := range names {
 		name := string(name)
-		joined[name] = struct{}{}
 		// For every adjacent pair of tables, add an equality predicate.
 		leftCol := left.findColumn(name)
 		if leftCol == nil {
@@ -264,11 +263,16 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 		}
 		e.addFilter(newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr("")))
 		e.props.columns = append(e.props.columns, *leftCol)
+		joined[name] = leftCol
 	}
 
 	for _, col := range left.columns {
-		if _, ok := joined[col.name]; ok {
-			continue
+		jcol, ok := joined[col.name]
+		if ok {
+			if col == *jcol {
+				continue
+			}
+			col.hidden = true
 		}
 		e.props.columns = append(e.props.columns, col)
 	}

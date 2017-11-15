@@ -21,7 +21,7 @@ project [out=0]
     variable (a.x) [in=0]
   inputs:
     scan [out=0]
-      columns: a.x:0
+      columns: a.x:0 a.y:1
 
 prep
 SELECT x FROM a WHERE y > 1

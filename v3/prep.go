@@ -19,21 +19,6 @@ func prep(e *expr) {
 // Push down required output columns from the root of the expression to leaves.
 func trimOutputCols(e *expr, requiredOutputCols bitmap) {
 	e.props.outputCols = requiredOutputCols
-
-	// Trim relationalProps.columns to contain only required columns
-	// (i.e. columns required by our parent expression or by this expression's
-	// filters).
-	requiredCols := e.props.outputCols
-	requiredCols.unionWith(e.requiredFilterCols())
-
-	columns := e.props.columns
-	e.props.columns = e.props.columns[:0]
-	for _, col := range columns {
-		if requiredCols.get(col.index) {
-			e.props.columns = append(e.props.columns, col)
-		}
-	}
-
 	requiredInputCols := e.requiredInputCols() | requiredOutputCols
 	for _, input := range e.inputs() {
 		trimOutputCols(input, requiredInputCols&input.props.outputCols)
@@ -78,13 +63,7 @@ func inferEquivFilters(e *expr) {
 			for v := equiv & ^filterInputCols; v != 0; {
 				i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
 				v.clear(i)
-				col := e.props.findColumnByIndex(i)
-				if col == nil {
-					// The equivalent column is not needed by the expression, so don't
-					// create a filter using it.
-					continue
-				}
-				replacement := col.newVariableExpr("")
+				replacement := e.props.findColumnByIndex(i).newVariableExpr("")
 
 				for u := filterInputCols; u != 0; {
 					j := bitmapIndex(bits.TrailingZeros64(uint64(u)))
