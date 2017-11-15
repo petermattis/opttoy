@@ -13,6 +13,33 @@ table b
   z NULL
 
 prep
+SELECT a.x FROM a
+----
+project [out=0]
+  columns: a.x:0
+  projections:
+    variable (a.x) [in=0]
+  inputs:
+    scan [out=0]
+      columns: a.x:0
+
+prep
+SELECT x FROM a WHERE y > 1
+----
+project [out=0] [outer=1]
+  columns: a.x:0
+  projections:
+    variable (a.x) [in=0]
+  inputs:
+    scan [out=0] [outer=1]
+      columns: a.x:0 a.y:1*
+      filters:
+        comp (>) [in=1]
+          inputs:
+            variable (a.y) [in=1]
+            const (1)
+
+prep
 SELECT * FROM a NATURAL JOIN b WHERE a.x > 1
 ----
 project [out=0-1,3]

@@ -19,6 +19,21 @@ func prep(e *expr) {
 // Push down required output columns from the root of the expression to leaves.
 func trimOutputCols(e *expr, requiredOutputCols bitmap) {
 	e.props.outputCols = requiredOutputCols
+
+	// Trim relationalProps.columns to contain only required columns
+	// (i.e. columns required by our parent expression or by this expression's
+	// filters).
+	requiredCols := e.props.outputCols
+	requiredCols.unionWith(e.requiredFilterCols())
+
+	columns := e.props.columns
+	e.props.columns = e.props.columns[:0]
+	for _, col := range columns {
+		if requiredCols.get(col.index) {
+			e.props.columns = append(e.props.columns, col)
+		}
+	}
+
 	requiredInputCols := e.requiredInputCols() | requiredOutputCols
 	for _, input := range e.inputs() {
 		trimOutputCols(input, requiredInputCols&input.props.outputCols)

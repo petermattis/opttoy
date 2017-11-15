@@ -104,7 +104,7 @@ rename [out=2]
             const (1)
       inputs:
         scan [out=0]
-          columns: a.x:0* a.y:1
+          columns: a.x:0*
           filters:
             comp (>) [in=0]
               inputs:
