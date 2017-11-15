@@ -25,7 +25,7 @@ const (
 // method can provide additional checking for whether the transformation can be
 // applied to a specific expression.
 //
-// TODO(peter): Allow transforms can specify their compatibility with other
+// TODO(peter): Allow transforms to specify their compatibility with other
 // transforms. Memo expressions store which transformation created them which
 // allows skipping transforms. For example, the join commutativity transform is
 // not applied to an expression that was created by the join commutatitivity
