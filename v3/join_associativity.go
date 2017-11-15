@@ -57,8 +57,8 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 		}
 	}
 
-	if len(lowerFilters) == 0 {
-		// Don't create cross joins.
+	if len(upperFilters) > 0 && len(lowerFilters) == 0 {
+		// Don't create cross joins if the upper join has a filter.
 		return results
 	}
 
