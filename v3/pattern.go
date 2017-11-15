@@ -1,29 +1,65 @@
 package v3
 
-// The pattern leaf and pattern tree sentinels allow definining patterns in
-// terms of the expression structure. A pattern expression is used to extract
-// an actual expression from the memo in order to perform a transformation on
-// it. (See memo.{bind,advance}). The pattern sentinels indicate where
-// recursive extraction of the full subtree is required. For example, the join
-// commutativity transformation wants to extract expressions. It does not care
-// about the inputs, but only wants to reorder them. This can be specified by
-// the pattern expression:
+// A pattern expression is used to extract expressions from the memo in order to
+// perform a transformation on them. The pattern expression describes what the
+// structure of the expression needs to be for a given transformation to apply.
+// A memo expression can have many bindings that satisfy a given pattern.
 //
-// inner join
-//   0: pattern leaf
-//   1: pattern leaf
-//   2: pattern leaf
+// To help define these patterns, we define pattern tree sentinels which can be
+// used as leaves of the pattern expression tree.
 //
-// Join associativity is somewhat more complicated in that it wants a join
-// where the left input is also a join:
+//  - Pattern Leaf
 //
-// inner join
-//   0: inner join
-//     0: pattern leaf
-//     1: pattern leaf
-//     2: pattern tree
-//   1: pattern leaf
-//   2: pattern tree
+//  A Pattern Leaf matches any expression tree, with only the root of the tree
+//  being retained in a binding. It is used when the expression is used opaquely
+//  by the transformation. In other words, the transformation doesn't care
+//  what's inside the subtree. It is a "leaf" in the sense that it's a leaf in
+//  any binding matching a pattern.
+//
+//  - Pattern Tree
+//
+//  A Pattern Tree matches any expression tree and indicates that recursive
+//  extraction of the full subtree is required. It is typically used for scalar
+//  expressions, when some manipulation of that expression is required by the
+//  transformation. Note that a pattern tree results in all possible subtrees
+//  being enumerated, however scalar expressions typically don't have many
+//  subtrees (e.g. if there are no subqueries, there is only one subtree).
+//
+// Examples:
+//
+//   Join commutativity: the transformation wants to extract the child
+//   expressions (left, right, ON condition) but does not care what's inside
+//   them, it just wants to reorder them. The pattern expression for this
+//   transformation is:
+//
+//     inner join
+//      |
+//      |-- pattern leaf
+//      |
+//      |-- pattern leaf
+//      |
+//      |-- pattern leaf
+//
+//   Join associativity: the transformation wants a join where the left input is
+//   also a join; in addition, it needs to adjust the ON conditions. The pattern
+//   for this transformation is:
+//
+//     inner join
+//      |
+//      |-- inner join
+//      |    |
+//      |    |-- pattern leaf
+//      |    |
+//      |    |-- pattern leaf
+//      |    |
+//      |    |-- pattern tree
+//      |
+//      |
+//      |-- pattern leaf
+//      |
+//      |-- pattern tree
+//
+//    Note the use of "pattern tree" for the ON conditions.
 
 var patternLeaf = &expr{}
 var patternTree = &expr{}
