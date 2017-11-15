@@ -74,5 +74,10 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	newUpper := newJoinExpr(innerJoinOp, newLower, leftRight)
 	newUpper.addFilters(upperFilters)
 	newUpper.props = e.props
+
+	// TODO(peter): Needing to trim the output columns again is
+	// unfortunate. Perhaps the prep phase of trimming output columns should
+	// actually remove columns from relationalProps.columns.
+	trimOutputCols(newUpper, newUpper.props.outputCols)
 	return append(results, newUpper)
 }
