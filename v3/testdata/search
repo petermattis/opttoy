@@ -35,27 +35,25 @@ SELECT * FROM a JOIN b ON (a.x = b.x)
 prep,memo,search
 SELECT * FROM a, b, c
 ----
-6: [inner join [4 5 1]] [inner join [7 3 -]] [inner join [8 2 -]] [inner join [5 4 1]] [inner join [4 5 -]] [inner join [3 7 -]] [inner join [2 8 -]] [inner join [5 4 -]]
-8: [inner join [3 5 -]] [inner join [5 3 -]]
-7: [inner join [2 5 -]] [inner join [5 2 -]]
-5: [scan c [1]]
-4: [inner join [2 3 1]] [inner join [3 2 1]] [inner join [2 3 -]] [inner join [3 2 -]]
-3: [scan b [1]]
-2: [scan a [1]]
-1: [list]
+5: [inner join [3 4 -]] [inner join [6 2 -]] [inner join [7 1 -]] [inner join [4 3 -]] [inner join [2 6 -]] [inner join [1 7 -]]
+7: [inner join [2 4 -]] [inner join [4 2 -]]
+6: [inner join [1 4 -]] [inner join [4 1 -]]
+4: [scan c [-]]
+3: [inner join [1 2 -]] [inner join [2 1 -]]
+2: [scan b [-]]
+1: [scan a [-]]
 
 prep,memo,search
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 ----
-20: [project [14 18 19]]
-19: [list]
+19: [project [14 18 -]]
 18: [list [1 15 16 17]]
 17: [variable c.w]
 16: [variable b.z]
 15: [variable a.y]
-14: [inner join [9 12 13]] [inner join [21 7 8]] [inner join [12 9 13]] [inner join [22 12 13]] [inner join [7 21 8]] [inner join [12 22 13]]
-22: [inner join [4 7 8]] [inner join [7 4 8]]
-21: [inner join [4 12 13]] [inner join [12 4 13]]
+14: [inner join [9 12 13]] [inner join [20 7 8]] [inner join [12 9 13]] [inner join [21 12 13]] [inner join [7 20 8]] [inner join [12 21 13]]
+21: [inner join [4 7 8]] [inner join [7 4 8]]
+20: [inner join [4 12 13]] [inner join [12 4 13]]
 13: [comp (=) [1 10]]
 12: [scan c [11]]
 11: [comp (IS NOT) [10 2]]

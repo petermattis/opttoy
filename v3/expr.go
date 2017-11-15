@@ -198,11 +198,13 @@ func (e *expr) addAuxN(i int, aux []*expr) {
 func (e *expr) replaceAuxN(i int, aux []*expr) {
 	if len(aux) == 1 {
 		e.children[i] = aux[0]
-	} else {
+	} else if len(aux) > 1 {
 		e.children[i] = &expr{
 			op:       listOp,
 			children: aux,
 		}
+	} else {
+		e.children[i] = nil
 	}
 }
 
