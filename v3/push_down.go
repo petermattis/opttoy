@@ -48,10 +48,6 @@ func pushDownFilters(e *expr) {
 			}
 		}
 
-		// TODO(peter): A join condition such as "a.x = b.x" cannot be pushed down,
-		// but it can create other the filters "a.x IS NOT NULL" and "b.x IS NOT
-		// NULL" which can be pushed down.
-
 		if count == 0 {
 			newFilters = append(newFilters, filter)
 		}
