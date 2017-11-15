@@ -75,8 +75,8 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	newUpper.addFilters(upperFilters)
 	newUpper.props = e.props
 
-	// TODO(peter): Needing to trim the output columns again is
-	// unfortunate. Figure out why this is necessary.
-	trimOutputCols(newUpper, newUpper.props.outputCols)
+	// Compute the output columns for the lower join.
+	newLower.props.outputCols &= (newUpper.requiredInputCols() | newUpper.props.outputCols)
+
 	return append(results, newUpper)
 }
