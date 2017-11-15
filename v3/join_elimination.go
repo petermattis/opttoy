@@ -75,9 +75,6 @@ func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 	// the left hand side of the join.
 	filters := e.filters()
 	for _, filter := range filters {
-		// TODO(peter): pushDownFilters() should ensure we only have join
-		// conditions here making this test and the one for the left output columns
-		// unnecessary.
 		if filter.scalarInputCols().subsetOf(rightOutputCols) {
 			// The filter only utilizes columns from the right hand side of the join.
 			return nil
