@@ -14,7 +14,7 @@ project [out=(1)]
   projections:
     variable (a.y) [in=(1)]
   inputs:
-    scan [out=(0,1)]
+    select [out=(0,1)]
       columns: a.x:0* a.y:1*
       equiv: (0,1)
       filters:
@@ -26,3 +26,6 @@ project [out=(1)]
           inputs:
             variable (a.y) [in=(1)]
             const (1)
+      inputs:
+        scan [out=(0,1)]
+          columns: a.x:0 a.y:1

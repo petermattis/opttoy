@@ -13,7 +13,7 @@ func init() {
 func newSetExpr(op operator, input1, input2 *expr) *expr {
 	return &expr{
 		op:       op,
-		children: []*expr{input1, input2, nil /* filter */},
+		children: []*expr{input1, input2},
 	}
 }
 
@@ -25,28 +25,26 @@ func (union) kind() operatorKind {
 
 func (union) layout() exprLayout {
 	return exprLayout{
-		numAux:  1,
-		filters: 2,
+		numAux: 0,
 	}
 }
 
 func (union) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
-	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
 func (union) initKeys(e *expr, state *queryState) {
 }
 
-func (u union) updateProps(e *expr) {
+func (union) updateProps(e *expr) {
 	// Union is pass through and requires any input columns that its inputs
 	// require.
-	e.props.outerCols = bitmap{}
+	excluded := e.props.outputCols.Union(e.providedInputCols())
+	e.props.outerCols = e.requiredInputCols().Difference(excluded)
 	for _, input := range e.inputs() {
 		e.props.outerCols.UnionWith(input.props.outerCols)
 	}
 
-	e.props.applyFilters(e.filters())
 	e.props.applyInputs(e.inputs())
 }

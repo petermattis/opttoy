@@ -128,7 +128,7 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 func (scalar) initKeys(e *expr, state *queryState) {
 }
 
-func (s scalar) updateProps(e *expr) {
+func (scalar) updateProps(e *expr) {
 	if e.scalarProps != nil {
 		// For a scalar operation the required input columns is the union of the
 		// input columns of its inputs.

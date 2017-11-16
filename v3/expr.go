@@ -233,7 +233,11 @@ func (e *expr) removeAuxN(i int) {
 }
 
 func (e *expr) filters() []*expr {
-	return e.aux(e.layout().filters)
+	l := e.layout()
+	if l.filters < 0 {
+		return nil
+	}
+	return e.aux(l.filters)
 }
 
 func (e *expr) addFilter(f *expr) {

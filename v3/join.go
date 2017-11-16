@@ -42,7 +42,7 @@ func (join) format(e *expr, buf *bytes.Buffer, level int) {
 func (join) initKeys(e *expr, state *queryState) {
 }
 
-func (j join) updateProps(e *expr) {
+func (join) updateProps(e *expr) {
 	e.props.notNullCols = bitmap{}
 	for _, input := range e.inputs() {
 		e.props.notNullCols.UnionWith(input.props.notNullCols)

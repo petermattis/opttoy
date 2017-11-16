@@ -12,6 +12,7 @@ const (
 
 	// Relational operators
 	scanOp
+	selectOp
 	renameOp
 
 	unionOp
@@ -154,7 +155,7 @@ func registerOperator(op operator, name string, info operatorInfo) {
 		if l.projections == 0 {
 			l.projections = -1
 		}
-		if l.filters == 0 && l.numAux == 0 {
+		if l.filters == 0 {
 			l.filters = -1
 		}
 		operatorLayout[op] = l

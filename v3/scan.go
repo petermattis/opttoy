@@ -10,9 +10,8 @@ func init() {
 
 func newScanExpr(tab *table) *expr {
 	return &expr{
-		op:       scanOp,
-		children: []*expr{nil /* filter */},
-		private:  tab,
+		op:      scanOp,
+		private: tab,
 	}
 }
 
@@ -24,14 +23,12 @@ func (scan) kind() operatorKind {
 
 func (scan) layout() exprLayout {
 	return exprLayout{
-		numAux:  1,
-		filters: 0,
+		numAux: 0,
 	}
 }
 
 func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
-	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
@@ -65,7 +62,6 @@ func (scan) initKeys(e *expr, state *queryState) {
 	}
 }
 
-func (s scan) updateProps(e *expr) {
+func (scan) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
-	e.props.applyFilters(e.filters())
 }

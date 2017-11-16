@@ -10,11 +10,6 @@ Memo
   of the expressions. We'd also want to use this arena for the
   expressions created by the transformation.
 
-Operators
----------
-
-- Investigate adding an explicit selectOp.
-
 Prep
 ----
 

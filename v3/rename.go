@@ -11,7 +11,7 @@ func init() {
 func newRenameExpr(input *expr) *expr {
 	return &expr{
 		op:       renameOp,
-		children: []*expr{input, nil /* filter */},
+		children: []*expr{input},
 	}
 }
 
@@ -23,28 +23,26 @@ func (rename) kind() operatorKind {
 
 func (rename) layout() exprLayout {
 	return exprLayout{
-		numAux:  1,
-		filters: 1,
+		numAux: 0,
 	}
 }
 
 func (rename) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
-	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
 func (rename) initKeys(e *expr, state *queryState) {
 }
 
-func (r rename) updateProps(e *expr) {
+func (rename) updateProps(e *expr) {
 	// Rename is pass through and requires any input columns that its inputs
 	// require.
-	e.props.outerCols = bitmap{}
+	excluded := e.props.outputCols.Union(e.providedInputCols())
+	e.props.outerCols = e.requiredInputCols().Difference(excluded)
 	for _, input := range e.inputs() {
 		e.props.outerCols.UnionWith(input.props.outerCols)
 	}
 
-	e.props.applyFilters(e.filters())
 	e.props.applyInputs(e.inputs())
 }

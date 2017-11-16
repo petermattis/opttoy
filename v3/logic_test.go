@@ -206,7 +206,10 @@ func TestLogic(t *testing.T) {
 						inferFilters(e)
 					case "prep":
 						prep(e)
+					case "apply":
+						expandApply(e)
 					case "decorrelate":
+						expandApply(e)
 						decorrelate(e)
 					case "normalize":
 						normalize(e)

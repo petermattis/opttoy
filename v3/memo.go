@@ -145,8 +145,14 @@ func newMemo() *memo {
 func (m *memo) String() string {
 	var buf bytes.Buffer
 	for _, id := range m.topologicalSort() {
-		fmt.Fprintf(&buf, "%d:", id)
 		g := m.groups[id]
+		// TODO(peter): provide a better mechanism for displaying group
+		// fingerprints for debugging.
+		if false && g.props != nil {
+			fmt.Fprintf(&buf, "%d [%s]:", id, g.props.fingerprint())
+		} else {
+			fmt.Fprintf(&buf, "%d:", id)
+		}
 		for _, e := range g.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
 		}
