@@ -5,9 +5,16 @@ import (
 	"fmt"
 )
 
+// groupID identifies a memo group. Groups have numbers greater than 0; a
+// groupID of 0 indicates an empty expression or an unknown group.
+type groupID int32
+
+// exprID identifies an expression within its memo group.
+type exprID int32
+
 type memoLoc struct {
-	group int32
-	expr  int32
+	group groupID
+	expr  exprID
 }
 
 func (l memoLoc) String() string {
@@ -17,7 +24,7 @@ func (l memoLoc) String() string {
 type memoExpr struct {
 	loc      memoLoc
 	op       operator
-	children []int32
+	children []groupID
 	private  interface{}
 }
 
@@ -57,14 +64,14 @@ func (e *memoExpr) fingerprint() string {
 }
 
 type memoGroup struct {
-	id          int32
+	id          groupID
 	explored    int32
 	implemented int32
 
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
-	exprMap map[string]int32
+	exprMap map[string]exprID
 	exprs   []*memoExpr
 	// The relational properties for the group. Nil if the group contains scalar
 	// expressions.
@@ -76,7 +83,7 @@ type memoGroup struct {
 
 func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 	return &memoGroup{
-		exprMap:     make(map[string]int32),
+		exprMap:     make(map[string]exprID),
 		props:       props,
 		scalarProps: scalarProps,
 	}
@@ -85,22 +92,22 @@ func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 type memo struct {
 	// A map from expression fingerprint to the index of the group the expression
 	// resides in.
-	exprMap map[string]int32
+	exprMap map[string]groupID
 	// A map from group fingerprint to the index of the group in the groups
 	// slice. For relational groups, the fingerprint for a group is the
 	// fingerprint of the relational properties. For scalar groups, the
 	// fingerprint for a group is the fingerprint of the memo expression.
-	groupMap map[string]int32
+	groupMap map[string]groupID
 	groups   []*memoGroup
-	root     int32
+	root     groupID
 }
 
 func newMemo() *memo {
 	// NB: group 0 is reserved and intentionally nil so that the 0 group index
 	// can indicate that we don't know the group for an expression.
 	return &memo{
-		exprMap:  make(map[string]int32),
-		groupMap: make(map[string]int32),
+		exprMap:  make(map[string]groupID),
+		groupMap: make(map[string]groupID),
 		groups:   make([]*memoGroup, 1),
 	}
 }
@@ -118,11 +125,13 @@ func (m *memo) String() string {
 	return buf.String()
 }
 
-func (m *memo) topologicalSort() []int32 {
+// topologicalSort returns an ordering of memo groups such that if an expression
+// in group i points to group j, i comes before j in the ordering.
+func (m *memo) topologicalSort() []groupID {
 	visited := make([]bool, len(m.groups))
-	res := make([]int32, 0, len(m.groups))
-	for id := range m.groups {
-		res = m.dfsVisit(int32(id), visited, res)
+	res := make([]groupID, 0, len(m.groups))
+	for id := range m.groups[1:] {
+		res = m.dfsVisit(groupID(id+1), visited, res)
 	}
 
 	// The depth first search returned the groups from leaf to root. We want the
@@ -133,7 +142,9 @@ func (m *memo) topologicalSort() []int32 {
 	return res
 }
 
-func (m *memo) dfsVisit(id int32, visited []bool, res []int32) []int32 {
+// dfsVisit performs a depth-first search starting from the group, avoiding
+// already visited nodes. Returns the visited node in depth-first order.
+func (m *memo) dfsVisit(id groupID, visited []bool, res []groupID) []groupID {
 	if id <= 0 || visited[id] {
 		return res
 	}
@@ -155,7 +166,8 @@ func (m *memo) addRoot(e *expr) {
 	m.root = m.addExpr(e)
 }
 
-func (m *memo) addExpr(e *expr) int32 {
+// addExpr adds an expression to the memo and returns the group it was added to.
+func (m *memo) addExpr(e *expr) groupID {
 	if e.loc.group > 0 && e.loc.expr >= 0 {
 		// The expression has already been added to the memo.
 		return e.loc.group
@@ -165,7 +177,7 @@ func (m *memo) addExpr(e *expr) int32 {
 	me := &memoExpr{
 		op:       e.op,
 		loc:      e.loc,
-		children: make([]int32, len(e.children)),
+		children: make([]groupID, len(e.children)),
 		private:  e.private,
 	}
 	for i, g := range e.children {
@@ -199,7 +211,7 @@ func (m *memo) addExpr(e *expr) int32 {
 		}
 		group, ok := m.groupMap[pf]
 		if !ok {
-			group = int32(len(m.groups))
+			group = groupID(len(m.groups))
 			g := newMemoGroup(e.props, e.scalarProps)
 			g.id = group
 			m.groups = append(m.groups, g)
@@ -210,7 +222,7 @@ func (m *memo) addExpr(e *expr) int32 {
 
 	g := m.groups[me.loc.group]
 	if _, ok := g.exprMap[ef]; !ok {
-		me.loc.expr = int32(len(g.exprs))
+		me.loc.expr = exprID(len(g.exprs))
 		g.exprMap[ef] = me.loc.expr
 		g.exprs = append(g.exprs, me)
 	}
