@@ -184,7 +184,7 @@ func (s *search) implementGroup(g *memoGroup, parent *searchTask) {
 
 	s.exploreGroup(g, parent)
 	exprs := g.exprs[g.implemented:]
-	g.implemented = int32(len(g.exprs))
+	g.implemented = exprID(len(g.exprs))
 
 	for _, e := range exprs {
 		t := newSearchTask(s, parent)
@@ -217,7 +217,7 @@ func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
 	}
 
 	exprs := g.exprs[g.explored:]
-	g.explored = int32(len(g.exprs))
+	g.explored = exprID(len(g.exprs))
 
 	for _, e := range exprs {
 		t := newSearchTask(s, parent)
