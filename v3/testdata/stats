@@ -6,6 +6,13 @@ table a
   y NULL
 
 exec
-INSERT INTO histogram.a.x VALUES (4, 5), (NULL, 1), (2, 3)
+INSERT INTO histogram.a.x VALUES
+  ('rows', 1000),
+  ('distinct', 100),
+  ('nulls', 10),
+  (4, 5), (2, 3), (6, 7)
 ----
-NULL:1 2:3 4:5
+rows:     1000
+distinct: 100
+nulls:    10
+buckets:  2:3 4:5 6:7
