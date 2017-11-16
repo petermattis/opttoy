@@ -1,8 +1,6 @@
 package v3
 
 import (
-	"math/bits"
-
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
@@ -17,9 +15,9 @@ func prep(e *expr) {
 // Push down required output columns from the root of the expression to leaves.
 func trimOutputCols(e *expr, requiredOutputCols bitmap) {
 	e.props.outputCols = requiredOutputCols
-	requiredInputCols := e.requiredInputCols() | requiredOutputCols
+	requiredInputCols := e.requiredInputCols().Union(requiredOutputCols)
 	for _, input := range e.inputs() {
-		trimOutputCols(input, requiredInputCols&input.props.outputCols)
+		trimOutputCols(input, requiredInputCols.Intersection(input.props.outputCols))
 	}
 	e.updateProps()
 }
@@ -41,7 +39,7 @@ func inferEquivFilters(e *expr) {
 	for _, equiv := range e.props.equivCols {
 		for _, filter := range e.filters() {
 			filterInputCols := filter.scalarInputCols()
-			if filterInputCols == 0 {
+			if filterInputCols.Empty() {
 				// The filter doesn't have any input columns.
 				continue
 			}
@@ -50,7 +48,7 @@ func inferEquivFilters(e *expr) {
 				// substitutions are possible.
 				continue
 			}
-			if (filterInputCols & equiv) == 0 {
+			if !filterInputCols.Intersects(equiv) {
 				// The filter input columns do not overlap the equivalent columns. No
 				// substitutiosn are possible.
 				continue
@@ -58,19 +56,13 @@ func inferEquivFilters(e *expr) {
 
 			// Loop over the equivalent columns and create new expressions by
 			// substitution.
-			for v := equiv & ^filterInputCols; v != 0; {
-				i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
-				v.clear(i)
+			v := equiv.Difference(filterInputCols)
+			for i, ok := v.Next(0); ok; i, ok = v.Next(i + 1) {
 				replacement := e.props.findColumnByIndex(i).newVariableExpr("")
 
-				for u := filterInputCols; u != 0; {
-					j := bitmapIndex(bits.TrailingZeros64(uint64(u)))
-					u.clear(j)
-					if i == j {
-						continue
-					}
+				for j, ok := filterInputCols.Next(0); ok; j, ok = filterInputCols.Next(j + 1) {
 					var t bitmap
-					t.set(j)
+					t.Add(j)
 					newFilter := substitute(filter, t, replacement)
 					normalize(newFilter)
 					inferredFilters = append(inferredFilters, newFilter)
@@ -99,32 +91,30 @@ func inferNotNullFilters(e *expr) {
 	// nullable in the inputs).
 	var inputNotNullCols bitmap
 	for _, input := range e.inputs() {
-		inputNotNullCols.unionWith(input.props.notNullCols)
+		inputNotNullCols.UnionWith(input.props.notNullCols)
 	}
-	newNotNullCols := e.props.notNullCols & ^inputNotNullCols
+	newNotNullCols := e.props.notNullCols.Difference(inputNotNullCols)
 
 	// Only infer filters for required output columns.
-	newNotNullCols &= (e.props.outputCols | e.requiredFilterCols())
+	newNotNullCols.IntersectionWith(e.props.outputCols.Union(e.requiredFilterCols()))
 
 	// Remove any columns for which a filter already exists on only that column
 	// which filters NULLs.
 	for _, filter := range e.filters() {
 		filterInputCols := filter.scalarInputCols()
-		if filterInputCols.count() != 1 {
+		if filterInputCols.Len() != 1 {
 			continue
 		}
-		filterCol := bitmapIndex(bits.TrailingZeros64(uint64(filterInputCols)))
-		newNotNullCols.clear(filterCol)
+		newNotNullCols.DifferenceWith(filterInputCols)
 	}
 
 	// Generate the IS NOT NULL filters for the remaining columns.
-	for v := newNotNullCols; v != 0; {
-		i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
-		v.clear(i)
-
-		newFilter := newBinaryExpr(isNotOp,
+	for i, ok := newNotNullCols.Next(0); ok; i, ok = newNotNullCols.Next(i + 1) {
+		newFilter := newBinaryExpr(
+			isNotOp,
 			e.props.findColumnByIndex(i).newVariableExpr(""),
-			newConstExpr(tree.DNull))
+			newConstExpr(tree.DNull),
+		)
 		newFilter.updateProps()
 		e.addFilter(newFilter)
 	}

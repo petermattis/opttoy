@@ -50,11 +50,11 @@ func (scan) initKeys(e *expr, state *queryState) {
 
 			var src bitmap
 			for _, i := range k.columns {
-				src.set(props.columns[i].index)
+				src.Add(props.columns[i].index)
 			}
 			var dest bitmap
 			for _, i := range k.fkey.columns {
-				dest.set(base + bitmapIndex(i))
+				dest.Add(base + bitmapIndex(i))
 			}
 
 			props.foreignKeys = append(props.foreignKeys, foreignKeyProps{
@@ -66,7 +66,6 @@ func (scan) initKeys(e *expr, state *queryState) {
 }
 
 func (s scan) updateProps(e *expr) {
-	e.props.outerCols = e.requiredInputCols()
-	e.props.outerCols &^= e.props.outputCols
+	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
 	e.props.applyFilters(e.filters())
 }

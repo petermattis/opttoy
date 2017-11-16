@@ -47,7 +47,7 @@ func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 	// Check to see if the required output columns only depend on the left side
 	// of the join.
 	leftOutputCols := left.props.outputCols
-	if !e.props.outputCols.subsetOf(leftOutputCols) {
+	if !e.props.outputCols.SubsetOf(leftOutputCols) {
 		return nil
 	}
 
@@ -57,11 +57,11 @@ func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 	var fkey *foreignKeyProps
 	for i := range left.props.foreignKeys {
 		fkey = &left.props.foreignKeys[i]
-		if !fkey.src.subsetOf(left.props.notNullCols) {
+		if !fkey.src.SubsetOf(left.props.notNullCols) {
 			// The source for the foreign key is a weak key.
 			continue
 		}
-		if fkey.dest.subsetOf(rightOutputCols) {
+		if fkey.dest.SubsetOf(rightOutputCols) {
 			// The target of the foreign key is the right side of the join.
 			break
 		}
@@ -75,11 +75,11 @@ func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 	// the left hand side of the join.
 	filters := e.filters()
 	for _, filter := range filters {
-		if filter.scalarInputCols().subsetOf(rightOutputCols) {
+		if filter.scalarInputCols().SubsetOf(rightOutputCols) {
 			// The filter only utilizes columns from the right hand side of the join.
 			return nil
 		}
-		if filter.scalarInputCols().subsetOf(leftOutputCols) {
+		if filter.scalarInputCols().SubsetOf(leftOutputCols) {
 			// The filter only utilizes columns from the left hand side of the join.
 			continue
 		}
@@ -91,7 +91,7 @@ func maybeEliminateInnerJoin(e, left, right *expr) *expr {
 
 	// Move any filters down to the left hand side of the join.
 	for _, filter := range filters {
-		if filter.scalarInputCols().subsetOf(leftOutputCols) {
+		if filter.scalarInputCols().SubsetOf(leftOutputCols) {
 			left.addFilter(filter)
 		}
 	}
