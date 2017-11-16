@@ -42,10 +42,10 @@ func (groupBy) initKeys(e *expr, state *queryState) {
 }
 
 func (g groupBy) updateProps(e *expr) {
-	e.props.outerCols = e.requiredInputCols()
-	e.props.outerCols &^= (e.props.outputCols | e.providedInputCols())
+	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
+	e.props.outerCols.DifferenceWith(e.providedInputCols())
 	for _, input := range e.inputs() {
-		e.props.outerCols.unionWith(input.props.outerCols)
+		e.props.outerCols.UnionWith(input.props.outerCols)
 	}
 
 	e.props.applyFilters(e.filters())

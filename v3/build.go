@@ -194,7 +194,7 @@ func buildScan(tab *table, scope *scope) *expr {
 		if k.fkey == nil && (k.primary || k.unique) {
 			var key bitmap
 			for _, i := range k.columns {
-				key.set(props.columns[i].index)
+				key.Add(props.columns[i].index)
 			}
 			props.weakKeys = append(props.weakKeys, key)
 		}
@@ -203,7 +203,7 @@ func buildScan(tab *table, scope *scope) *expr {
 	// Initialize not-NULL columns from the table schema.
 	for i, col := range tab.columns {
 		if col.notNull {
-			props.notNullCols.set(props.columns[i].index)
+			props.notNullCols.Add(props.columns[i].index)
 		}
 	}
 
@@ -571,7 +571,7 @@ func buildProjections(
 				if name == "" {
 					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
 				}
-				p.scalarProps.definedCols.set(index)
+				p.scalarProps.definedCols.Add(index)
 				result.props.columns = append(result.props.columns, columnProps{
 					index: index,
 					name:  name,

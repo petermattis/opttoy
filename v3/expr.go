@@ -125,10 +125,10 @@ func (e *expr) format(buf *bytes.Buffer, level int) {
 
 func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
-	if e.props.outputCols != 0 {
+	if !e.props.outputCols.Empty() {
 		fmt.Fprintf(buf, " [out=%s]", e.props.outputCols)
 	}
-	if e.props.outerCols != 0 {
+	if !e.props.outerCols.Empty() {
 		fmt.Fprintf(buf, " [outer=%s]", e.props.outerCols)
 	}
 	buf.WriteString("\n")
@@ -341,7 +341,7 @@ func (e *expr) updateProps() {
 
 func (e *expr) scalarInputCols() bitmap {
 	if e.scalarProps == nil {
-		return 0
+		return bitmap{}
 	}
 	return e.scalarProps.inputCols
 }
@@ -349,7 +349,7 @@ func (e *expr) scalarInputCols() bitmap {
 func (e *expr) requiredFilterCols() bitmap {
 	var v bitmap
 	for _, f := range e.filters() {
-		v.unionWith(f.scalarInputCols())
+		v.UnionWith(f.scalarInputCols())
 	}
 	return v
 }
@@ -363,10 +363,10 @@ func (e *expr) requiredInputCols() bitmap {
 		}
 		if e.op == listOp {
 			for _, c := range e.children {
-				v.unionWith(c.scalarInputCols())
+				v.UnionWith(c.scalarInputCols())
 			}
 		} else {
-			v.unionWith(e.scalarInputCols())
+			v.UnionWith(e.scalarInputCols())
 		}
 	}
 	return v
@@ -375,7 +375,7 @@ func (e *expr) requiredInputCols() bitmap {
 func (e *expr) providedInputCols() bitmap {
 	var v bitmap
 	for _, input := range e.inputs() {
-		v.unionWith(input.props.outputCols)
+		v.UnionWith(input.props.outputCols)
 	}
 	return v
 }

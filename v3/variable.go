@@ -15,7 +15,7 @@ func newVariableExpr(private interface{}, index bitmapIndex) *expr {
 		scalarProps: &scalarProps{},
 		private:     private,
 	}
-	e.scalarProps.inputCols.set(index)
+	e.scalarProps.inputCols.Add(index)
 	e.updateProps()
 	return e
 }

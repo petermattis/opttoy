@@ -3,7 +3,6 @@ package v3
 import (
 	"bytes"
 	"fmt"
-	"math/bits"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
@@ -127,9 +126,9 @@ type relationalProps struct {
 }
 
 func (p *relationalProps) init() {
-	p.outputCols = 0
+	p.outputCols = bitmap{}
 	for _, col := range p.columns {
-		p.outputCols.set(col.index)
+		p.outputCols.Add(col.index)
 	}
 }
 
@@ -152,7 +151,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		buf.WriteString(col.name)
 		buf.WriteString(":")
 		fmt.Fprintf(buf, "%d", col.index)
-		if p.notNullCols.get(col.index) {
+		if p.notNullCols.Contains(col.index) {
 			buf.WriteString("*")
 		}
 		if col.hidden {
@@ -162,7 +161,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	buf.WriteString("\n")
 	for _, key := range p.weakKeys {
 		var prefix string
-		if !key.subsetOf(p.notNullCols) {
+		if !key.SubsetOf(p.notNullCols) {
 			prefix = "weak "
 		}
 		fmt.Fprintf(buf, "%s%skey: %s\n", indent, prefix, key)
@@ -239,11 +238,7 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 	//
 	// TODO(peter): Need to make sure the filter is not null-tolerant.
 	for _, filter := range filters {
-		for v := filter.scalarInputCols(); v != 0; {
-			i := bitmapIndex(bits.TrailingZeros64(uint64(v)))
-			v.clear(i)
-			p.notNullCols.set(i)
-		}
+		p.notNullCols.UnionWith(filter.scalarInputCols())
 	}
 
 	// Find equivalent columns.
@@ -254,7 +249,7 @@ func (p *relationalProps) applyFilters(filters []*expr) {
 			right := filter.children[1]
 			if left.op == variableOp && right.op == variableOp {
 				v := left.scalarProps.inputCols
-				v.unionWith(right.scalarProps.inputCols)
+				v.UnionWith(right.scalarProps.inputCols)
 				p.addEquivColumns(v)
 			}
 			// TODO(peter): Support tuple comparisons such as "(a, b) = (c, d)".
@@ -273,8 +268,8 @@ func (p *relationalProps) applyInputs(inputs []*expr) {
 
 func (p *relationalProps) addEquivColumns(v bitmap) {
 	for i, equiv := range p.equivCols {
-		if (v & equiv) != 0 {
-			p.equivCols[i].unionWith(v)
+		if v.Intersects(equiv) {
+			p.equivCols[i].UnionWith(v)
 			return
 		}
 	}
