@@ -1,0 +1,11 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+INSERT INTO histogram.a.x VALUES (4, 5), (NULL, 1), (2, 3)
+----
+NULL:1 2:3 4:5

@@ -29,6 +29,20 @@ func (p *planner) exec(stmt tree.Statement) string {
 	case *tree.CreateTable:
 		tab := createTable(p.catalog, stmt)
 		return tab.String()
+	case *tree.Insert:
+		name, ok := stmt.Table.(*tree.NormalizableTableName)
+		if !ok {
+			unimplemented("%T", stmt)
+		}
+		tname, err := name.Normalize()
+		if err != nil {
+			fatalf("unable to normalize: %v", err)
+		}
+		if tname.PrefixName != "histogram" {
+			unimplemented("%s", stmt)
+		}
+		h := createHistogram(p.catalog, string(tname.DatabaseName), string(tname.TableName), stmt.Rows)
+		return h.String() + "\n"
 	default:
 		unimplemented("%T", stmt)
 	}

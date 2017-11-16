@@ -10,6 +10,7 @@ import (
 type column struct {
 	name    string
 	notNull bool
+	hist    *histogram
 }
 
 type foreignKey struct {
