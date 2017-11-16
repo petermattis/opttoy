@@ -251,11 +251,7 @@ func (s *search) applyTransform(loc memoLoc, xid xformID, parent *searchTask, id
 	pattern := xform.pattern()
 	var results []*expr
 
-	for cursor := (*expr)(nil); ; {
-		cursor = s.memo.bind(e, pattern, cursor)
-		if cursor == nil {
-			break
-		}
+	for cursor := s.memo.bind(e, pattern); cursor != nil; cursor = s.memo.advance(e, pattern, cursor) {
 		if !xform.check(cursor) {
 			continue
 		}
