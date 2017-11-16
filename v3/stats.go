@@ -10,22 +10,35 @@ import (
 )
 
 type bucket struct {
+	// The number of values in the bucket.
+	numRange int64
+	// The upper boundary of the bucket. The column values for the upper bound
+	// are encoded using the ascending key encoding.
 	upperBound tree.Datum
-	count      int64
 }
 
 type histogram struct {
+	// The total number of rows in the table.
+	rowCount int64
+	// The estimated cardinality (distinct values) for the column.
+	distinctCount int64
+	// The number of NULL values for the column.
+	nullCount int64
+	// The histogram buckets which describe the distribution of non-NULL
+	// values. The buckets are sorted by bucket.upperBound.
 	buckets []bucket
 }
 
 func (h *histogram) String() string {
 	var buf bytes.Buffer
-	for i, b := range h.buckets {
-		if i > 0 {
-			buf.WriteString(" ")
-		}
-		fmt.Fprintf(&buf, "%s:%d", b.upperBound, b.count)
+	fmt.Fprintf(&buf, "rows:     %d\n", h.rowCount)
+	fmt.Fprintf(&buf, "distinct: %d\n", h.distinctCount)
+	fmt.Fprintf(&buf, "nulls:    %d\n", h.nullCount)
+	fmt.Fprintf(&buf, "buckets: ")
+	for _, b := range h.buckets {
+		fmt.Fprintf(&buf, " %s:%d", b.upperBound, b.numRange)
 	}
+	buf.WriteString("\n")
 	return buf.String()
 }
 
@@ -33,6 +46,14 @@ func (h *histogram) String() string {
 // VALUES clause containing pairs of (upper-bound, count). Currently only INT
 // or NULL constants are valid for upper-bound, and only INT constants are
 // valid for count.
+//
+// Row, distinct and null counts can be specified by using the strings 'rows',
+// 'distinct' and 'nulls' respectively for the upper-bound. For example:
+//
+//   VALUES ('rows', 1000), ('distinct', 100), ('nulls', 10)
+//
+// This creates a histogram with rowCount=1000, distinctCount=100, nullCount=10
+// and no buckets.
 func createHistogram(
 	catalog map[string]*table,
 	tableName, colName string,
@@ -54,35 +75,41 @@ func createHistogram(
 	}
 
 	col := &tab.columns[colIdx]
-	col.hist = &histogram{
-		buckets: make([]bucket, len(values.Tuples)),
-	}
+	col.hist = &histogram{}
 
-	for i, v := range values.Tuples {
+	for _, v := range values.Tuples {
 		if len(v.Exprs) != 2 {
 			fatalf("malformed histogram bucket: %s", v)
 		}
 
-		var err error
-		if col.hist.buckets[i].count, err = v.Exprs[1].(*tree.NumVal).AsInt64(); err != nil {
+		val, err := v.Exprs[1].(*tree.NumVal).AsInt64()
+		if err != nil {
 			fatalf("malformed histogram bucket: %s: %v", v, err)
-		}
-
-		if v.Exprs[0] == tree.DNull {
-			col.hist.buckets[i].upperBound = tree.DNull
-			continue
 		}
 
 		switch t := v.Exprs[0].(type) {
 		case *tree.NumVal:
-			col.hist.buckets[i].upperBound, err = t.ResolveAsType(nil, types.Int)
+			upperBound, err := t.ResolveAsType(nil, types.Int)
 			if err != nil {
 				fatalf("malformed histogram bucket: %s: %v", v, err)
 			}
-		// TODO(peter): case *tree.StrVal:
+			col.hist.buckets = append(col.hist.buckets, bucket{
+				numRange:   val,
+				upperBound: upperBound,
+			})
+		case *tree.StrVal:
+			switch t.RawString() {
+			case "rows":
+				col.hist.rowCount = val
+			case "distinct":
+				col.hist.distinctCount = val
+			case "nulls":
+				col.hist.nullCount = val
+			}
 		default:
 			unimplemented("histogram bucket: %T", v.Exprs[0])
 		}
+
 	}
 
 	sort.Slice(col.hist.buckets, func(i, j int) bool {

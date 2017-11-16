@@ -42,7 +42,7 @@ func (p *planner) exec(stmt tree.Statement) string {
 			unimplemented("%s", stmt)
 		}
 		h := createHistogram(p.catalog, string(tname.DatabaseName), string(tname.TableName), stmt.Rows)
-		return h.String() + "\n"
+		return h.String()
 	default:
 		unimplemented("%T", stmt)
 	}
