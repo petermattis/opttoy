@@ -49,13 +49,9 @@ Search
 Stats
 -----
 
-- Basic stats infrastructure. Specify a histogram per
-  table/column. Retrieve stats for columns referenced in a query as a
-  prep pass. Provide routines for computing the cardinality of an
-  expression based on its inputs. Specification could be done via a
-  special INSERT command:
+- Calculate selectivity using histograms and filters.
 
-    INSERT INTO stats.tableName.colName VALUES buckets...;
+- Propagate selectivity from scans up through relational operators.
 
 Testing
 -------
