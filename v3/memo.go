@@ -12,6 +12,7 @@ type groupID int32
 // exprID identifies an expression within its memo group.
 type exprID int32
 
+// memoLoc describes the location of an expression in the memo.
 type memoLoc struct {
 	group groupID
 	expr  exprID
@@ -21,11 +22,29 @@ func (l memoLoc) String() string {
 	return fmt.Sprintf("%d.%d", l.group, l.expr)
 }
 
+// memoExpr is a memoized representation of an expression. Unlike expr which
+// represents a single expression, a memoExpr roots a forest of
+// expressions. This is accomplished by recursively memoizing children and
+// storing logically equivalent expressions in the memo
+// structure. memoExpr.children refers to child groups of logically equivalent
+// expressions. Because memoExpr refers to a forest of expressions, it is
+// challenging to perform transformations directly upon it. Instead,
+// transformations are performed by extracting an expr fragment matching a
+// pattern from the memo, performing the transformation and then inserting the
+// transformed result back into the memo.
+//
+// For relational expressions, logical equivalency is defined as equivalent
+// relational properties (see relationalProps.fingerprint()). For scalar
+// expressions, logical equivalency is defined as equivalent memoExpr (see
+// memoExpr.fingerprint()). While scalar expressions are stored in the memo,
+// each scalar expression group contains only a single entry.
 type memoExpr struct {
-	loc      memoLoc
-	op       operator
-	children []groupID
-	private  interface{}
+	op       operator    // expr.op
+	loc      memoLoc     // expr.loc
+	children []groupID   // expr.children
+	private  interface{} // expr.private
+	// NB: expr.{props,scalarProps} are the same for all expressions in the group
+	// and stored in memoGroup.
 }
 
 func (e *memoExpr) matchOp(pattern *expr) bool {
@@ -63,10 +82,15 @@ func (e *memoExpr) fingerprint() string {
 	return buf.String()
 }
 
+// memoGroup stores a set of logically equivalent expressions. See the comments
+// on memoExpr for the definition of logical equivalency.
 type memoGroup struct {
-	id          groupID
-	explored    int32
-	implemented int32
+	// The ID (a.k.a. index, memoLoc.group) of the group within the memo.
+	id groupID
+	// The index of the last explored expression. Used by search.
+	explored exprID
+	// The index of the last implemented expression. Used by search.
+	implemented exprID
 
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
@@ -90,16 +114,22 @@ func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 }
 
 type memo struct {
-	// A map from expression fingerprint to the index of the group the expression
-	// resides in.
+	// A map from expression fingerprint (memoExpr.fingerprint()) to the index of
+	// the group the expression resides in.
 	exprMap map[string]groupID
 	// A map from group fingerprint to the index of the group in the groups
 	// slice. For relational groups, the fingerprint for a group is the
-	// fingerprint of the relational properties. For scalar groups, the
-	// fingerprint for a group is the fingerprint of the memo expression.
+	// fingerprint of the relational properties
+	// (relationalProps.fingerprint()). For scalar groups, the fingerprint for a
+	// group is the fingerprint of the memo expression (memoExpr.fingerprint()).
 	groupMap map[string]groupID
-	groups   []*memoGroup
-	root     groupID
+	// The slice of groups, indexed by group ID (i.e. memoLoc.group). Note the
+	// group ID 0 is invalid in order to allow zero initialization of expr to
+	// indicate an expression that did not originate from the memo.
+	groups []*memoGroup
+	// The root group in the memo. This is the group for the expression added by
+	// addRoot (i.e. the expression that we're optimizing).
+	root groupID
 }
 
 func newMemo() *memo {
