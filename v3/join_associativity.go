@@ -45,11 +45,11 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	var lowerFilters []*expr
 	var upperFilters []*expr
 	var lowerCols bitmap
-	lowerCols.unionWith(leftLeft.props.outputCols)
-	lowerCols.unionWith(right.props.outputCols)
+	lowerCols.UnionWith(leftLeft.props.outputCols)
+	lowerCols.UnionWith(right.props.outputCols)
 	for _, filters := range [2][]*expr{e.filters(), left.filters()} {
 		for _, f := range filters {
-			if f.scalarInputCols().subsetOf(lowerCols) {
+			if f.scalarInputCols().SubsetOf(lowerCols) {
 				lowerFilters = append(lowerFilters, f)
 			} else {
 				upperFilters = append(upperFilters, f)
@@ -76,7 +76,9 @@ func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	newUpper.props = e.props
 
 	// Compute the output columns for the lower join.
-	newLower.props.outputCols &= (newUpper.requiredInputCols() | newUpper.props.outputCols)
+	newLower.props.outputCols = newLower.props.outputCols.Intersection(
+		newUpper.requiredInputCols().Union(newUpper.props.outputCols),
+	)
 
 	return append(results, newUpper)
 }

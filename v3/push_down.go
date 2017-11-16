@@ -65,7 +65,7 @@ func pushDownFilters(e *expr) {
 func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
 	var count int
 	for _, input := range e.inputs() {
-		if filter.scalarInputCols().subsetOf(input.props.outputCols) {
+		if filter.scalarInputCols().SubsetOf(input.props.outputCols) {
 			input.addFilter(filter)
 			count++
 			continue

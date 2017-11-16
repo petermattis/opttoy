@@ -118,7 +118,7 @@ func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
 	if e.private != nil {
 		fmt.Fprintf(buf, " (%s)", e.private)
 	}
-	if e.scalarProps != nil && e.scalarProps.inputCols != 0 {
+	if e.scalarProps != nil && !e.scalarProps.inputCols.Empty() {
 		fmt.Fprintf(buf, " [in=%s]", e.scalarProps.inputCols)
 	}
 	buf.WriteString("\n")
@@ -132,9 +132,9 @@ func (s scalar) updateProps(e *expr) {
 	if e.scalarProps != nil {
 		// For a scalar operation the required input columns is the union of the
 		// input columns of its inputs.
-		e.scalarProps.inputCols = 0
+		e.scalarProps.inputCols = bitmap{}
 		for _, input := range e.inputs() {
-			e.scalarProps.inputCols.unionWith(input.scalarInputCols())
+			e.scalarProps.inputCols.UnionWith(input.scalarInputCols())
 		}
 	}
 }
