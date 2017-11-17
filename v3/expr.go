@@ -9,7 +9,7 @@ import (
 // query. Expressions have optional inputs. Specific operators also maintain
 // additional auxiliary sub-expressions. In particular, projectOp maintains the
 // projection expressions, groupByOp maintains the grouping and aggregation
-// expressions. All relational expressions maintain filters. The position of
+// expressions, and selectOp and joinOps maintain filters. The position of
 // these auxiliary expressions within expr.children is specified by an
 // exprLayout.
 //
@@ -34,25 +34,17 @@ import (
 // This is akin to the way parser.IndexedVar works except that we're taking
 // care to make the indexes unique across the entire statement.
 //
-// Relational expressions are composed of inputs, optional filters and optional
-// auxiliary expressions. The output columns are derived by the operator from
-// the inputs and stored in expr.props.columns.
+// Relational expressions are composed of inputs and optional auxiliary
+// expressions. The output columns are derived by the operator from the inputs
+// and stored in expr.props.columns.
 //
 //   +---------+---------+-------+--------+
 //   |  out 0  |  out 1  |  ...  |  out N |
 //   +---------+---------+-------+--------+
-//   |             filters                |
-//   +------------------------------------+
-//   |        operator (aux1, aux2)       |
+//   |                operator            |
 //   +---------+---------+-------+--------+
 //   |  in 0   |  in 1   |  ...  |  in N  |
 //   +---------+---------+-------+--------+
-//
-// Note that the filters for a relational expression do not affect the result
-// columns for the expression. The filters for a relational expression can be
-// seen as a "select" operator that exists after the outputs of any relational
-// expression. Note that unlike the traditional relational algebra and extended
-// relational algebra, there is no explicit "select" operator.
 //
 // A query is composed of a tree of relational expressions. For example, a
 // simple join might look like:
@@ -86,11 +78,9 @@ type expr struct {
 }
 
 // exprLayout describe the layout of auxiliary children expressions. The layout
-// is operator specific and accessed via the operatorLayout table. It is
-// convention that the filters occupy the last auxiliary slot (i.e. the last
-// slot in expr.children).
+// is operator specific and accessed via the operatorLayout table.
 type exprLayout struct {
-	numAux       int
+	numAux       int // used internally, no need to specify manually
 	aggregations int
 	filters      int
 	groupings    int
@@ -233,7 +223,11 @@ func (e *expr) removeAuxN(i int) {
 }
 
 func (e *expr) filters() []*expr {
-	return e.aux(e.layout().filters)
+	l := e.layout()
+	if l.filters < 0 {
+		return nil
+	}
+	return e.aux(l.filters)
 }
 
 func (e *expr) addFilter(f *expr) {

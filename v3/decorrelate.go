@@ -145,7 +145,7 @@ func maybeDecorrelateProjection(e *expr) bool {
 		t := *e
 		*e = expr{
 			op:       projectOp,
-			children: []*expr{&t, nil /* projection */, nil /* filter */},
+			children: []*expr{&t, nil /* projection */},
 			props:    t.props,
 		}
 		t.inputs()[1] = right.inputs()[0]
@@ -199,14 +199,13 @@ func maybeDecorrelateScalarGroupBy(e *expr) bool {
 			groupings = append(groupings, col.newVariableExpr(col.table))
 		}
 		g.addGroupings(groupings)
-		g.addFilters(e.filters())
 		g.initProps()
 
 		// A final projection is necessary to match the outputs of the original
 		// apply expression.
 		*e = expr{
 			op:       projectOp,
-			children: []*expr{g, nil /* projection */, nil /* filter */},
+			children: []*expr{g, nil /* projection */},
 			props:    e.props,
 		}
 		projections := make([]*expr, 0, len(e.props.columns))
@@ -258,15 +257,18 @@ func maybeDecorrelate(e *expr) bool {
 // apply expressions and then pushing down the apply expressions to leaves
 // until they disappear or can no longer be pushed further.
 func decorrelate(e *expr) {
-	for maybeExpandApply(e) {
-	}
-
 	for maybeDecorrelate(e) {
 	}
-
 	for _, input := range e.inputs() {
 		decorrelate(input)
 	}
-
 	e.updateProps()
+}
+
+func expandApply(e *expr) {
+	for maybeExpandApply(e) {
+	}
+	for _, input := range e.inputs() {
+		expandApply(input)
+	}
 }

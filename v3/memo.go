@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"sort"
 )
 
 // groupID identifies a memo group. Groups have numbers greater than 0; a
@@ -145,8 +146,14 @@ func newMemo() *memo {
 func (m *memo) String() string {
 	var buf bytes.Buffer
 	for _, id := range m.topologicalSort() {
-		fmt.Fprintf(&buf, "%d:", id)
 		g := m.groups[id]
+		// TODO(peter): provide a better mechanism for displaying group
+		// fingerprints for debugging.
+		if false && g.props != nil {
+			fmt.Fprintf(&buf, "%d [%s]:", id, g.props.fingerprint())
+		} else {
+			fmt.Fprintf(&buf, "%d:", id)
+		}
 		for _, e := range g.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
 		}
@@ -214,6 +221,14 @@ func (m *memo) addExpr(e *expr) groupID {
 		if g != nil {
 			me.children[i] = m.addExpr(g)
 		}
+	}
+
+	// TODO(peter): Figure out a way to remove this hack. We normalize the list
+	// op expressions by sorting them by group.
+	if me.op == listOp {
+		sort.Slice(me.children, func(i, j int) bool {
+			return me.children[i] < me.children[j]
+		})
 	}
 
 	ef := me.fingerprint()

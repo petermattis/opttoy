@@ -422,7 +422,15 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 	}
 
 	if where != nil {
+		input := result
+		result = newSelectExpr(input)
+		result.props = &relationalProps{
+			columns: make([]columnProps, len(input.props.columns)),
+		}
+		copy(result.props.columns, input.props.columns)
 		result.addFilter(buildScalar(where.Expr, scope))
+		result.initProps()
+		scope = scope.push(result.props)
 	}
 
 	return result, scope
@@ -449,14 +457,24 @@ func buildGroupBy(
 		exprs = append(exprs, buildScalar(expr, scope))
 	}
 	result.addGroupings(exprs)
+	result.initProps()
 
 	if having != nil {
 		f := buildScalar(having.Expr, scope)
 		buildGroupByExtractAggregates(result, f, scope)
+		result.initProps()
+
+		input := result
+		result = newSelectExpr(input)
+		result.props = &relationalProps{
+			columns: make([]columnProps, len(input.props.columns)),
+		}
+		copy(result.props.columns, input.props.columns)
 		result.addFilter(f)
+		result.initProps()
+		scope = scope.push(result.props)
 	}
 
-	result.initProps()
 	return result, scope
 }
 

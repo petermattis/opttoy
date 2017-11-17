@@ -1,24 +1,11 @@
 package v3
 
-// TODO(peter): The current code is likely incorrect in various ways. Below is
-// what we should be doing.
-//
-// We want to push filters through relational operators, but not onto
-// relational operators. For example:
+// Push down filters through relational operators. For example:
 //
 //   select a.x > 1    --->  join a, b
 //     join                    select a.x > 1
 //       scan a (x, y)           scan a (x, y)
 //       scan b (x, z)         scan b (x, z)
-//
-// While pushing a filter down, we need to infer additional filters using
-// column equivalencies.
-//
-//   select a.x > 1    ---> join a.x = b.x
-//     join a.x = b.x         select a.x > 1
-//       scan a (x, y)          scan a (x, y)
-//       scan b (x, z)        select b.x > 1
-//                              scan b (x, z)
 //
 // Note that a filter might be compatible with a relational operator, but not
 // with its inputs. Consider:
@@ -27,23 +14,121 @@ package v3
 //     join a.x = b.x
 //       scan a (x, y)
 //       scan b (x, z)
+//
+// The general strategy is to walk down the expression tree looking for
+// filters. For each filter, we try to push it down either on to or below the
+// input for the relational expression containing the filter. Because filters
+// are only present on selects and joins, pushing a filter below a relational
+// expression might require construction of a new select expression.
 func pushDownFilters(e *expr) {
-	// Push down filters to inputs.
+	if e.op == selectOp {
+		switch e.children[0].op {
+		case groupByOp:
+			pushDownFiltersSelectGroupBy(e)
+		case innerJoinOp:
+			pushDownFiltersSelectInnerJoin(e)
+		case projectOp:
+			pushDownFiltersSelectProject(e)
+		case renameOp:
+			pushDownFiltersSelectRename(e)
+		case unionOp:
+			pushDownFiltersSelectUnion(e)
+		}
+
+		// Elide the select expression if there are no more filters.
+		if len(e.filters()) == 0 {
+			*e = *e.children[0]
+			pushDownFilters(e)
+			return
+		}
+	} else if e.op == innerJoinOp {
+		pushDownFiltersJoin(e)
+	}
+
+	for _, input := range e.inputs() {
+		pushDownFilters(input)
+	}
+}
+
+// Push a filter onto e. If e does not accept filters, replace it with a
+// selectOp.
+func pushFilter(e, filter *expr) {
+	if e.layout().filters < 0 {
+		t := *e
+		*e = expr{
+			op:       selectOp,
+			children: []*expr{&t, nil /* filter */},
+			props: &relationalProps{
+				columns: make([]columnProps, len(e.props.columns)),
+			},
+		}
+		copy(e.props.columns, t.props.columns)
+	}
+	e.addFilter(filter)
+}
+
+func pushDownFiltersSelectGroupBy(e *expr) {
+	// TODO(peter): unimplemented
+}
+
+func pushDownFiltersSelectInnerJoin(e *expr) {
 	filters := e.filters()
 	newFilters := filters[:0]
-	for _, filter := range filters {
-		count := maybePushDownFilter(e, filter, filters)
+	input := e.children[0]
 
-		// Rewrite filters as they are pushed through projections.
-		//
-		// TODO(peter): doing something operator specific like this highlights
-		// the need for an operator-specific interface for inferring predicates
-		// from other predicates.
-		if e.op == projectOp {
-			for _, project := range e.projections() {
-				if filter.scalarInputCols() == project.scalarProps.definedCols {
-					newFilter := substitute(filter, filter.scalarInputCols(), project)
-					count += maybePushDownFilter(e, newFilter, filters)
+	for _, filter := range e.filters() {
+		// First try to push the filter below the join.
+		var count int
+		for _, joinInput := range input.inputs() {
+			if filter.scalarInputCols().SubsetOf(joinInput.props.availableOutputCols()) {
+				pushFilter(joinInput, filter)
+				joinInput.updateProps()
+				count++
+			}
+		}
+
+		if count == 0 {
+			// If we couldn't push the filter below the join, try to push it onto the
+			// join.
+			if filter.scalarInputCols().SubsetOf(input.props.availableOutputCols()) {
+				pushFilter(input, filter)
+				count++
+				continue
+			}
+
+			newFilters = append(newFilters, filter)
+		}
+	}
+
+	e.replaceFilters(newFilters)
+	input.updateProps()
+	e.updateProps()
+}
+
+func pushDownFiltersSelectProject(e *expr) {
+	filters := e.filters()
+	newFilters := filters[:0]
+	input := e.children[0]
+	projectInput := input.children[0]
+
+	for _, filter := range e.filters() {
+		// First try to push the filter below the projection.
+		var count int
+		if filter.scalarInputCols().SubsetOf(projectInput.props.availableOutputCols()) {
+			pushFilter(projectInput, filter)
+			count++
+			continue
+		}
+
+		// Failed to push the filter as-is, so try to create a new filter using one
+		// of the projection expressions.
+		for _, project := range input.projections() {
+			if filter.scalarInputCols().Equals(project.scalarProps.definedCols) {
+				newFilter := substitute(filter, filter.scalarInputCols(), project)
+				if newFilter.scalarInputCols().SubsetOf(projectInput.props.availableOutputCols()) {
+					pushFilter(projectInput, newFilter)
+					count++
+					break
 				}
 			}
 		}
@@ -52,24 +137,57 @@ func pushDownFilters(e *expr) {
 			newFilters = append(newFilters, filter)
 		}
 	}
+
 	e.replaceFilters(newFilters)
-
-	for _, input := range e.inputs() {
-		input.updateProps()
-		pushDownFilters(input)
-	}
-
+	projectInput.updateProps()
 	e.updateProps()
 }
 
-func maybePushDownFilter(e *expr, filter *expr, filters []*expr) int {
-	var count int
-	for _, input := range e.inputs() {
-		if filter.scalarInputCols().SubsetOf(input.props.outputCols) {
-			input.addFilter(filter)
-			count++
+func pushDownFiltersSelectRename(e *expr) {
+	filters := e.filters()
+	newFilters := filters[:0]
+	input := e.children[0]
+	renameInput := input.children[0]
+
+	for _, filter := range e.filters() {
+		if filter.scalarInputCols().SubsetOf(renameInput.props.availableOutputCols()) {
+			pushFilter(renameInput, filter)
 			continue
 		}
+
+		newFilters = append(newFilters, filter)
 	}
-	return count
+
+	e.replaceFilters(newFilters)
+	renameInput.updateProps()
+	e.updateProps()
+}
+
+func pushDownFiltersSelectUnion(e *expr) {
+	// TODO(peter): unimplemented
+}
+
+func pushDownFiltersJoin(e *expr) {
+	filters := e.filters()
+	newFilters := filters[:0]
+
+	for _, filter := range e.filters() {
+		var count int
+		for _, input := range e.inputs() {
+			if filter.scalarInputCols().SubsetOf(input.props.availableOutputCols()) {
+				pushFilter(input, filter)
+				count++
+			}
+		}
+
+		if count == 0 {
+			newFilters = append(newFilters, filter)
+		}
+	}
+
+	e.replaceFilters(newFilters)
+	for _, input := range e.inputs() {
+		input.updateProps()
+	}
+	e.updateProps()
 }

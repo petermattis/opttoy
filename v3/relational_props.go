@@ -123,13 +123,14 @@ type relationalProps struct {
 
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
+
+	// TODO(peter): This is a hack until constraints are present. If the
+	// expression contains filters, we need to distinguish it from its input.
+	constraints bool
 }
 
 func (p *relationalProps) init() {
-	p.outputCols = bitmap{}
-	for _, col := range p.columns {
-		p.outputCols.Add(col.index)
-	}
+	p.outputCols = p.availableOutputCols()
 }
 
 func (p *relationalProps) String() string {
@@ -209,6 +210,10 @@ func (p *relationalProps) fingerprint() string {
 	if p.joinDepth > 0 {
 		fmt.Fprintf(&buf, " %d", p.joinDepth)
 	}
+	// TODO(peter): see comment about "constraints" field.
+	if p.constraints {
+		fmt.Fprintf(&buf, " C")
+	}
 	return buf.String()
 }
 
@@ -274,6 +279,14 @@ func (p *relationalProps) addEquivColumns(v bitmap) {
 		}
 	}
 	p.equivCols = append(p.equivCols, v)
+}
+
+func (p *relationalProps) availableOutputCols() bitmap {
+	var v bitmap
+	for _, col := range p.columns {
+		v.Add(col.index)
+	}
+	return v
 }
 
 func initKeys(e *expr, state *queryState) {

@@ -22,15 +22,12 @@ func (orderBy) kind() operatorKind {
 }
 
 func (orderBy) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
 	// formatExprs(buf, "sorting", e.sortings(), level)
-	formatExprs(buf, "filters", e.filters(), level)
 	formatExprs(buf, "inputs", e.inputs(), level)
 }
 

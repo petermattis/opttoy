@@ -37,15 +37,20 @@ project [out=(2,3)]
     variable (e."name") [in=(2)]
     variable (e.salary) [in=(3)]
   inputs:
-    scan [out=(1-3)]
-      columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3
-      key: (0)
+    select [out=(1-3)]
+      columns: e.emp_id:0 e.dept_id:1* e.name:2 e.salary:3
+      weak key: (0)
       foreign key: (1) -> (4)
       filters:
         comp (IS NOT) [in=(1)]
           inputs:
             variable (e.dept_id) [in=(1)]
             const (NULL)
+      inputs:
+        scan [out=(1-3)]
+          columns: e.emp_id:0* e.dept_id:1 e.name:2 e.salary:3
+          key: (0)
+          foreign key: (1) -> (4)
 
 prep
 SELECT e.name, e.salary
@@ -59,15 +64,20 @@ project [out=(4,5)]
     variable (e."name") [in=(4)]
     variable (e.salary) [in=(5)]
   inputs:
-    scan [out=(3-5)]
-      columns: e.emp_id:2* e.dept_id:3* e.name:4 e.salary:5
-      key: (2)
+    select [out=(3-5)]
+      columns: e.emp_id:2 e.dept_id:3* e.name:4 e.salary:5
+      weak key: (2)
       foreign key: (3) -> (0)
       filters:
         comp (!=) [in=(3)]
           inputs:
             variable (e.dept_id) [in=(3)]
             const (0)
+      inputs:
+        scan [out=(3-5)]
+          columns: e.emp_id:2* e.dept_id:3 e.name:4 e.salary:5
+          key: (2)
+          foreign key: (3) -> (0)
 
 prep
 SELECT e.name, e.salary, d.name
@@ -83,7 +93,7 @@ project [out=(2,3,5)]
     variable (d."name") [in=(5)]
   inputs:
     inner join [out=(2,3,5)]
-      columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3 d.dept_id:4* d.name:5
+      columns: e.emp_id:0 e.dept_id:1* e.name:2 e.salary:3 d.dept_id:4* d.name:5
       equiv: (1,4)
       filters:
         comp (=) [in=(1,4)]
@@ -91,20 +101,20 @@ project [out=(2,3,5)]
             variable (e.dept_id) [in=(1)]
             variable (d.dept_id) [in=(4)]
       inputs:
-        scan [out=(1-3)]
-          columns: e.emp_id:0* e.dept_id:1* e.name:2 e.salary:3
-          key: (0)
+        select [out=(1-3)]
+          columns: e.emp_id:0 e.dept_id:1* e.name:2 e.salary:3
+          weak key: (0)
           foreign key: (1) -> (4)
           filters:
             comp (IS NOT) [in=(1)]
               inputs:
                 variable (e.dept_id) [in=(1)]
                 const (NULL)
+          inputs:
+            scan [out=(1-3)]
+              columns: e.emp_id:0* e.dept_id:1 e.name:2 e.salary:3
+              key: (0)
+              foreign key: (1) -> (4)
         scan [out=(4,5)]
           columns: d.dept_id:4* d.name:5
           key: (4)
-          filters:
-            comp (IS NOT) [in=(4)]
-              inputs:
-                variable (d.dept_id) [in=(4)]
-                const (NULL)

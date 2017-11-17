@@ -9,6 +9,8 @@ func prep(e *expr) {
 	normalize(e)
 	inferFilters(e)
 	pushDownFilters(e)
+	// TODO(peter): pushing down filters adjusts the output columns.
+	trimOutputCols(e, e.props.outputCols)
 	xformApplyAll(joinElimination{}, e)
 }
 
@@ -17,7 +19,7 @@ func trimOutputCols(e *expr, requiredOutputCols bitmap) {
 	e.props.outputCols = requiredOutputCols
 	requiredInputCols := e.requiredInputCols().Union(requiredOutputCols)
 	for _, input := range e.inputs() {
-		trimOutputCols(input, requiredInputCols.Intersection(input.props.outputCols))
+		trimOutputCols(input, requiredInputCols.Intersection(input.props.availableOutputCols()))
 	}
 	e.updateProps()
 }
@@ -87,6 +89,10 @@ func inferEquivFilters(e *expr) {
 }
 
 func inferNotNullFilters(e *expr) {
+	if e.layout().filters < 0 {
+		return
+	}
+
 	// Determine which columns became NOT NULL at this expression (i.e. they were
 	// nullable in the inputs).
 	var inputNotNullCols bitmap
