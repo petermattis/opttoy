@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"sort"
 )
 
 // groupID identifies a memo group. Groups have numbers greater than 0; a
@@ -220,6 +221,14 @@ func (m *memo) addExpr(e *expr) groupID {
 		if g != nil {
 			me.children[i] = m.addExpr(g)
 		}
+	}
+
+	// TODO(peter): Figure out a way to remove this hack. We normalize the list
+	// op expressions by sorting them by group.
+	if me.op == listOp {
+		sort.Slice(me.children, func(i, j int) bool {
+			return me.children[i] < me.children[j]
+		})
 	}
 
 	ef := me.fingerprint()
