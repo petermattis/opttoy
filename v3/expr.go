@@ -80,11 +80,11 @@ type expr struct {
 // exprLayout describe the layout of auxiliary children expressions. The layout
 // is operator specific and accessed via the operatorLayout table.
 type exprLayout struct {
-	numAux       int // used internally, no need to specify manually
-	aggregations int
-	filters      int
-	groupings    int
-	projections  int
+	numAux       int8 // used internally, no need to specify manually
+	aggregations int8
+	filters      int8
+	groupings    int8
+	projections  int8
 }
 
 func (e *expr) String() string {
@@ -138,10 +138,10 @@ func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
 }
 
 func (e *expr) inputs() []*expr {
-	return e.children[:len(e.children)-e.layout().numAux]
+	return e.children[:len(e.children)-int(e.layout().numAux)]
 }
 
-func (e *expr) aux(i int) []*expr {
+func (e *expr) aux(i int8) []*expr {
 	t := e.children[i : i+1]
 	if t[0] == nil {
 		return nil
@@ -152,7 +152,7 @@ func (e *expr) aux(i int) []*expr {
 	return t
 }
 
-func (e *expr) addAux1(i int, aux *expr) {
+func (e *expr) addAux1(i int8, aux *expr) {
 	if t := e.children[i]; t == nil {
 		e.children[i] = aux
 	} else if t.op != listOp {
@@ -165,7 +165,7 @@ func (e *expr) addAux1(i int, aux *expr) {
 	}
 }
 
-func (e *expr) addAuxN(i int, aux []*expr) {
+func (e *expr) addAuxN(i int8, aux []*expr) {
 	if t := e.children[i]; t == nil && len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else if t == nil {
@@ -185,7 +185,7 @@ func (e *expr) addAuxN(i int, aux []*expr) {
 	}
 }
 
-func (e *expr) replaceAuxN(i int, aux []*expr) {
+func (e *expr) replaceAuxN(i int8, aux []*expr) {
 	if len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else if len(aux) > 1 {
@@ -198,7 +198,7 @@ func (e *expr) replaceAuxN(i int, aux []*expr) {
 	}
 }
 
-func (e *expr) removeAux1(j int, aux *expr) {
+func (e *expr) removeAux1(j int8, aux *expr) {
 	if e.children[j] == aux {
 		e.children[j] = nil
 		return
@@ -218,7 +218,7 @@ func (e *expr) removeAux1(j int, aux *expr) {
 	fatalf("expression not found!")
 }
 
-func (e *expr) removeAuxN(i int) {
+func (e *expr) removeAuxN(i int8) {
 	e.children[i] = nil
 }
 
