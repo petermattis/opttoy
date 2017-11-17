@@ -22,9 +22,7 @@ func (orderBy) kind() operatorKind {
 }
 
 func (orderBy) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {

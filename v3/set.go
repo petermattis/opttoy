@@ -24,9 +24,7 @@ func (union) kind() operatorKind {
 }
 
 func (union) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (union) format(e *expr, buf *bytes.Buffer, level int) {

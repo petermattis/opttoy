@@ -148,15 +148,23 @@ func registerOperator(op operator, name string, info operatorInfo) {
 		l := info.layout()
 		if l.aggregations == 0 {
 			l.aggregations = -1
+		} else {
+			l.numAux++
 		}
 		if l.groupings == 0 {
 			l.groupings = -1
+		} else {
+			l.numAux++
 		}
 		if l.projections == 0 {
 			l.projections = -1
+		} else {
+			l.numAux++
 		}
 		if l.filters == 0 {
 			l.filters = -1
+		} else {
+			l.numAux++
 		}
 		operatorLayout[op] = l
 	}

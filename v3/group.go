@@ -23,7 +23,6 @@ func (groupBy) kind() operatorKind {
 
 func (groupBy) layout() exprLayout {
 	return exprLayout{
-		numAux:       2,
 		groupings:    1,
 		aggregations: 2,
 	}

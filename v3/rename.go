@@ -22,9 +22,7 @@ func (rename) kind() operatorKind {
 }
 
 func (rename) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (rename) format(e *expr, buf *bytes.Buffer, level int) {

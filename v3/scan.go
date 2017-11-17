@@ -22,9 +22,7 @@ func (scan) kind() operatorKind {
 }
 
 func (scan) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (scan) format(e *expr, buf *bytes.Buffer, level int) {

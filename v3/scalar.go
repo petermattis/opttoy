@@ -107,9 +107,7 @@ func (scalar) kind() operatorKind {
 }
 
 func (scalar) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (scalar) format(e *expr, buf *bytes.Buffer, level int) {

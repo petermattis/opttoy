@@ -27,9 +27,7 @@ func (variable) kind() operatorKind {
 }
 
 func (variable) layout() exprLayout {
-	return exprLayout{
-		numAux: 0,
-	}
+	return exprLayout{}
 }
 
 func (variable) format(e *expr, buf *bytes.Buffer, level int) {

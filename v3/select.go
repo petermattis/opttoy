@@ -21,7 +21,6 @@ func (sel) kind() operatorKind {
 
 func (sel) layout() exprLayout {
 	return exprLayout{
-		numAux:  1,
 		filters: 1,
 	}
 }

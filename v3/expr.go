@@ -90,7 +90,7 @@ type expr struct {
 // convention that the filters occupy the last auxiliary slot (i.e. the last
 // slot in expr.children).
 type exprLayout struct {
-	numAux       int
+	numAux       int // used internally, no need to specify manually
 	aggregations int
 	filters      int
 	groupings    int

@@ -28,7 +28,6 @@ func (join) kind() operatorKind {
 
 func (join) layout() exprLayout {
 	return exprLayout{
-		numAux:  1,
 		filters: 2,
 	}
 }

@@ -23,7 +23,6 @@ func (project) kind() operatorKind {
 
 func (project) layout() exprLayout {
 	return exprLayout{
-		numAux:      1,
 		projections: 1,
 	}
 }
