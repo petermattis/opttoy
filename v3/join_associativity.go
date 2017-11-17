@@ -16,16 +16,16 @@ func (joinAssociativity) pattern() *expr {
 	return &expr{
 		op: innerJoinOp,
 		children: []*expr{
-			&expr{ /* left */
+			&expr{ // left
 				op: innerJoinOp,
 				children: []*expr{
-					patternLeaf, /* left */
-					patternLeaf, /* right */
-					patternTree, /* filter */
+					patternLeaf, // left
+					patternLeaf, // right
+					patternTree, // filter
 				},
 			},
-			patternLeaf, /* right */
-			patternTree, /* filter */
+			patternLeaf, // right
+			patternTree, // filter
 		},
 	}
 }

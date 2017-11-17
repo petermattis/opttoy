@@ -1,0 +1,56 @@
+exec
+CREATE TABLE a (x INT PRIMARY KEY, y INT UNIQUE)
+----
+table a
+  x NOT NULL
+  y NULL
+  (x) KEY
+  (y) WEAK KEY
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+prep,memo,search
+SELECT * FROM a
+----
+1: [scan a] [index scan a@primary]
+
+prep,memo,search
+SELECT * FROM a, b
+----
+3: [inner join [1 2 -]] [inner join [2 1 -]]
+2: [scan b] [index scan b@primary]
+1: [scan a] [index scan a@primary]
+
+prep,memo,search
+SELECT * FROM a WHERE x > 1
+----
+5: [select [1 4]]
+4: [comp (>) [2 3]]
+3: [const 1]
+2: [variable a.x]
+1: [scan a] [index scan a@primary]
+
+prep,memo,search
+SELECT y FROM a WHERE y > 1
+----
+5: [select [1 4]] [select [6 4]]
+6: [project [5 2]] [index scan a@y_idx]
+4: [comp (>) [2 3]]
+3: [const 1]
+2: [variable a.y]
+1: [scan a] [index scan a@primary]
+
+prep,memo,search
+SELECT * FROM a WHERE y > 1
+----
+5: [select [1 4]]
+4: [comp (>) [2 3]]
+3: [const 1]
+2: [variable a.y]
+1: [scan a] [index scan a@primary] [index join [6]]
+6: [index scan a@y_idx]

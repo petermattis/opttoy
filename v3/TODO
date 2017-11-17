@@ -81,8 +81,6 @@ Transformations
 
 - Group-by push-down. Push group-by below a join.
 
-- Scan to table/index scan.
-
 - Convert decorrelation to be a regular transformation.
 
 - Convert push-down to be a regular transformation. Is there a
