@@ -648,15 +648,34 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 		return input
 	}
 
-	// TODO(peter): order by is not a relational expression, but instead a
-	// required property on the output.
+	// Order-by is not a relational expression, but instead a required property
+	// on the output. We add an orderByOp to the expression tree, and specify the
+	// required ordering in the physical properties. Prep will later extract the
+	// top-level ordering and pass that as a requirement to search.
 	result := newOrderByExpr(input)
 	result.props = &relationalProps{
 		columns: make([]columnProps, len(input.props.columns)),
 	}
 	copy(result.props.columns, input.props.columns)
-	result.private = orderBy
 	result.initProps()
+
+	ordering := make(ordering, 0, len(orderBy))
+	for _, o := range orderBy {
+		e := buildScalar(o.Expr, scope)
+		switch e.op {
+		case variableOp:
+			index := e.private.(columnProps).index
+			if o.Direction == tree.Descending {
+				index = -(index + 1)
+			}
+			ordering = append(ordering, index)
+		default:
+			unimplemented("unsupported order-by: %s", o.Expr)
+		}
+	}
+	result.physicalProps = &physicalProps{
+		providedOrdering: ordering,
+	}
 	return result
 }
 

@@ -21,11 +21,12 @@ Prep
 Properties
 ----------
 
-- Add planProperties which contains an ordering specification.
-
 - Compute keys for relational expressions.
 
 - Add check for null intolerant filters.
+
+- Column constraints. Track disjoint ranges of valid values based on
+  filters.
 
 Search
 ------

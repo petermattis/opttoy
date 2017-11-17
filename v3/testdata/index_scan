@@ -17,14 +17,14 @@ table b
 prep,memo,search
 SELECT * FROM a
 ----
-1: [scan a] [index scan a@primary]
+1: [scan a] [index scan a@primary <+0>]
 
 prep,memo,search
 SELECT * FROM a, b
 ----
 3: [inner join [1 2 -]] [inner join [2 1 -]]
 2: [scan b] [index scan b@primary]
-1: [scan a] [index scan a@primary]
+1: [scan a] [index scan a@primary <+0>]
 
 prep,memo,search
 SELECT * FROM a WHERE x > 1
@@ -33,24 +33,17 @@ SELECT * FROM a WHERE x > 1
 4: [comp (>) [2 3]]
 3: [const 1]
 2: [variable a.x]
-1: [scan a] [index scan a@primary]
-
-# TODO(peter): The index scan and project get mapped to the same group
-# because they have the same output columns (and other relational
-# properties). But this isn't correct and is highlighting a deficiency
-# in the current relational properties code. The project has group 5
-# as a child and has thus filtered rows with `y > 1`, but the index
-# scan hasn't done that (at least as currently defined).
+1: [scan a] [index scan a@primary <+0>]
 
 prep,memo,search
 SELECT y FROM a WHERE y > 1
 ----
-5: [select [1 4]] [select [6 4]]
-6: [project [5 2]] [index scan a@y_idx]
+6: [project [5 2]]
+5: [select [1 4]]
 4: [comp (>) [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index scan a@primary]
+1: [scan a] [index scan a@primary <+0>] [index scan a@y_idx <+1>]
 
 prep,memo,search
 SELECT * FROM a WHERE y > 1
@@ -59,5 +52,5 @@ SELECT * FROM a WHERE y > 1
 4: [comp (>) [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index scan a@primary] [index join [6]]
-6: [index scan a@y_idx]
+1: [scan a] [index scan a@primary <+0>] [index join [6]]
+6: [index scan a@y_idx <+1>]

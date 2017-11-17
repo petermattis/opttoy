@@ -6,6 +6,58 @@ func init() {
 	registerOperator(indexScanOp, "index scan", indexScan{})
 }
 
+var implicitPrimaryKey = &tableKey{name: "primary", primary: true}
+
+func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *expr {
+	if key == nil {
+		for i := range table.keys {
+			k := &table.keys[i]
+			if k.primary {
+				key = k
+				break
+			}
+		}
+		if key == nil {
+			key = implicitPrimaryKey
+		}
+	}
+
+	index := *table
+	index.name += "@" + key.name
+	indexScan := &expr{
+		op:      indexScanOp,
+		private: &index,
+	}
+
+	// Make index scans on the primary index retrieve all columns.
+	if key.primary {
+		indexScan.props = scanProps
+	} else {
+		indexScan.props = &relationalProps{
+			columns: make([]columnProps, 0, len(key.columns)),
+		}
+		for _, i := range key.columns {
+			indexScan.props.columns = append(indexScan.props.columns, scanProps.columns[i])
+		}
+		// TODO(peter): we set parts of the index scan properties to match the scan
+		// properties so that their fingerprints match, ensuring they map to the
+		// same group in the memo.
+		indexScan.props.notNullCols = scanProps.notNullCols
+		indexScan.props.weakKeys = scanProps.weakKeys
+		indexScan.props.foreignKeys = scanProps.foreignKeys
+		indexScan.initProps()
+	}
+
+	indexScan.physicalProps = &physicalProps{
+		providedOrdering: make(ordering, 0, len(key.columns)),
+	}
+	for _, i := range key.columns {
+		indexScan.physicalProps.providedOrdering =
+			append(indexScan.physicalProps.providedOrdering, scanProps.columns[i].index)
+	}
+	return indexScan
+}
+
 type indexScan struct{}
 
 func (indexScan) kind() operatorKind {

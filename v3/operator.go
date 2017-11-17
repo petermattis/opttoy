@@ -99,6 +99,8 @@ const (
 	indexJoinOp
 	indexScanOp
 
+	sortOp
+
 	numOperators
 )
 

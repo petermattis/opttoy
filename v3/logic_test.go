@@ -195,6 +195,7 @@ func TestLogic(t *testing.T) {
 				e := p.build(d.stmt)
 				var m *memo
 				var s *search
+				var r *physicalProps
 
 				for _, cmd := range strings.Split(d.cmd, ",") {
 					switch cmd {
@@ -205,7 +206,7 @@ func TestLogic(t *testing.T) {
 					case "infer":
 						inferFilters(e)
 					case "prep":
-						prep(e)
+						r = prep(e)
 					case "apply":
 						expandApply(e)
 					case "decorrelate":
@@ -219,7 +220,7 @@ func TestLogic(t *testing.T) {
 						e = nil
 					case "search":
 						s = newSearch(m)
-						s.run()
+						s.run(r)
 						m = nil
 					default:
 						t.Fatalf("unknown command: %s", cmd)

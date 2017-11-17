@@ -40,10 +40,11 @@ func (l memoLoc) String() string {
 // memoExpr.fingerprint()). While scalar expressions are stored in the memo,
 // each scalar expression group contains only a single entry.
 type memoExpr struct {
-	op       operator    // expr.op
-	loc      memoLoc     // expr.loc
-	children []groupID   // expr.children
-	private  interface{} // expr.private
+	op            operator       // expr.op
+	loc           memoLoc        // expr.loc
+	children      []groupID      // expr.children
+	physicalProps *physicalProps // expr.physicalProps
+	private       interface{}    // expr.private
 	// NB: expr.{props,scalarProps} are the same for all expressions in the group
 	// and stored in memoGroup.
 }
@@ -64,6 +65,10 @@ func (e *memoExpr) fingerprint() string {
 		fmt.Fprintf(&buf, " %s", t.name)
 	default:
 		fmt.Fprintf(&buf, " %s", e.private)
+	}
+
+	if f := e.physicalProps.fingerprint(); f != "" {
+		fmt.Fprintf(&buf, " %s", f)
 	}
 
 	if len(e.children) > 0 {
@@ -92,6 +97,8 @@ type memoGroup struct {
 	explored exprID
 	// The index of the last implemented expression. Used by search.
 	implemented exprID
+	// The index of the last optimized expression. Used by search.
+	optimized exprID
 
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
@@ -203,8 +210,47 @@ func (m *memo) addRoot(e *expr) {
 	m.root = m.addExpr(e)
 }
 
+// Check performs consistency checks of the memo internal data structures.
+func (m *memo) check() {
+	for i, g := range m.groups {
+		if g == nil {
+			continue
+		}
+		var gf string
+		if g.props != nil {
+			gf = g.props.fingerprint()
+		} else {
+			gf = g.exprs[0].fingerprint()
+		}
+		group, ok := m.groupMap[gf]
+		if !ok {
+			fatalf("group %d not found: %s", i, gf)
+		}
+		if group != groupID(i) {
+			fatalf("expected group %d, but found %d: %s", i, group, gf)
+		}
+	}
+
+	for gf, group := range m.groupMap {
+		g := m.groups[group]
+		if g.props != nil {
+			tf := g.props.fingerprint()
+			if gf != tf {
+				fatalf("relational group %d, unexpected fingerprint: %s != %s", group, gf, tf)
+			}
+		} else {
+			ef := g.exprs[0].fingerprint()
+			if gf != ef {
+				fatalf("scalar group %d, unexpected fingerprint: %s != %s", group, gf, ef)
+			}
+		}
+	}
+}
+
 // addExpr adds an expression to the memo and returns the group it was added to.
 func (m *memo) addExpr(e *expr) groupID {
+	m.check()
+
 	if e.loc.group > 0 && e.loc.expr >= 0 {
 		// The expression has already been added to the memo.
 		return e.loc.group
@@ -212,10 +258,11 @@ func (m *memo) addExpr(e *expr) groupID {
 
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
-		op:       e.op,
-		loc:      e.loc,
-		children: make([]groupID, len(e.children)),
-		private:  e.private,
+		op:            e.op,
+		loc:           e.loc,
+		children:      make([]groupID, len(e.children)),
+		physicalProps: e.physicalProps,
+		private:       e.private,
 	}
 	for i, g := range e.children {
 		if g != nil {
@@ -250,17 +297,17 @@ func (m *memo) addExpr(e *expr) groupID {
 
 		// Determine which group the expression belongs in, creating it if
 		// necessary.
-		pf := ef
+		gf := ef
 		if e.props != nil {
-			pf = e.props.fingerprint()
+			gf = e.props.fingerprint()
 		}
-		group, ok := m.groupMap[pf]
+		group, ok := m.groupMap[gf]
 		if !ok {
 			group = groupID(len(m.groups))
 			g := newMemoGroup(e.props, e.scalarProps)
 			g.id = group
 			m.groups = append(m.groups, g)
-			m.groupMap[pf] = group
+			m.groupMap[gf] = group
 		}
 		me.loc.group = group
 	}

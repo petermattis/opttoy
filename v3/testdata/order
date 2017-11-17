@@ -1,0 +1,52 @@
+exec
+CREATE TABLE a (x INT PRIMARY KEY, y INT UNIQUE)
+----
+table a
+  x NOT NULL
+  y NULL
+  (x) KEY
+  (y) WEAK KEY
+
+build
+SELECT * FROM a ORDER BY y, x
+----
+order-by [out=(0,1)]
+  columns: a.x:0 a.y:1
+  ordering: +1,+0
+  inputs:
+    scan [out=(0,1)]
+      columns: a.x:0* a.y:1
+      key: (0)
+      weak key: (1)
+
+build
+SELECT * FROM a ORDER BY y DESC, x ASC
+----
+order-by [out=(0,1)]
+  columns: a.x:0 a.y:1
+  ordering: -1,+0
+  inputs:
+    scan [out=(0,1)]
+      columns: a.x:0* a.y:1
+      key: (0)
+      weak key: (1)
+
+# Note that order-by is extracted by prep and thus doesn't appear in
+# the memo.
+
+prep,memo
+SELECT * FROM a ORDER BY x
+----
+1: [scan a]
+
+prep,memo,search
+SELECT * FROM a ORDER BY x
+----
+1: [scan a] [index scan a@primary <+0>]
+
+prep,memo,search
+SELECT y FROM a ORDER BY y
+----
+3: [project [1 2]]
+2: [variable a.y]
+1: [scan a] [index scan a@primary <+0>] [index scan a@y_idx <+1>] [sort [1.1] <+1>]
