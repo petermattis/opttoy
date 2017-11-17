@@ -95,6 +95,10 @@ const (
 
 	functionOp
 
+	// Physical operators
+	indexJoinOp
+	indexScanOp
+
 	numOperators
 )
 

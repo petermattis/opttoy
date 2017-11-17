@@ -27,12 +27,12 @@ SELECT * FROM a JOIN b ON (a.x = b.x)
 9: [select [6 8]]
 8: [comp (IS NOT) [7 3]]
 7: [variable b.x]
-6: [scan b]
+6: [scan b] [index scan b@primary]
 5: [select [1 4]]
 4: [comp (IS NOT) [2 3]]
 3: [const NULL]
 2: [variable a.x]
-1: [scan a]
+1: [scan a] [index scan a@primary]
 
 prep,memo,search
 SELECT * FROM a, b, c
@@ -40,10 +40,10 @@ SELECT * FROM a, b, c
 5: [inner join [3 4 -]] [inner join [6 2 -]] [inner join [7 1 -]] [inner join [4 3 -]] [inner join [2 6 -]] [inner join [1 7 -]]
 7: [inner join [2 4 -]] [inner join [4 2 -]]
 6: [inner join [1 4 -]] [inner join [4 1 -]]
-4: [scan c]
+4: [scan c] [index scan c@primary]
 3: [inner join [1 2 -]] [inner join [2 1 -]]
-2: [scan b]
-1: [scan a]
+2: [scan b] [index scan b@primary]
+1: [scan a] [index scan a@primary]
 
 prep,memo,search
 SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
@@ -64,19 +64,19 @@ SELECT * FROM a NATURAL JOIN b NATURAL JOIN c
 16: [select [13 15]]
 15: [comp (IS NOT) [14 3]]
 14: [variable c.x]
-13: [scan c]
+13: [scan c] [index scan c@primary]
 12: [inner join [5 9 11]] [inner join [9 5 11]]
 11: [list [10 10]]
 10: [comp (=) [2 7]]
 9: [select [6 8]]
 8: [comp (IS NOT) [7 3]]
 7: [variable b.x]
-6: [scan b]
+6: [scan b] [index scan b@primary]
 5: [select [1 4]]
 4: [comp (IS NOT) [2 3]]
 3: [const NULL]
 2: [variable a.x]
-1: [scan a]
+1: [scan a] [index scan a@primary]
 
 prep,memo,search
 SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
@@ -87,7 +87,7 @@ SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
 18: [select [15 17]]
 17: [comp (IS NOT) [16 3]]
 16: [variable c.w]
-15: [scan c]
+15: [scan c] [index scan c@primary]
 14: [inner join [5 12 13]] [inner join [12 5 13]]
 13: [comp (=) [2 9]]
 12: [select [6 11]]
@@ -96,9 +96,9 @@ SELECT * FROM a, b, c WHERE a.y = b.z AND b.x = c.w
 9: [variable b.z]
 8: [comp (IS NOT) [7 3]]
 7: [variable b.x]
-6: [scan b]
+6: [scan b] [index scan b@primary]
 5: [select [1 4]]
 4: [comp (IS NOT) [2 3]]
 3: [const NULL]
 2: [variable a.y]
-1: [scan a]
+1: [scan a] [index scan a@primary]

@@ -27,7 +27,6 @@ func (scan) layout() exprLayout {
 
 func (scan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
-	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
 func (scan) initKeys(e *expr, state *queryState) {
