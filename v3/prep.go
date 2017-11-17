@@ -4,7 +4,8 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
-func prep(e *expr) {
+func prep(e *expr) *physicalProps {
+	required := extractRequiredProps(e)
 	trimOutputCols(e, e.props.outputCols)
 	normalize(e)
 	inferFilters(e)
@@ -12,6 +13,22 @@ func prep(e *expr) {
 	// TODO(peter): pushing down filters adjusts the output columns.
 	trimOutputCols(e, e.props.outputCols)
 	xformApplyAll(joinElimination{}, e)
+	return required
+}
+
+// Extract required physical props from the expression and remove the nodes
+// which were requiring those properties (e.g. order-by).
+func extractRequiredProps(e *expr) *physicalProps {
+	for _, input := range e.inputs() {
+		_ = extractRequiredProps(input)
+	}
+
+	var props *physicalProps
+	if e.op == orderByOp {
+		props = e.physicalProps
+		*e = *e.children[0]
+	}
+	return props
 }
 
 // Push down required output columns from the root of the expression to leaves.

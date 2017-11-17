@@ -1,7 +1,9 @@
 package v3
 
 import (
+	"bytes"
 	"container/heap"
+	"fmt"
 )
 
 // Search is modelled as a series of tasks that optimize an
@@ -43,14 +45,28 @@ import (
 type taskID int16
 
 const (
-	implementGroupExprTask taskID = iota
+	optimizeGroupTask taskID = iota
+	optimizeGroupExprTask
+	implementGroupTask
+	implementGroupExprTask
 	implementTransformTask
 	exploreGroupExprTask
 	exploreTransformTask
 )
 
+var taskNames = [...]string{
+	optimizeGroupTask:      "optimize group",
+	optimizeGroupExprTask:  "optimize group expr",
+	implementGroupTask:     "implement group",
+	implementGroupExprTask: "implement group expr",
+	implementTransformTask: "implement transform",
+	exploreGroupExprTask:   "explore group expr",
+	exploreTransformTask:   "explore transform",
+}
+
 type searchTask struct {
 	parent   *searchTask
+	required *physicalProps
 	id       taskID
 	loc      memoLoc // pointer to memo expression or memo group
 	xid      xformID // transformation ID for transform tasks
@@ -82,6 +98,12 @@ func (t *searchTask) addChild(child *searchTask) {
 
 func (t *searchTask) run(s *search) {
 	switch t.id {
+	case optimizeGroupTask:
+		s.optimizeGroup(t.loc, t.required, t.parent)
+	case optimizeGroupExprTask:
+		s.optimizeGroupExpr(t.loc, t.required, t.parent)
+	case implementGroupTask:
+		s.implementGroup(t.loc, t.parent)
 	case implementGroupExprTask:
 		s.implementGroupExpr(t.loc, t.parent)
 	case implementTransformTask:
@@ -90,6 +112,8 @@ func (t *searchTask) run(s *search) {
 		s.exploreGroupExpr(t.loc, t.parent)
 	case exploreTransformTask:
 		s.applyTransform(t.loc, t.xid, t.parent, t.id)
+	default:
+		fatalf("unknown task %d", t.id)
 	}
 
 	if t.parent != nil {
@@ -154,14 +178,24 @@ func newSearch(memo *memo) *search {
 	}
 }
 
-func (s *search) run() {
-	s.optimizeGroup(s.memo.groups[s.memo.root], nil)
+func (s *search) run(required *physicalProps) {
+	s.optimizeGroupTask(s.memo.groups[s.memo.root], required, nil)
 
 	// Run tasks until there is nothing left to do.
 	for s.runnable.Len() > 0 {
 		t := s.runnable.pop()
 		if t.deps > 0 {
 			fatalf("runnable task with %d unfinished deps", t.deps)
+		}
+		if false {
+			var buf bytes.Buffer
+			for i, x := range s.runnable.tasks {
+				if i > 0 {
+					buf.WriteString(",")
+				}
+				fmt.Fprintf(&buf, "%s [%s]", taskNames[x.id], x.loc)
+			}
+			fmt.Printf("%20s: [%s] [runnable=%s]\n", taskNames[t.id], t.loc, buf.String())
 		}
 		t.run(s)
 	}
@@ -173,16 +207,83 @@ func (s *search) schedule(t *searchTask) {
 	}
 }
 
-func (s *search) optimizeGroup(g *memoGroup, parent *searchTask) {
-	s.implementGroup(g, parent)
-}
-
-func (s *search) implementGroup(g *memoGroup, parent *searchTask) {
+func (s *search) optimizeGroupTask(g *memoGroup, required *physicalProps, parent *searchTask) {
 	if g == nil {
 		return
 	}
 
-	s.exploreGroup(g, parent)
+	t := newSearchTask(s, parent)
+	t.id = optimizeGroupTask
+	t.loc = memoLoc{group: g.id}
+	t.required = required
+	s.implementGroupTask(g, t)
+	s.schedule(t)
+}
+
+func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *searchTask) {
+	g := s.memo.groups[loc.group]
+
+	exprs := g.exprs[g.optimized:]
+	g.optimized = exprID(len(g.exprs))
+
+	for _, e := range exprs {
+		t := newSearchTask(s, parent)
+		t.id = optimizeGroupExprTask
+		t.loc = e.loc
+		t.required = required
+
+		// Optimize children groups.
+		//
+		// TODO(peter): some operators are pass through for the required properties
+		// while other operators need to derive new properties for each child. For
+		// now, we're always passing through the required properties, but that is
+		// definitely not correct.
+		for _, c := range e.children {
+			s.optimizeGroupTask(s.memo.groups[c], required, t)
+		}
+
+		s.schedule(t)
+	}
+}
+
+func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent *searchTask) {
+	g := s.memo.groups[loc.group]
+	e := g.exprs[loc.expr]
+	if e.physicalProps == nil {
+		return
+	}
+	if !e.physicalProps.provides(required) {
+		// TODO(peter): the enforcer mechanism here needs to be generalized.
+		sort := &expr{
+			op:    sortOp,
+			loc:   memoLoc{group: e.loc.group, expr: -1},
+			props: g.props,
+			physicalProps: &physicalProps{
+				providedOrdering: required.providedOrdering,
+			},
+			private: &sortSpec{
+				loc: e.loc,
+			},
+		}
+		s.memo.addExpr(sort)
+	}
+}
+
+func (s *search) implementGroupTask(g *memoGroup, parent *searchTask) {
+	if g == nil {
+		return
+	}
+
+	t := newSearchTask(s, parent)
+	t.id = implementGroupTask
+	t.loc = memoLoc{group: g.id}
+	s.exploreGroupTask(g, t)
+	s.schedule(t)
+}
+
+func (s *search) implementGroup(loc memoLoc, parent *searchTask) {
+	g := s.memo.groups[loc.group]
+
 	exprs := g.exprs[g.implemented:]
 	g.implemented = exprID(len(g.exprs))
 
@@ -193,7 +294,7 @@ func (s *search) implementGroup(g *memoGroup, parent *searchTask) {
 
 		// Implement children groups.
 		for _, c := range e.children {
-			s.implementGroup(s.memo.groups[c], t)
+			s.implementGroupTask(s.memo.groups[c], t)
 		}
 
 		s.schedule(t)
@@ -211,7 +312,7 @@ func (s *search) implementGroupExpr(loc memoLoc, parent *searchTask) {
 	}
 }
 
-func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
+func (s *search) exploreGroupTask(g *memoGroup, parent *searchTask) {
 	if g == nil {
 		return
 	}
@@ -226,7 +327,7 @@ func (s *search) exploreGroup(g *memoGroup, parent *searchTask) {
 
 		// Explore children groups.
 		for _, c := range e.children {
-			s.exploreGroup(s.memo.groups[c], t)
+			s.exploreGroupTask(s.memo.groups[c], t)
 		}
 
 		s.schedule(t)
@@ -271,10 +372,10 @@ func (s *search) applyTransform(loc memoLoc, xid xformID, parent *searchTask, id
 		// exploration again.
 		switch id {
 		case implementTransformTask:
-			// TODO(peter): should this be optimizeInputs?
-			s.implementGroup(g, parent)
+			// TODO(peter): should this be optimizeGroupTask?
+			s.implementGroupTask(g, parent)
 		case exploreTransformTask:
-			s.exploreGroup(g, parent)
+			s.exploreGroupTask(g, parent)
 		default:
 			fatalf("unexpected task id %d", id)
 		}

@@ -34,7 +34,8 @@ func (selectToIndexScan) apply(e *expr, results []*expr) []*expr {
 
 	scan := e.children[0]
 	table := scan.private.(*table)
-	for _, key := range table.keys {
+	for i := range table.keys {
+		key := &table.keys[i]
 		// If the first column of the index is the variable used for a filter,
 		// output an index scan expression.
 		col0 := scan.props.columns[key.columns[0]]
@@ -58,26 +59,7 @@ func (selectToIndexScan) apply(e *expr, results []*expr) []*expr {
 				continue
 			}
 
-			index := *table
-			index.name += "@" + key.name
-			indexScan := &expr{
-				op:      indexScanOp,
-				private: &index,
-			}
-			// TODO(peter): hack to make index scans on the primary index retrieve
-			// all columns.
-			if key.name == "primary" {
-				indexScan.props = scan.props
-			} else {
-				indexScan.props = &relationalProps{
-					columns: make([]columnProps, 0, len(key.columns)),
-				}
-				for _, i := range key.columns {
-					indexScan.props.columns = append(indexScan.props.columns, scan.props.columns[i])
-				}
-				indexScan.initProps()
-			}
-
+			indexScan := newIndexScanExpr(table, key, scan.props)
 			if !scan.props.outputCols.SubsetOf(indexScan.props.outputCols) {
 				indexScan = &expr{
 					op: indexJoinOp,
