@@ -19,6 +19,7 @@ type foreignKey struct {
 }
 
 type tableKey struct {
+	name    string
 	primary bool
 	unique  bool
 	notNull bool // all of the columns are notNull
@@ -126,11 +127,18 @@ func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 			})
 
 			if def.Unique || def.PrimaryKey {
-				addKey(tab, tableKey{
+				k := addKey(tab, tableKey{
 					primary: def.PrimaryKey,
 					unique:  true,
 					columns: []int{index},
 				})
+				if k.name == "" {
+					if def.PrimaryKey {
+						k.name = "primary"
+					} else {
+						k.name = string(def.Name) + "_idx"
+					}
+				}
 			}
 
 			if def.HasFKConstraint() {
@@ -167,17 +175,26 @@ func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 					tab.columns[i].notNull = true
 				}
 			}
-			addKey(tab, tableKey{
+			k := addKey(tab, tableKey{
 				primary: def.PrimaryKey,
 				unique:  true,
 				columns: columns,
 			})
+			if k.name == "" {
+				k.name = string(def.Name)
+				if k.name == "" {
+					k.name = "primary"
+				}
+			}
 
 		case *tree.IndexTableDef:
-			addKey(tab, tableKey{
+			k := addKey(tab, tableKey{
 				unique:  true,
 				columns: tab.getColumnIndexes(extractColumns(def)),
 			})
+			if k.name == "" {
+				k.name = string(def.Name)
+			}
 
 		case *tree.ForeignKeyConstraintTableDef:
 			refTable, err := def.Table.Normalize()

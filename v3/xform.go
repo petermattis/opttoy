@@ -3,9 +3,14 @@ package v3
 type xformID int32
 
 const (
+	// Exploration transformations
 	xformJoinCommutativityID xformID = iota
 	xformJoinAssociativityID
 	xformJoinEliminationID
+
+	// Implementation transformations
+	xformScanToIndexScanID
+	xformSelectToIndexScanID
 
 	numXforms
 )
