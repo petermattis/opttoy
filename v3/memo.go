@@ -281,19 +281,22 @@ func (m *memo) addExpr(e *expr) groupID {
 	}
 
 	ef := me.fingerprint()
+	if group, ok := m.exprMap[ef]; ok {
+		// The expression already exists in the memo.
+		return group
+	}
+
 	if me.loc.group == 0 {
-		group, ok := m.exprMap[ef]
+		// Determine which group the expression belongs in, creating it if
+		// necessary.
+		gf := me.groupFingerprint()
+		group, ok := m.groupMap[gf]
 		if !ok {
-			// Determine which group the expression belongs in, creating it if
-			// necessary.
-			gf := me.groupFingerprint()
-			if group, ok = m.groupMap[gf]; !ok {
-				group = groupID(len(m.groups))
-				g := newMemoGroup(e.props, e.scalarProps)
-				g.id = group
-				m.groups = append(m.groups, g)
-				m.groupMap[gf] = group
-			}
+			group = groupID(len(m.groups))
+			g := newMemoGroup(e.props, e.scalarProps)
+			g.id = group
+			m.groups = append(m.groups, g)
+			m.groupMap[gf] = group
 		}
 		me.loc.group = group
 	}
