@@ -71,6 +71,9 @@ type expr struct {
 	props *relationalProps
 	// Scalar properties. Nil for relational expressions.
 	scalarProps *scalarProps
+	// Physical properties. Nil for scalar expressions and logical relational
+	// expressions.
+	physicalProps *physicalProps
 	// Private data used by this expression. For example, scanOp store a pointer
 	// to the underlying table while constOp store a pointer to the constant
 	// value.
@@ -123,6 +126,9 @@ func formatRelational(e *expr, buf *bytes.Buffer, level int) {
 	}
 	buf.WriteString("\n")
 	e.props.format(buf, level+1)
+	if e.physicalProps != nil {
+		e.physicalProps.format(buf, level+1)
+	}
 }
 
 func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {

@@ -186,9 +186,9 @@ func (p *relationalProps) fingerprint() string {
 	// format encoding columns and keys using varints might be faster and more
 	// compact.
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "[%s %s %s]", p.outputCols, p.outerCols, p.notNullCols)
+	fmt.Fprintf(&buf, "[out=%s outer=%s not-null=%s]", p.outputCols, p.outerCols, p.notNullCols)
 	if len(p.weakKeys) > 0 {
-		buf.WriteString(" [")
+		buf.WriteString(" keys=[")
 		for i, key := range p.weakKeys {
 			if i > 0 {
 				buf.WriteString(" ")
@@ -198,7 +198,7 @@ func (p *relationalProps) fingerprint() string {
 		buf.WriteString("]")
 	}
 	if len(p.foreignKeys) > 0 {
-		buf.WriteString(" [")
+		buf.WriteString(" fkeys=[")
 		for i, fkey := range p.foreignKeys {
 			if i > 0 {
 				buf.WriteString(" ")
@@ -208,7 +208,7 @@ func (p *relationalProps) fingerprint() string {
 		buf.WriteString("]")
 	}
 	if p.joinDepth > 0 {
-		fmt.Fprintf(&buf, " %d", p.joinDepth)
+		fmt.Fprintf(&buf, " join=%d", p.joinDepth)
 	}
 	// TODO(peter): see comment about "constraints" field.
 	if p.constraints {
