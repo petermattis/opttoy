@@ -146,3 +146,23 @@ project [out=(0,3)]
               inputs:
                 scan [out=(0,1)]
                   columns: a.x:0 a.y:1
+
+# This query is artificial and is intended only to highlight that the
+# two group-by expressions are placed in different groups in the memo.
+
+prep,memo
+SELECT SUM(x) FROM a GROUP BY x UNION SELECT SUM(x) FROM a WHERE y > 1 GROUP BY y
+----
+13: [union [6 12]]
+12: [project [11 5]]
+11: [groupBy [10 7 3]]
+10: [select [1 9]]
+9: [comp (>) [7 8]]
+8: [const 1]
+7: [variable a.y]
+6: [project [4 5]]
+5: [variable column3]
+4: [groupBy [1 2 3]]
+3: [func sum [2]]
+2: [variable a.x]
+1: [scan a]

@@ -26,16 +26,15 @@ func (l memoLoc) String() string {
 // memoExpr is a memoized representation of an expression. Unlike expr which
 // represents a single expression, a memoExpr roots a forest of
 // expressions. This is accomplished by recursively memoizing children and
-// storing logically equivalent expressions in the memo
-// structure. memoExpr.children refers to child groups of logically equivalent
-// expressions. Because memoExpr refers to a forest of expressions, it is
-// challenging to perform transformations directly upon it. Instead,
-// transformations are performed by extracting an expr fragment matching a
-// pattern from the memo, performing the transformation and then inserting the
-// transformed result back into the memo.
+// storing them in the memo structure. memoExpr.children refers to child groups
+// of logically equivalent expressions. Because memoExpr refers to a forest of
+// expressions, it is challenging to perform transformations directly upon
+// it. Instead, transformations are performed by extracting an expr fragment
+// matching a pattern from the memo, performing the transformation and then
+// inserting the transformed result back into the memo.
 //
 // For relational expressions, logical equivalency is defined as equivalent
-// relational properties (see relationalProps.fingerprint()). For scalar
+// group fingerprints (see memoExpr.groupFingerprint()). For scalar
 // expressions, logical equivalency is defined as equivalent memoExpr (see
 // memoExpr.fingerprint()). While scalar expressions are stored in the memo,
 // each scalar expression group contains only a single entry.
@@ -74,6 +73,47 @@ func (e *memoExpr) fingerprint() string {
 	if len(e.children) > 0 {
 		fmt.Fprintf(&buf, " [")
 		for i, c := range e.children {
+			if i > 0 {
+				buf.WriteString(" ")
+			}
+			if c <= 0 {
+				buf.WriteString("-")
+			} else {
+				fmt.Fprintf(&buf, "%d", c)
+			}
+		}
+		fmt.Fprintf(&buf, "]")
+	}
+	return buf.String()
+}
+
+func (e *memoExpr) groupFingerprint() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s", e.op)
+
+	switch t := e.private.(type) {
+	case nil:
+	case *table:
+		fmt.Fprintf(&buf, " %s", t.name)
+	default:
+		fmt.Fprintf(&buf, " %s", e.private)
+	}
+
+	if len(e.children) > 0 {
+		fmt.Fprintf(&buf, " [")
+
+		// TODO(peter): hack to normalize the ordering of children from inner
+		// joins.
+		children := e.children
+		if e.op == innerJoinOp {
+			children = make([]groupID, len(e.children))
+			copy(children, e.children)
+			if children[0] > children[1] {
+				children[0], children[1] = children[1], children[0]
+			}
+		}
+
+		for i, c := range children {
 			if i > 0 {
 				buf.WriteString(" ")
 			}
@@ -154,13 +194,7 @@ func (m *memo) String() string {
 	var buf bytes.Buffer
 	for _, id := range m.topologicalSort() {
 		g := m.groups[id]
-		// TODO(peter): provide a better mechanism for displaying group
-		// fingerprints for debugging.
-		if false && g.props != nil {
-			fmt.Fprintf(&buf, "%d [%s]:", id, g.props.fingerprint())
-		} else {
-			fmt.Fprintf(&buf, "%d:", id)
-		}
+		fmt.Fprintf(&buf, "%d:", id)
 		for _, e := range g.exprs {
 			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
 		}
@@ -210,47 +244,8 @@ func (m *memo) addRoot(e *expr) {
 	m.root = m.addExpr(e)
 }
 
-// Check performs consistency checks of the memo internal data structures.
-func (m *memo) check() {
-	for i, g := range m.groups {
-		if g == nil {
-			continue
-		}
-		var gf string
-		if g.props != nil {
-			gf = g.props.fingerprint()
-		} else {
-			gf = g.exprs[0].fingerprint()
-		}
-		group, ok := m.groupMap[gf]
-		if !ok {
-			fatalf("group %d not found: %s", i, gf)
-		}
-		if group != groupID(i) {
-			fatalf("expected group %d, but found %d: %s", i, group, gf)
-		}
-	}
-
-	for gf, group := range m.groupMap {
-		g := m.groups[group]
-		if g.props != nil {
-			tf := g.props.fingerprint()
-			if gf != tf {
-				fatalf("relational group %d, unexpected fingerprint: %s != %s", group, gf, tf)
-			}
-		} else {
-			ef := g.exprs[0].fingerprint()
-			if gf != ef {
-				fatalf("scalar group %d, unexpected fingerprint: %s != %s", group, gf, ef)
-			}
-		}
-	}
-}
-
 // addExpr adds an expression to the memo and returns the group it was added to.
 func (m *memo) addExpr(e *expr) groupID {
-	m.check()
-
 	if e.loc.group > 0 && e.loc.expr >= 0 {
 		// The expression has already been added to the memo.
 		return e.loc.group
@@ -270,9 +265,12 @@ func (m *memo) addExpr(e *expr) groupID {
 		}
 	}
 
-	// TODO(peter): Figure out a way to remove this hack. We normalize the list
-	// op expressions by sorting them by group.
-	if me.op == listOp {
+	// Normalize the child order for operators which are not sensitive to the input
+	// order.
+	//
+	// TODO(peter): this should likely be a method on the operator.
+	switch me.op {
+	case listOp, andOp, orOp:
 		sort.Slice(me.children, func(i, j int) bool {
 			return me.children[i] < me.children[j]
 		})
@@ -280,34 +278,18 @@ func (m *memo) addExpr(e *expr) groupID {
 
 	ef := me.fingerprint()
 	if me.loc.group == 0 {
-		if group, ok := m.exprMap[ef]; ok {
-			// Expression already exists in the memo.
-			if e.props != nil {
-				// Check that the logical properties map to the group the expression
-				// already exists in.
-				if newGroup := m.groupMap[e.props.fingerprint()]; group != newGroup {
-					fatalf("group mismatch for existing expression\n%d: [%s]\n%d: [%s]\n%s",
-						group, m.groups[group].props.fingerprint(),
-						newGroup, e.props.fingerprint(),
-						e)
-				}
-			}
-			return group
-		}
-
-		// Determine which group the expression belongs in, creating it if
-		// necessary.
-		gf := ef
-		if e.props != nil {
-			gf = e.props.fingerprint()
-		}
-		group, ok := m.groupMap[gf]
+		group, ok := m.exprMap[ef]
 		if !ok {
-			group = groupID(len(m.groups))
-			g := newMemoGroup(e.props, e.scalarProps)
-			g.id = group
-			m.groups = append(m.groups, g)
-			m.groupMap[gf] = group
+			// Determine which group the expression belongs in, creating it if
+			// necessary.
+			gf := me.groupFingerprint()
+			if group, ok = m.groupMap[gf]; !ok {
+				group = groupID(len(m.groups))
+				g := newMemoGroup(e.props, e.scalarProps)
+				g.id = group
+				m.groups = append(m.groups, g)
+				m.groupMap[gf] = group
+			}
 		}
 		me.loc.group = group
 	}

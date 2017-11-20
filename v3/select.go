@@ -49,6 +49,4 @@ func (sel) updateProps(e *expr) {
 
 	e.props.applyFilters(e.filters())
 	e.props.applyInputs(e.inputs())
-
-	e.props.constraints = true
 }
