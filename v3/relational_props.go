@@ -123,10 +123,6 @@ type relationalProps struct {
 
 	// The number of joins that have been performed at and below this relation.
 	joinDepth int32
-
-	// TODO(peter): This is a hack until constraints are present. If the
-	// expression contains filters, we need to distinguish it from its input.
-	constraints bool
 }
 
 func (p *relationalProps) init() {
@@ -177,44 +173,6 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		}
 		buf.WriteString("\n")
 	}
-}
-
-// fingerprint returns a string which uniquely identifies the relational
-// properties within the context of a query.
-func (p *relationalProps) fingerprint() string {
-	// TODO(peter): The fingerprint is unique, but human readable. A binary
-	// format encoding columns and keys using varints might be faster and more
-	// compact.
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "[out=%s outer=%s not-null=%s]", p.outputCols, p.outerCols, p.notNullCols)
-	if len(p.weakKeys) > 0 {
-		buf.WriteString(" keys=[")
-		for i, key := range p.weakKeys {
-			if i > 0 {
-				buf.WriteString(" ")
-			}
-			fmt.Fprintf(&buf, "%s", key)
-		}
-		buf.WriteString("]")
-	}
-	if len(p.foreignKeys) > 0 {
-		buf.WriteString(" fkeys=[")
-		for i, fkey := range p.foreignKeys {
-			if i > 0 {
-				buf.WriteString(" ")
-			}
-			fmt.Fprintf(&buf, "%s->%s", fkey.src, fkey.dest)
-		}
-		buf.WriteString("]")
-	}
-	if p.joinDepth > 0 {
-		fmt.Fprintf(&buf, " join=%d", p.joinDepth)
-	}
-	// TODO(peter): see comment about "constraints" field.
-	if p.constraints {
-		fmt.Fprintf(&buf, " C")
-	}
-	return buf.String()
 }
 
 func (p *relationalProps) findColumn(name string) *columnProps {

@@ -5,12 +5,8 @@ table a
   x NULL
   y NULL
 
-# TODO(peter): The union expression should not be mapped to the same
-# group as the scan expression. It currently is because there are no
-# changes to the relational properties of the union expression to
-# distinguish it from the scan expression.
-
 prep,memo
 SELECT * FROM a UNION ALL SELECT * from a
 ----
-1: [scan a] [union [1 1]]
+2: [union [1 1]]
+1: [scan a]

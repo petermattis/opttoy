@@ -70,6 +70,7 @@ func (selectToIndexScan) apply(e *expr, results []*expr) []*expr {
 				}
 				indexScan.initProps()
 			}
+			indexScan.loc = memoLoc{group: scan.loc.group, expr: -1}
 
 			results = append(results, &expr{
 				op: selectOp,
