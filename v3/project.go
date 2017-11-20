@@ -45,3 +45,7 @@ func (project) updateProps(e *expr) {
 
 	e.props.applyInputs(e.inputs())
 }
+
+func (project) requiredProps(required *physicalProps, child int) *physicalProps {
+	return required // pass through
+}

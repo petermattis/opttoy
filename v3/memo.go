@@ -128,6 +128,10 @@ func (e *memoExpr) groupFingerprint() string {
 	return buf.String()
 }
 
+func (e *memoExpr) info() operatorInfo {
+	return operatorTab[e.op]
+}
+
 // memoGroup stores a set of logically equivalent expressions. See the comments
 // on memoExpr for the definition of logical equivalency.
 type memoGroup struct {

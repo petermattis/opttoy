@@ -137,6 +137,10 @@ func (scalar) updateProps(e *expr) {
 	}
 }
 
+func (scalar) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}
+
 func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	if e.op == variableOp {
 		if e.scalarInputCols() == columns {

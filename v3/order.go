@@ -37,6 +37,10 @@ func (orderBy) initKeys(e *expr, state *queryState) {
 func (orderBy) updateProps(e *expr) {
 }
 
+func (orderBy) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}
+
 // orderSpec defines the ordering of columns provided or required by a
 // relation. A negative value indicates descending ordering on the column index
 // "-(value+1)".

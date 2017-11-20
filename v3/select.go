@@ -50,3 +50,7 @@ func (sel) updateProps(e *expr) {
 	e.props.applyFilters(e.filters())
 	e.props.applyInputs(e.inputs())
 }
+
+func (sel) requiredProps(required *physicalProps, child int) *physicalProps {
+	return required // pass through
+}

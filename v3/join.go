@@ -59,6 +59,10 @@ func (join) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
+func (join) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}
+
 func joinOp(s string) operator {
 	switch s {
 	case "JOIN", "INNER JOIN", "CROSS JOIN":

@@ -46,3 +46,7 @@ func (union) updateProps(e *expr) {
 
 	e.props.applyInputs(e.inputs())
 }
+
+func (union) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}

@@ -26,3 +26,7 @@ func (indexJoin) initKeys(e *expr, state *queryState) {
 func (indexJoin) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
 }
+
+func (indexJoin) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}

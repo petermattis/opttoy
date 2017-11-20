@@ -125,6 +125,10 @@ type operatorInfo interface {
 	// Update the logical properties based on the internal state of the
 	// expression.
 	updateProps(e *expr)
+
+	// Compute the required physical properties for the specified child given
+	// required properties on the receiver.
+	requiredProps(required *physicalProps, child int) *physicalProps
 }
 
 var (
