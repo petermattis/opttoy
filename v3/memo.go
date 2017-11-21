@@ -23,6 +23,8 @@ func (l memoLoc) String() string {
 	return fmt.Sprintf("%d.%d", l.group, l.expr)
 }
 
+const numInlineChildren = 3
+
 // memoExpr is a memoized representation of an expression. Unlike expr which
 // represents a single expression, a memoExpr roots a forest of
 // expressions. This is accomplished by recursively memoizing children and
@@ -39,16 +41,28 @@ func (l memoLoc) String() string {
 // memoExpr.fingerprint()). While scalar expressions are stored in the memo,
 // each scalar expression group contains only a single entry.
 type memoExpr struct {
-	op            operator  // expr.op
-	children      []groupID // expr.children
-	physicalProps int32     // expr.physicalProps
-	private       int32     // memo.private[expr.private]
+	op operator // expr.op
+	// numChildren and childrenBuf combine to represent expr.children. If an
+	// expression contains 3 or fewer children they are stored in childrenBuf and
+	// numChildren indicates the number of children. If the expression contains
+	// more than 3 children, they are stored at memo.children[numChildren-3-1].
+	numChildren   int32
+	childrenBuf   [numInlineChildren]groupID
+	physicalProps int32 // expr.physicalProps
+	private       int32 // memo.private[expr.private]
 	// NB: expr.{props,scalarProps} are the same for all expressions in the group
 	// and stored in memoGroup.
 }
 
 func (e *memoExpr) matchOp(pattern *expr) bool {
 	return isPatternSentinel(pattern) || pattern.op == e.op
+}
+
+func (e *memoExpr) children(m *memo) []groupID {
+	if e.numChildren <= numInlineChildren {
+		return e.childrenBuf[:e.numChildren]
+	}
+	return m.children[e.numChildren-numInlineChildren-1]
 }
 
 // fingerprint returns a string which uniquely identifies the expression within
@@ -74,9 +88,9 @@ func (e *memoExpr) fingerprint(m *memo) string {
 		}
 	}
 
-	if len(e.children) > 0 {
+	if len(e.children(m)) > 0 {
 		fmt.Fprintf(&buf, " [")
-		for i, c := range e.children {
+		for i, c := range e.children(m) {
 			if i > 0 {
 				buf.WriteString(" ")
 			}
@@ -106,15 +120,15 @@ func (e *memoExpr) groupFingerprint(m *memo) string {
 		}
 	}
 
-	if len(e.children) > 0 {
+	if len(e.children(m)) > 0 {
 		fmt.Fprintf(&buf, " [")
 
 		// TODO(peter): hack to normalize the ordering of children from inner
 		// joins.
-		children := e.children
+		children := e.children(m)
 		if e.op == innerJoinOp {
-			children = make([]groupID, len(e.children))
-			copy(children, e.children)
+			children = make([]groupID, len(children))
+			copy(children, e.children(m))
 			if children[0] > children[1] {
 				children[0], children[1] = children[1], children[0]
 			}
@@ -186,6 +200,9 @@ type memo struct {
 	// group ID 0 is invalid in order to allow zero initialization of expr to
 	// indicate an expression that did not originate from the memo.
 	groups []*memoGroup
+	// External storage of child groups for memo expressions which contain more
+	// than 3 children. See memoExpr.{numChildren,childrenBuf}.
+	children [][]groupID
 	// Physical properties attached to memo expressions.
 	physicalPropsMap map[*physicalProps]int32
 	physicalProps    []*physicalProps
@@ -252,7 +269,7 @@ func (m *memo) dfsVisit(id groupID, visited []bool, res []groupID) []groupID {
 
 	g := m.groups[id]
 	for _, e := range g.exprs {
-		for _, v := range e.children {
+		for _, v := range e.children(m) {
 			res = m.dfsVisit(v, visited, res)
 		}
 	}
@@ -275,12 +292,20 @@ func (m *memo) addExpr(e *expr) groupID {
 
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
-		op:       e.op,
-		children: make([]groupID, len(e.children)),
+		op: e.op,
 	}
+	if len(e.children) <= numInlineChildren {
+		me.numChildren = int32(len(e.children))
+	} else {
+		idx := int32(len(m.children))
+		me.numChildren = numInlineChildren + idx + 1
+		m.children = append(m.children, make([]groupID, len(e.children)))
+	}
+
+	children := me.children(m)
 	for i, g := range e.children {
 		if g != nil {
-			me.children[i] = m.addExpr(g)
+			children[i] = m.addExpr(g)
 		}
 	}
 
@@ -306,8 +331,9 @@ func (m *memo) addExpr(e *expr) groupID {
 	// TODO(peter): this should likely be a method on the operator.
 	switch me.op {
 	case listOp, andOp, orOp:
-		sort.Slice(me.children, func(i, j int) bool {
-			return me.children[i] < me.children[j]
+		children := me.children(m)
+		sort.Slice(children, func(i, j int) bool {
+			return children[i] < children[j]
 		})
 	}
 
@@ -359,7 +385,7 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 		scalarProps: g.scalarProps,
 		op:          e.op,
 		loc:         loc,
-		children:    make([]*expr, len(e.children)),
+		children:    make([]*expr, len(e.children(m))),
 		private:     m.private[e.private],
 	}
 
@@ -368,7 +394,7 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 	}
 
 	// Initialize the child cursors.
-	for i, g := range e.children {
+	for i, g := range e.children(m) {
 		childPattern := childPattern(pattern, i)
 		if g == 0 {
 			// No child present.

@@ -232,7 +232,7 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 
 		// Optimize children groups.
 		op := e.info()
-		for i, c := range e.children {
+		for i, c := range e.children(s.memo) {
 			s.optimizeGroupTask(s.memo.groups[c], op.requiredProps(required, i), t)
 		}
 
@@ -286,7 +286,7 @@ func (s *search) implementGroup(loc memoLoc, parent *searchTask) {
 		t.loc = memoLoc{group: g.id, expr: g.implemented}
 
 		// Implement children groups.
-		for _, c := range e.children {
+		for _, c := range e.children(s.memo) {
 			s.implementGroupTask(s.memo.groups[c], t)
 		}
 
@@ -317,7 +317,7 @@ func (s *search) exploreGroupTask(g *memoGroup, parent *searchTask) {
 		t.loc = memoLoc{group: g.id, expr: g.explored}
 
 		// Explore children groups.
-		for _, c := range e.children {
+		for _, c := range e.children(s.memo) {
 			s.exploreGroupTask(s.memo.groups[c], t)
 		}
 
