@@ -23,7 +23,7 @@ memo
 SELECT a.y, b.z FROM a NATURAL JOIN b
 ----
 10: [project [6 9]]
-9: [list [7 8]]
+9: [ordered-list [7 8]]
 8: [variable b.z]
 7: [variable a.y]
 6: [inner join [1 2 5]]

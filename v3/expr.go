@@ -147,23 +147,23 @@ func (e *expr) inputs() []*expr {
 	return e.children[:len(e.children)-int(e.layout().numAux)]
 }
 
-func (e *expr) aux(i int8) []*expr {
+func (e *expr) aux(i int8, op operator) []*expr {
 	t := e.children[i : i+1]
 	if t[0] == nil {
 		return nil
 	}
-	if t[0].op == listOp {
+	if t[0].op == op {
 		return t[0].children
 	}
 	return t
 }
 
-func (e *expr) addAux1(i int8, aux *expr) {
+func (e *expr) addAux1(i int8, op operator, aux *expr) {
 	if t := e.children[i]; t == nil {
 		e.children[i] = aux
-	} else if t.op != listOp {
+	} else if t.op != op {
 		e.children[i] = &expr{
-			op:       listOp,
+			op:       op,
 			children: []*expr{t, aux},
 		}
 	} else {
@@ -171,17 +171,17 @@ func (e *expr) addAux1(i int8, aux *expr) {
 	}
 }
 
-func (e *expr) addAuxN(i int8, aux []*expr) {
+func (e *expr) addAuxN(i int8, op operator, aux []*expr) {
 	if t := e.children[i]; t == nil && len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else if t == nil {
 		e.children[i] = &expr{
-			op:       listOp,
+			op:       op,
 			children: aux,
 		}
-	} else if t.op != listOp {
+	} else if t.op != op {
 		e.children[i] = &expr{
-			op:       listOp,
+			op:       op,
 			children: make([]*expr, 1+len(aux)),
 		}
 		e.children[i].children[0] = t
@@ -191,12 +191,12 @@ func (e *expr) addAuxN(i int8, aux []*expr) {
 	}
 }
 
-func (e *expr) replaceAuxN(i int8, aux []*expr) {
+func (e *expr) replaceAuxN(i int8, op operator, aux []*expr) {
 	if len(aux) == 1 {
 		e.children[i] = aux[0]
 	} else if len(aux) > 1 {
 		e.children[i] = &expr{
-			op:       listOp,
+			op:       op,
 			children: aux,
 		}
 	} else {
@@ -204,13 +204,13 @@ func (e *expr) replaceAuxN(i int8, aux []*expr) {
 	}
 }
 
-func (e *expr) removeAux1(j int8, aux *expr) {
+func (e *expr) removeAux1(j int8, op operator, aux *expr) {
 	if e.children[j] == aux {
 		e.children[j] = nil
 		return
 	}
 
-	exprs := e.aux(j)
+	exprs := e.aux(j, op)
 	for i := range exprs {
 		if exprs[i] == aux {
 			copy(exprs[i:], exprs[i+1:])
@@ -233,7 +233,7 @@ func (e *expr) filters() []*expr {
 	if l.filters < 0 {
 		return nil
 	}
-	return e.aux(l.filters)
+	return e.aux(l.filters, listOp)
 }
 
 func (e *expr) addFilter(f *expr) {
@@ -247,7 +247,7 @@ func (e *expr) addFilter(f *expr) {
 		return
 	}
 
-	e.addAux1(e.layout().filters, f)
+	e.addAux1(e.layout().filters, listOp, f)
 }
 
 func (e *expr) addFilters(filters []*expr) {
@@ -257,7 +257,7 @@ func (e *expr) addFilters(filters []*expr) {
 }
 
 func (e *expr) removeFilter(f *expr) {
-	e.removeAux1(e.layout().filters, f)
+	e.removeAux1(e.layout().filters, listOp, f)
 }
 
 func (e *expr) removeFilters() {
@@ -265,35 +265,35 @@ func (e *expr) removeFilters() {
 }
 
 func (e *expr) replaceFilters(filters []*expr) {
-	e.replaceAuxN(e.layout().filters, filters)
+	e.replaceAuxN(e.layout().filters, listOp, filters)
 }
 
 func (e *expr) projections() []*expr {
-	return e.aux(e.layout().projections)
+	return e.aux(e.layout().projections, orderedListOp)
 }
 
 func (e *expr) addProjections(exprs []*expr) {
-	e.addAuxN(e.layout().projections, exprs)
+	e.addAuxN(e.layout().projections, orderedListOp, exprs)
 }
 
 func (e *expr) groupings() []*expr {
-	return e.aux(e.layout().groupings)
+	return e.aux(e.layout().groupings, orderedListOp)
 }
 
 func (e *expr) addGroupings(exprs []*expr) {
-	e.addAuxN(e.layout().groupings, exprs)
+	e.addAuxN(e.layout().groupings, orderedListOp, exprs)
 }
 
 func (e *expr) aggregations() []*expr {
-	return e.aux(e.layout().aggregations)
+	return e.aux(e.layout().aggregations, orderedListOp)
 }
 
 func (e *expr) addAggregation(a *expr) {
-	e.addAux1(e.layout().aggregations, a)
+	e.addAux1(e.layout().aggregations, orderedListOp, a)
 }
 
 func (e *expr) addAggregations(exprs []*expr) {
-	e.addAuxN(e.layout().aggregations, exprs)
+	e.addAuxN(e.layout().aggregations, orderedListOp, exprs)
 }
 
 func (e *expr) setApply() {
@@ -361,7 +361,7 @@ func (e *expr) requiredInputCols() bitmap {
 		if e == nil {
 			continue
 		}
-		if e.op == listOp {
+		if e.op == listOp || e.op == orderedListOp {
 			for _, c := range e.children {
 				v.UnionWith(c.scalarInputCols())
 			}

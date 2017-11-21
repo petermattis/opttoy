@@ -42,6 +42,7 @@ const (
 	variableOp
 	constOp
 	listOp
+	orderedListOp
 
 	existsOp
 
