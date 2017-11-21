@@ -223,13 +223,11 @@ func (s *search) optimizeGroupTask(g *memoGroup, required *physicalProps, parent
 func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *searchTask) {
 	g := s.memo.groups[loc.group]
 
-	exprs := g.exprs[g.optimized:]
-	g.optimized = exprID(len(g.exprs))
-
-	for _, e := range exprs {
+	for ; g.optimized < exprID(len(g.exprs)); g.optimized++ {
+		e := g.exprs[g.optimized]
 		t := newSearchTask(s, parent)
 		t.id = optimizeGroupExprTask
-		t.loc = e.loc
+		t.loc = memoLoc{group: g.id, expr: g.optimized}
 		t.required = required
 
 		// Optimize children groups.
@@ -253,13 +251,13 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 		// TODO(peter): the enforcer mechanism here needs to be generalized.
 		sort := &expr{
 			op:    sortOp,
-			loc:   memoLoc{group: e.loc.group, expr: -1},
+			loc:   memoLoc{group: loc.group, expr: -1},
 			props: g.props,
 			physicalProps: &physicalProps{
 				providedOrdering: required.providedOrdering,
 			},
 			private: &sortSpec{
-				loc: e.loc,
+				loc: loc,
 			},
 		}
 		s.memo.addExpr(sort)
@@ -281,13 +279,11 @@ func (s *search) implementGroupTask(g *memoGroup, parent *searchTask) {
 func (s *search) implementGroup(loc memoLoc, parent *searchTask) {
 	g := s.memo.groups[loc.group]
 
-	exprs := g.exprs[g.implemented:]
-	g.implemented = exprID(len(g.exprs))
-
-	for _, e := range exprs {
+	for ; g.implemented < exprID(len(g.exprs)); g.implemented++ {
+		e := g.exprs[g.implemented]
 		t := newSearchTask(s, parent)
 		t.id = implementGroupExprTask
-		t.loc = e.loc
+		t.loc = memoLoc{group: g.id, expr: g.implemented}
 
 		// Implement children groups.
 		for _, c := range e.children {
@@ -303,7 +299,7 @@ func (s *search) implementGroupExpr(loc memoLoc, parent *searchTask) {
 	for _, xid := range implementationXforms[e.op] {
 		t := newSearchTask(s, parent)
 		t.id = implementTransformTask
-		t.loc = e.loc
+		t.loc = loc
 		t.xid = xid
 		s.schedule(t)
 	}
@@ -314,13 +310,11 @@ func (s *search) exploreGroupTask(g *memoGroup, parent *searchTask) {
 		return
 	}
 
-	exprs := g.exprs[g.explored:]
-	g.explored = exprID(len(g.exprs))
-
-	for _, e := range exprs {
+	for ; g.explored < exprID(len(g.exprs)); g.explored++ {
+		e := g.exprs[g.explored]
 		t := newSearchTask(s, parent)
 		t.id = exploreGroupExprTask
-		t.loc = e.loc
+		t.loc = memoLoc{group: g.id, expr: g.explored}
 
 		// Explore children groups.
 		for _, c := range e.children {
@@ -336,20 +330,18 @@ func (s *search) exploreGroupExpr(loc memoLoc, parent *searchTask) {
 	for _, xid := range explorationXforms[e.op] {
 		t := newSearchTask(s, parent)
 		t.id = exploreTransformTask
-		t.loc = e.loc
+		t.loc = loc
 		t.xid = xid
 		s.schedule(t)
 	}
 }
 
 func (s *search) applyTransform(loc memoLoc, xid xformID, parent *searchTask, id taskID) {
-	g := s.memo.groups[loc.group]
-	e := g.exprs[loc.expr]
 	xform := xforms[xid]
 	pattern := xform.pattern()
 	var results []*expr
 
-	for cursor := s.memo.bind(e, pattern); cursor != nil; cursor = s.memo.advance(e, pattern, cursor) {
+	for cursor := s.memo.bind(loc, pattern); cursor != nil; cursor = s.memo.advance(loc, pattern, cursor) {
 		if !xform.check(cursor) {
 			continue
 		}
@@ -360,13 +352,14 @@ func (s *search) applyTransform(loc memoLoc, xid xformID, parent *searchTask, id
 		for _, r := range results {
 			// The group that the top-level expressions get added back to is required
 			// to be the source group.
-			r.loc = memoLoc{e.loc.group, -1}
+			r.loc = memoLoc{loc.group, -1}
 			s.memo.addExpr(r)
 		}
 
 		// Adding the expressions back to the memo might create more groups or
 		// add expressions to existing groups. Schedule the source group for
 		// exploration again.
+		g := s.memo.groups[loc.group]
 		switch id {
 		case implementTransformTask:
 			// TODO(peter): should this be optimizeGroupTask?

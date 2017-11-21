@@ -40,7 +40,6 @@ func (l memoLoc) String() string {
 // each scalar expression group contains only a single entry.
 type memoExpr struct {
 	op            operator       // expr.op
-	loc           memoLoc        // expr.loc
 	children      []groupID      // expr.children
 	physicalProps *physicalProps // expr.physicalProps
 	private       interface{}    // expr.private
@@ -258,7 +257,6 @@ func (m *memo) addExpr(e *expr) groupID {
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
 		op:            e.op,
-		loc:           e.loc,
 		children:      make([]groupID, len(e.children)),
 		physicalProps: e.physicalProps,
 		private:       e.private,
@@ -286,11 +284,13 @@ func (m *memo) addExpr(e *expr) groupID {
 		return group
 	}
 
-	if me.loc.group == 0 {
+	group := e.loc.group
+	if group == 0 {
 		// Determine which group the expression belongs in, creating it if
 		// necessary.
+		var ok bool
 		gf := me.groupFingerprint()
-		group, ok := m.groupMap[gf]
+		group, ok = m.groupMap[gf]
 		if !ok {
 			group = groupID(len(m.groups))
 			g := newMemoGroup(e.props, e.scalarProps)
@@ -298,17 +298,15 @@ func (m *memo) addExpr(e *expr) groupID {
 			m.groups = append(m.groups, g)
 			m.groupMap[gf] = group
 		}
-		me.loc.group = group
 	}
 
-	g := m.groups[me.loc.group]
+	g := m.groups[group]
 	if _, ok := g.exprMap[ef]; !ok {
-		me.loc.expr = exprID(len(g.exprs))
-		g.exprMap[ef] = me.loc.expr
+		g.exprMap[ef] = exprID(len(g.exprs))
 		g.exprs = append(g.exprs, me)
 	}
-	m.exprMap[ef] = me.loc.group
-	return me.loc.group
+	m.exprMap[ef] = group
+	return group
 }
 
 // Bind creates a cursor expression rooted at the specified location that
@@ -316,17 +314,18 @@ func (m *memo) addExpr(e *expr) groupID {
 //
 // Returns nil if the pattern does not match any expression rooted at the
 // specified location.
-func (m *memo) bind(e *memoExpr, pattern *expr) *expr {
+func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
+	e := m.groups[loc.group].exprs[loc.expr]
 	if !e.matchOp(pattern) {
 		return nil
 	}
 
-	g := m.groups[e.loc.group]
+	g := m.groups[loc.group]
 	cursor := &expr{
 		props:       g.props,
 		scalarProps: g.scalarProps,
 		op:          e.op,
-		loc:         e.loc,
+		loc:         loc,
 		children:    make([]*expr, len(e.children)),
 		private:     e.private,
 	}
@@ -361,9 +360,10 @@ func (m *memo) bind(e *memoExpr, pattern *expr) *expr {
 // advance().
 //
 // Returns nil if there are no more expressions that match.
-func (m *memo) advance(e *memoExpr, pattern, cursor *expr) *expr {
-	if e.loc != cursor.loc || !e.matchOp(pattern) {
-		fatalf("cursor mismatch: e: %s %s  cursor: %s %s", e.op, e.loc, cursor.op, cursor.loc)
+func (m *memo) advance(loc memoLoc, pattern, cursor *expr) *expr {
+	e := m.groups[loc.group].exprs[loc.expr]
+	if loc != cursor.loc || !e.matchOp(pattern) {
+		fatalf("cursor mismatch: e: %s %s  cursor: %s %s", e.op, loc, cursor.op, cursor.loc)
 	}
 
 	if isPatternLeaf(pattern) {
@@ -419,11 +419,12 @@ func (m *memo) advance(e *memoExpr, pattern, cursor *expr) *expr {
 // Returns nil if the pattern does not match any expression rooted at the
 // specified location.
 func (m *memo) bindGroup(g *memoGroup, pattern *expr) *expr {
-	for _, e := range g.exprs {
+	for i, e := range g.exprs {
 		if !e.matchOp(pattern) {
 			continue
 		}
-		if cursor := m.bind(e, pattern); cursor != nil {
+		loc := memoLoc{group: g.id, expr: exprID(i)}
+		if cursor := m.bind(loc, pattern); cursor != nil {
 			return cursor
 		}
 	}
@@ -444,16 +445,17 @@ func (m *memo) advanceGroup(g *memoGroup, pattern, cursor *expr) *expr {
 	}
 
 	// Try to advance the binding for the current expression.
-	if c := m.advance(g.exprs[cursor.loc.expr], pattern, cursor); c != nil {
+	if c := m.advance(cursor.loc, pattern, cursor); c != nil {
 		return c
 	}
 
 	// Find another expression to bind.
-	for _, e := range g.exprs[(cursor.loc.expr + 1):] {
+	for i, e := range g.exprs[(cursor.loc.expr + 1):] {
 		if !e.matchOp(pattern) {
 			continue
 		}
-		if c := m.bind(e, pattern); c != nil {
+		loc := memoLoc{group: g.id, expr: exprID(i) + cursor.loc.expr + 1}
+		if c := m.bind(loc, pattern); c != nil {
 			return c
 		}
 	}
