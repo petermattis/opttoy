@@ -25,6 +25,18 @@ func (l memoLoc) String() string {
 
 const numInlineChildren = 3
 
+// memoExprFingerprint contains the fingerprint of memoExpr. Two memo
+// expressions are considered equal if their fingerprints are equal. The
+// fast-path case for expressions with 3 or fewer children and which do not
+// contain physical properties or private data is for memoExprFingerprint.extra
+// to be empty. In the slow-path case, that extra is initialized to distinguish
+// such expressions.
+type memoExprFingerprint struct {
+	op       operator
+	children [numInlineChildren]groupID
+	extra    string
+}
+
 // memoExpr is a memoized representation of an expression. Unlike expr which
 // represents a single expression, a memoExpr roots a forest of
 // expressions. This is accomplished by recursively memoizing children and
@@ -65,11 +77,9 @@ func (e *memoExpr) children(m *memo) []groupID {
 	return m.children[e.numChildren-numInlineChildren-1]
 }
 
-// fingerprint returns a string which uniquely identifies the expression within
-// the context of the memo.
-func (e *memoExpr) fingerprint(m *memo) string {
+func (e *memoExpr) DebugString(m *memo) string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s", e.op)
+	fmt.Fprintf(&buf, "[%s", e.op)
 
 	if e.private > 0 {
 		p := m.private[e.private]
@@ -102,14 +112,41 @@ func (e *memoExpr) fingerprint(m *memo) string {
 		}
 		fmt.Fprintf(&buf, "]")
 	}
+	buf.WriteString("]")
 	return buf.String()
 }
 
-func (e *memoExpr) groupFingerprint(m *memo) string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s", e.op)
+// fingerprint returns a string which uniquely identifies the expression within
+// the context of the memo.
+func (e *memoExpr) fingerprint(m *memo) memoExprFingerprint {
+	return e.commonFingerprint(m, e.physicalProps)
+}
 
-	if e.private > 0 {
+func (e *memoExpr) groupFingerprint(m *memo) memoExprFingerprint {
+	f := e.commonFingerprint(m, 0)
+	// TODO(peter): Generalize this normalization. It should probably be operator
+	// specific.
+	if e.op == innerJoinOp {
+		if f.children[0] > f.children[1] {
+			f.children[0], f.children[1] = f.children[1], f.children[0]
+		}
+	}
+	return f
+}
+
+func (e *memoExpr) commonFingerprint(m *memo, physicalProps int32) memoExprFingerprint {
+	var f memoExprFingerprint
+	f.op = e.op
+
+	children := e.children(m)
+	if len(children) <= numInlineChildren {
+		for i := range children {
+			f.children[i] = children[i]
+		}
+	}
+
+	if e.private > 0 || physicalProps > 0 || len(children) > numInlineChildren {
+		var buf bytes.Buffer
 		p := m.private[e.private]
 		switch t := p.(type) {
 		case nil:
@@ -118,35 +155,30 @@ func (e *memoExpr) groupFingerprint(m *memo) string {
 		default:
 			fmt.Fprintf(&buf, " %s", p)
 		}
-	}
 
-	if len(e.children(m)) > 0 {
-		fmt.Fprintf(&buf, " [")
-
-		// TODO(peter): hack to normalize the ordering of children from inner
-		// joins.
-		children := e.children(m)
-		if e.op == innerJoinOp {
-			children = make([]groupID, len(children))
-			copy(children, e.children(m))
-			if children[0] > children[1] {
-				children[0], children[1] = children[1], children[0]
+		if props := m.physicalProps[physicalProps]; props != nil {
+			if f := props.fingerprint(); f != "" {
+				fmt.Fprintf(&buf, " %s", f)
 			}
 		}
 
-		for i, c := range children {
-			if i > 0 {
-				buf.WriteString(" ")
+		if len(children) > 0 {
+			fmt.Fprintf(&buf, " [")
+			for i, c := range e.children(m) {
+				if i > 0 {
+					buf.WriteString(" ")
+				}
+				if c <= 0 {
+					buf.WriteString("-")
+				} else {
+					fmt.Fprintf(&buf, "%d", c)
+				}
 			}
-			if c <= 0 {
-				buf.WriteString("-")
-			} else {
-				fmt.Fprintf(&buf, "%d", c)
-			}
+			fmt.Fprintf(&buf, "]")
 		}
-		fmt.Fprintf(&buf, "]")
+		f.extra = buf.String()
 	}
-	return buf.String()
+	return f
 }
 
 func (e *memoExpr) info() operatorInfo {
@@ -168,7 +200,7 @@ type memoGroup struct {
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
-	exprMap map[string]exprID
+	exprMap map[memoExprFingerprint]exprID
 	exprs   []*memoExpr
 	// The relational properties for the group. Nil if the group contains scalar
 	// expressions.
@@ -180,7 +212,7 @@ type memoGroup struct {
 
 func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 	return &memoGroup{
-		exprMap:     make(map[string]exprID),
+		exprMap:     make(map[memoExprFingerprint]exprID),
 		props:       props,
 		scalarProps: scalarProps,
 	}
@@ -189,13 +221,13 @@ func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
 type memo struct {
 	// A map from expression fingerprint (memoExpr.fingerprint()) to the index of
 	// the group the expression resides in.
-	exprMap map[string]groupID
+	exprMap map[memoExprFingerprint]groupID
 	// A map from group fingerprint to the index of the group in the groups
 	// slice. For relational groups, the fingerprint for a group is the
 	// fingerprint of the relational properties
 	// (relationalProps.fingerprint()). For scalar groups, the fingerprint for a
 	// group is the fingerprint of the memo expression (memoExpr.fingerprint()).
-	groupMap map[string]groupID
+	groupMap map[memoExprFingerprint]groupID
 	// The slice of groups, indexed by group ID (i.e. memoLoc.group). Note the
 	// group ID 0 is invalid in order to allow zero initialization of expr to
 	// indicate an expression that did not originate from the memo.
@@ -220,8 +252,8 @@ func newMemo() *memo {
 	// can indicate that we don't know the group for an expression. Similarly,
 	// index 0 for the private data is reserved.
 	return &memo{
-		exprMap:          make(map[string]groupID),
-		groupMap:         make(map[string]groupID),
+		exprMap:          make(map[memoExprFingerprint]groupID),
+		groupMap:         make(map[memoExprFingerprint]groupID),
 		groups:           make([]*memoGroup, 1),
 		physicalPropsMap: make(map[*physicalProps]int32),
 		physicalProps:    make([]*physicalProps, 1),
@@ -235,7 +267,7 @@ func (m *memo) String() string {
 		g := m.groups[id]
 		fmt.Fprintf(&buf, "%d:", id)
 		for _, e := range g.exprs {
-			fmt.Fprintf(&buf, " [%s]", e.fingerprint(m))
+			fmt.Fprintf(&buf, " %s", e.DebugString(m))
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
