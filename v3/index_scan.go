@@ -39,12 +39,6 @@ func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *
 		for _, i := range key.columns {
 			indexScan.props.columns = append(indexScan.props.columns, scanProps.columns[i])
 		}
-		// TODO(peter): we set parts of the index scan properties to match the scan
-		// properties so that their fingerprints match, ensuring they map to the
-		// same group in the memo.
-		indexScan.props.notNullCols = scanProps.notNullCols
-		indexScan.props.weakKeys = scanProps.weakKeys
-		indexScan.props.foreignKeys = scanProps.foreignKeys
 		indexScan.initProps()
 	}
 
@@ -77,4 +71,8 @@ func (indexScan) initKeys(e *expr, state *queryState) {
 
 func (indexScan) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
+}
+
+func (indexScan) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
 }

@@ -47,3 +47,7 @@ func (groupBy) updateProps(e *expr) {
 
 	e.props.applyInputs(e.inputs())
 }
+
+func (groupBy) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}

@@ -233,13 +233,9 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 		t.required = required
 
 		// Optimize children groups.
-		//
-		// TODO(peter): some operators are pass through for the required properties
-		// while other operators need to derive new properties for each child. For
-		// now, we're always passing through the required properties, but that is
-		// definitely not correct.
-		for _, c := range e.children {
-			s.optimizeGroupTask(s.memo.groups[c], required, t)
+		op := e.info()
+		for i, c := range e.children {
+			s.optimizeGroupTask(s.memo.groups[c], op.requiredProps(required, i), t)
 		}
 
 		s.schedule(t)

@@ -37,3 +37,9 @@ func (sorter) initKeys(e *expr, state *queryState) {
 
 func (sorter) updateProps(e *expr) {
 }
+
+func (sorter) requiredProps(required *physicalProps, child int) *physicalProps {
+	// A sort expression enforces ordering and does not require any specific
+	// ordering from its input.
+	return nil
+}

@@ -42,3 +42,7 @@ func (variable) initKeys(e *expr, state *queryState) {
 
 func (variable) updateProps(e *expr) {
 }
+
+func (variable) requiredProps(required *physicalProps, child int) *physicalProps {
+	return nil
+}
