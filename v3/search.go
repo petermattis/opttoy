@@ -243,11 +243,11 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent *searchTask) {
 	g := s.memo.groups[loc.group]
 	e := g.exprs[loc.expr]
-	if e.physicalProps == nil {
+	if e.physicalProps == 0 {
 		// A logical expression, no need to optimize.
 		return
 	}
-	if !e.physicalProps.provides(required) {
+	if !s.memo.physicalProps[e.physicalProps].provides(required) {
 		// TODO(peter): the enforcer mechanism here needs to be generalized.
 		sort := &expr{
 			op:    sortOp,

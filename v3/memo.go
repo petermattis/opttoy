@@ -39,10 +39,10 @@ func (l memoLoc) String() string {
 // memoExpr.fingerprint()). While scalar expressions are stored in the memo,
 // each scalar expression group contains only a single entry.
 type memoExpr struct {
-	op            operator       // expr.op
-	children      []groupID      // expr.children
-	physicalProps *physicalProps // expr.physicalProps
-	private       interface{}    // expr.private
+	op            operator  // expr.op
+	children      []groupID // expr.children
+	physicalProps int32     // expr.physicalProps
+	private       int32     // memo.private[expr.private]
 	// NB: expr.{props,scalarProps} are the same for all expressions in the group
 	// and stored in memoGroup.
 }
@@ -53,20 +53,25 @@ func (e *memoExpr) matchOp(pattern *expr) bool {
 
 // fingerprint returns a string which uniquely identifies the expression within
 // the context of the memo.
-func (e *memoExpr) fingerprint() string {
+func (e *memoExpr) fingerprint(m *memo) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s", e.op)
 
-	switch t := e.private.(type) {
-	case nil:
-	case *table:
-		fmt.Fprintf(&buf, " %s", t.name)
-	default:
-		fmt.Fprintf(&buf, " %s", e.private)
+	if e.private > 0 {
+		p := m.private[e.private]
+		switch t := p.(type) {
+		case nil:
+		case *table:
+			fmt.Fprintf(&buf, " %s", t.name)
+		default:
+			fmt.Fprintf(&buf, " %s", p)
+		}
 	}
 
-	if f := e.physicalProps.fingerprint(); f != "" {
-		fmt.Fprintf(&buf, " %s", f)
+	if props := m.physicalProps[e.physicalProps]; props != nil {
+		if f := props.fingerprint(); f != "" {
+			fmt.Fprintf(&buf, " %s", f)
+		}
 	}
 
 	if len(e.children) > 0 {
@@ -86,16 +91,19 @@ func (e *memoExpr) fingerprint() string {
 	return buf.String()
 }
 
-func (e *memoExpr) groupFingerprint() string {
+func (e *memoExpr) groupFingerprint(m *memo) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s", e.op)
 
-	switch t := e.private.(type) {
-	case nil:
-	case *table:
-		fmt.Fprintf(&buf, " %s", t.name)
-	default:
-		fmt.Fprintf(&buf, " %s", e.private)
+	if e.private > 0 {
+		p := m.private[e.private]
+		switch t := p.(type) {
+		case nil:
+		case *table:
+			fmt.Fprintf(&buf, " %s", t.name)
+		default:
+			fmt.Fprintf(&buf, " %s", p)
+		}
 	}
 
 	if len(e.children) > 0 {
@@ -178,6 +186,13 @@ type memo struct {
 	// group ID 0 is invalid in order to allow zero initialization of expr to
 	// indicate an expression that did not originate from the memo.
 	groups []*memoGroup
+	// Physical properties attached to memo expressions.
+	physicalPropsMap map[*physicalProps]int32
+	physicalProps    []*physicalProps
+	// Private data attached to a memoExpr (indexed by memoExpr.private). Most
+	// memo expressions do not contain private data allowing a modest savings of
+	// 12 bytes per memoExpr.
+	private []interface{}
 	// The root group in the memo. This is the group for the expression added by
 	// addRoot (i.e. the expression that we're optimizing).
 	root groupID
@@ -185,11 +200,15 @@ type memo struct {
 
 func newMemo() *memo {
 	// NB: group 0 is reserved and intentionally nil so that the 0 group index
-	// can indicate that we don't know the group for an expression.
+	// can indicate that we don't know the group for an expression. Similarly,
+	// index 0 for the private data is reserved.
 	return &memo{
-		exprMap:  make(map[string]groupID),
-		groupMap: make(map[string]groupID),
-		groups:   make([]*memoGroup, 1),
+		exprMap:          make(map[string]groupID),
+		groupMap:         make(map[string]groupID),
+		groups:           make([]*memoGroup, 1),
+		physicalPropsMap: make(map[*physicalProps]int32),
+		physicalProps:    make([]*physicalProps, 1),
+		private:          make([]interface{}, 1),
 	}
 }
 
@@ -199,7 +218,7 @@ func (m *memo) String() string {
 		g := m.groups[id]
 		fmt.Fprintf(&buf, "%d:", id)
 		for _, e := range g.exprs {
-			fmt.Fprintf(&buf, " [%s]", e.fingerprint())
+			fmt.Fprintf(&buf, " [%s]", e.fingerprint(m))
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
@@ -256,15 +275,29 @@ func (m *memo) addExpr(e *expr) groupID {
 
 	// Build a memoExpr and check to see if it already exists in the memo.
 	me := &memoExpr{
-		op:            e.op,
-		children:      make([]groupID, len(e.children)),
-		physicalProps: e.physicalProps,
-		private:       e.private,
+		op:       e.op,
+		children: make([]groupID, len(e.children)),
 	}
 	for i, g := range e.children {
 		if g != nil {
 			me.children[i] = m.addExpr(g)
 		}
+	}
+
+	if e.physicalProps != nil {
+		i, ok := m.physicalPropsMap[e.physicalProps]
+		if !ok {
+			i = int32(len(m.physicalProps))
+			m.physicalPropsMap[e.physicalProps] = i
+			m.physicalProps = append(m.physicalProps, e.physicalProps)
+		}
+		me.physicalProps = i
+	}
+
+	// TODO(peter): Only add the private data after we check if the expression exists.
+	if e.private != nil {
+		me.private = int32(len(m.private))
+		m.private = append(m.private, e.private)
 	}
 
 	// Normalize the child order for operators which are not sensitive to the input
@@ -278,7 +311,7 @@ func (m *memo) addExpr(e *expr) groupID {
 		})
 	}
 
-	ef := me.fingerprint()
+	ef := me.fingerprint(m)
 	if group, ok := m.exprMap[ef]; ok {
 		// The expression already exists in the memo.
 		return group
@@ -289,7 +322,7 @@ func (m *memo) addExpr(e *expr) groupID {
 		// Determine which group the expression belongs in, creating it if
 		// necessary.
 		var ok bool
-		gf := me.groupFingerprint()
+		gf := me.groupFingerprint(m)
 		group, ok = m.groupMap[gf]
 		if !ok {
 			group = groupID(len(m.groups))
@@ -327,7 +360,7 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 		op:          e.op,
 		loc:         loc,
 		children:    make([]*expr, len(e.children)),
-		private:     e.private,
+		private:     m.private[e.private],
 	}
 
 	if isPatternLeaf(pattern) {
