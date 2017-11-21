@@ -118,11 +118,11 @@ func (e *memoExpr) DebugString(m *memo) string {
 
 // fingerprint returns a string which uniquely identifies the expression within
 // the context of the memo.
-func (e *memoExpr) fingerprint(m *memo) memoExprFingerprint {
+func (e memoExpr) fingerprint(m *memo) memoExprFingerprint {
 	return e.commonFingerprint(m, e.physicalProps)
 }
 
-func (e *memoExpr) groupFingerprint(m *memo) memoExprFingerprint {
+func (e memoExpr) groupFingerprint(m *memo) memoExprFingerprint {
 	f := e.commonFingerprint(m, 0)
 	// TODO(peter): Generalize this normalization. It should probably be operator
 	// specific.
@@ -196,26 +196,17 @@ type memoGroup struct {
 	implemented exprID
 	// The index of the last optimized expression. Used by search.
 	optimized exprID
-
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
 	exprMap map[memoExprFingerprint]exprID
-	exprs   []*memoExpr
+	exprs   []memoExpr
 	// The relational properties for the group. Nil if the group contains scalar
 	// expressions.
 	props *relationalProps
 	// The scalar properties for the group. Nil if the group contains relational
 	// expressions.
 	scalarProps *scalarProps
-}
-
-func newMemoGroup(props *relationalProps, scalarProps *scalarProps) *memoGroup {
-	return &memoGroup{
-		exprMap:     make(map[memoExprFingerprint]exprID),
-		props:       props,
-		scalarProps: scalarProps,
-	}
 }
 
 type memo struct {
@@ -231,7 +222,7 @@ type memo struct {
 	// The slice of groups, indexed by group ID (i.e. memoLoc.group). Note the
 	// group ID 0 is invalid in order to allow zero initialization of expr to
 	// indicate an expression that did not originate from the memo.
-	groups []*memoGroup
+	groups []memoGroup
 	// External storage of child groups for memo expressions which contain more
 	// than 3 children. See memoExpr.{numChildren,childrenBuf}.
 	children [][]groupID
@@ -254,7 +245,7 @@ func newMemo() *memo {
 	return &memo{
 		exprMap:          make(map[memoExprFingerprint]groupID),
 		groupMap:         make(map[memoExprFingerprint]groupID),
-		groups:           make([]*memoGroup, 1),
+		groups:           make([]memoGroup, 1),
 		physicalPropsMap: make(map[*physicalProps]int32),
 		physicalProps:    make([]*physicalProps, 1),
 		private:          make([]interface{}, 1),
@@ -264,7 +255,7 @@ func newMemo() *memo {
 func (m *memo) String() string {
 	var buf bytes.Buffer
 	for _, id := range m.topologicalSort() {
-		g := m.groups[id]
+		g := &m.groups[id]
 		fmt.Fprintf(&buf, "%d:", id)
 		for _, e := range g.exprs {
 			fmt.Fprintf(&buf, " %s", e.DebugString(m))
@@ -299,7 +290,7 @@ func (m *memo) dfsVisit(id groupID, visited []bool, res []groupID) []groupID {
 	}
 	visited[id] = true
 
-	g := m.groups[id]
+	g := &m.groups[id]
 	for _, e := range g.exprs {
 		for _, v := range e.children(m) {
 			res = m.dfsVisit(v, visited, res)
@@ -323,7 +314,7 @@ func (m *memo) addExpr(e *expr) groupID {
 	}
 
 	// Build a memoExpr and check to see if it already exists in the memo.
-	me := &memoExpr{
+	me := memoExpr{
 		op: e.op,
 	}
 	if len(e.children) <= numInlineChildren {
@@ -351,7 +342,6 @@ func (m *memo) addExpr(e *expr) groupID {
 		me.physicalProps = i
 	}
 
-	// TODO(peter): Only add the private data after we check if the expression exists.
 	if e.private != nil {
 		me.private = int32(len(m.private))
 		m.private = append(m.private, e.private)
@@ -372,6 +362,17 @@ func (m *memo) addExpr(e *expr) groupID {
 	ef := me.fingerprint(m)
 	if group, ok := m.exprMap[ef]; ok {
 		// The expression already exists in the memo.
+		if me.numChildren > numInlineChildren {
+			if me.numChildren-numInlineChildren == int32(len(m.children)) {
+				// Remove the child slice we added. This is a space optimization and
+				// not strictly necessary.
+				m.children = m.children[:len(m.children)-1]
+			}
+		}
+		if me.private == int32(len(m.private))-1 {
+			// Remove the private data we added.
+			m.private = m.private[:me.private]
+		}
 		return group
 	}
 
@@ -384,14 +385,17 @@ func (m *memo) addExpr(e *expr) groupID {
 		group, ok = m.groupMap[gf]
 		if !ok {
 			group = groupID(len(m.groups))
-			g := newMemoGroup(e.props, e.scalarProps)
-			g.id = group
-			m.groups = append(m.groups, g)
+			m.groups = append(m.groups, memoGroup{
+				id:          group,
+				exprMap:     make(map[memoExprFingerprint]exprID),
+				props:       e.props,
+				scalarProps: e.scalarProps,
+			})
 			m.groupMap[gf] = group
 		}
 	}
 
-	g := m.groups[group]
+	g := &m.groups[group]
 	if _, ok := g.exprMap[ef]; !ok {
 		g.exprMap[ef] = exprID(len(g.exprs))
 		g.exprs = append(g.exprs, me)
@@ -406,12 +410,12 @@ func (m *memo) addExpr(e *expr) groupID {
 // Returns nil if the pattern does not match any expression rooted at the
 // specified location.
 func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
-	e := m.groups[loc.group].exprs[loc.expr]
+	g := &m.groups[loc.group]
+	e := &g.exprs[loc.expr]
 	if !e.matchOp(pattern) {
 		return nil
 	}
 
-	g := m.groups[loc.group]
 	cursor := &expr{
 		props:       g.props,
 		scalarProps: g.scalarProps,
@@ -437,7 +441,7 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 			continue
 		}
 
-		cursor.children[i] = m.bindGroup(m.groups[g], childPattern)
+		cursor.children[i] = m.bindGroup(&m.groups[g], childPattern)
 		if cursor.children[i] == nil {
 			// Pattern failed to match.
 			return nil
@@ -452,7 +456,7 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 //
 // Returns nil if there are no more expressions that match.
 func (m *memo) advance(loc memoLoc, pattern, cursor *expr) *expr {
-	e := m.groups[loc.group].exprs[loc.expr]
+	e := &m.groups[loc.group].exprs[loc.expr]
 	if loc != cursor.loc || !e.matchOp(pattern) {
 		fatalf("cursor mismatch: e: %s %s  cursor: %s %s", e.op, loc, cursor.op, cursor.loc)
 	}
@@ -488,7 +492,7 @@ func (m *memo) advance(loc memoLoc, pattern, cursor *expr) *expr {
 
 		childPattern := childPattern(pattern, i)
 
-		g := m.groups[childCursor.loc.group]
+		g := &m.groups[childCursor.loc.group]
 		cursor.children[i] = m.advanceGroup(g, childPattern, childCursor)
 		if cursor.children[i] != nil {
 			// We successfully advanced a child.
