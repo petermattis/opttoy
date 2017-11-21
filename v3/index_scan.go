@@ -3,7 +3,7 @@ package v3
 import "bytes"
 
 func init() {
-	registerOperator(indexScanOp, "index scan", indexScan{})
+	registerOperator(indexScanOp, "index-scan", indexScan{})
 }
 
 var implicitPrimaryKey = &tableKey{name: "primary", primary: true}

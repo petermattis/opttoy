@@ -3,7 +3,7 @@ package v3
 import "bytes"
 
 func init() {
-	registerOperator(indexJoinOp, "index join", indexJoin{})
+	registerOperator(indexJoinOp, "index-join", indexJoin{})
 }
 
 type indexJoin struct{}

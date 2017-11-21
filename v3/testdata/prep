@@ -34,7 +34,7 @@ project [out=(0)]
     select [out=(0)]
       columns: a.x:0 a.y:1*
       filters:
-        comp (>) [in=(1)]
+        gt [in=(1)]
           inputs:
             variable (a.y) [in=(1)]
             const (1)
@@ -53,11 +53,11 @@ project [out=(0,1,3)]
     variable (a.y) [in=(1)]
     variable (b.z) [in=(3)]
   inputs:
-    inner join [out=(0,1,3)]
+    inner-join [out=(0,1,3)]
       columns: a.x:0* a.y:1 (b.x:2*) b.z:3
       equiv: (0,2)
       filters:
-        comp (=) [in=(0,2)]
+        eq [in=(0,2)]
           inputs:
             variable (a.x) [in=(0)]
             variable (b.x) [in=(2)]
@@ -65,11 +65,11 @@ project [out=(0,1,3)]
         select [out=(0,1)]
           columns: a.x:0* a.y:1
           filters:
-            comp (>) [in=(0)]
+            gt [in=(0)]
               inputs:
                 variable (a.x) [in=(0)]
                 const (1)
-            comp (IS NOT) [in=(0)]
+            IS-NOT [in=(0)]
               inputs:
                 variable (a.x) [in=(0)]
                 const (NULL)
@@ -79,11 +79,11 @@ project [out=(0,1,3)]
         select [out=(2,3)]
           columns: b.x:2* b.z:3
           filters:
-            comp (>) [in=(2)]
+            gt [in=(2)]
               inputs:
                 variable (b.x) [in=(2)]
                 const (1)
-            comp (IS NOT) [in=(2)]
+            IS-NOT [in=(2)]
               inputs:
                 variable (b.x) [in=(2)]
                 const (NULL)

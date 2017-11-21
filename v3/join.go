@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	registerOperator(innerJoinOp, "inner join", join{})
-	registerOperator(leftJoinOp, "left join", join{})
-	registerOperator(rightJoinOp, "right join", join{})
-	registerOperator(fullJoinOp, "full join", join{})
+	registerOperator(innerJoinOp, "inner-join", join{})
+	registerOperator(leftJoinOp, "left-join", join{})
+	registerOperator(rightJoinOp, "right-join", join{})
+	registerOperator(fullJoinOp, "full-join", join{})
 	registerOperator(semiJoinOp, "semi-join", join{})
 	registerOperator(antiJoinOp, "anti-join", join{})
 }
