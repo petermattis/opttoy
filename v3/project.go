@@ -18,7 +18,8 @@ func newProjectExpr(input *expr) *expr {
 type project struct{}
 
 func (project) kind() operatorKind {
-	return relationalKind
+	// Project is both a logical and a physical operator.
+	return logicalKind | physicalKind | relationalKind
 }
 
 func (project) layout() exprLayout {
@@ -47,5 +48,8 @@ func (project) updateProps(e *expr) {
 }
 
 func (project) requiredProps(required *physicalProps, child int) *physicalProps {
-	return required // pass through
+	if child == 0 {
+		return required // pass through
+	}
+	return nil
 }

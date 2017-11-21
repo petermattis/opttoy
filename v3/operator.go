@@ -108,7 +108,8 @@ const (
 type operatorKind int
 
 const (
-	_ operatorKind = iota
+	logicalKind operatorKind = 1 << iota
+	physicalKind
 	relationalKind
 	scalarKind
 )

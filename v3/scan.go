@@ -18,7 +18,7 @@ func newScanExpr(tab *table) *expr {
 type scan struct{}
 
 func (scan) kind() operatorKind {
-	return relationalKind
+	return logicalKind | relationalKind
 }
 
 func (scan) layout() exprLayout {

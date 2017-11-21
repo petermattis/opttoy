@@ -221,6 +221,9 @@ func TestLogic(t *testing.T) {
 					case "search":
 						s = newSearch(m)
 						s.run(r)
+					case "extract":
+						e = m.extract(r, m.root)
+						s = nil
 						m = nil
 					default:
 						t.Fatalf("unknown command: %s", cmd)
