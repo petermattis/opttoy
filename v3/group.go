@@ -18,7 +18,7 @@ func newGroupByExpr(input *expr) *expr {
 type groupBy struct{}
 
 func (groupBy) kind() operatorKind {
-	return relationalKind
+	return logicalKind | relationalKind
 }
 
 func (groupBy) layout() exprLayout {

@@ -20,7 +20,7 @@ func newSetExpr(op operator, input1, input2 *expr) *expr {
 type union struct{}
 
 func (union) kind() operatorKind {
-	return relationalKind
+	return logicalKind | relationalKind
 }
 
 func (union) layout() exprLayout {

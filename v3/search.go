@@ -223,11 +223,12 @@ func (s *search) optimizeGroupTask(g *memoGroup, required *physicalProps, parent
 func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *searchTask) {
 	g := &s.memo.groups[loc.group]
 
-	for ; g.optimized < exprID(len(g.exprs)); g.optimized++ {
-		e := &g.exprs[g.optimized]
+	opt := g.getOptState(required)
+	for ; opt.optimized < exprID(len(g.exprs)); opt.optimized++ {
+		e := &g.exprs[opt.optimized]
 		t := newSearchTask(s, parent)
 		t.id = optimizeGroupExprTask
-		t.loc = memoLoc{g.id, g.optimized}
+		t.loc = memoLoc{g.id, opt.optimized}
 		t.required = required
 
 		// Optimize children groups.
@@ -243,25 +244,76 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent *searchTask) {
 	g := &s.memo.groups[loc.group]
 	e := &g.exprs[loc.expr]
-	if e.physicalProps == 0 {
-		// A logical expression, no need to optimize.
+	if (e.info().kind() & physicalKind) == 0 {
+		// We can only perform optimization on physical operators.
 		return
 	}
+
 	if !s.memo.physicalProps[e.physicalProps].provides(required) {
-		// TODO(peter): the enforcer mechanism here needs to be generalized.
+		// TODO(peter): The enforcer mechanism here needs to be generalized.
+		//
+		// TODO(peter): This isn't correct. We can only enforce an ordering on
+		// columns that are provided by the expression.
 		sort := &expr{
-			op:    sortOp,
-			loc:   memoLoc{loc.group, -1},
+			op:  sortOp,
+			loc: memoLoc{loc.group, -1},
+			children: []*expr{
+				&expr{
+					loc: loc,
+				},
+			},
 			props: g.props,
 			physicalProps: &physicalProps{
 				providedOrdering: required.providedOrdering,
 			},
-			private: &sortSpec{
-				loc: loc,
-			},
 		}
 		s.memo.addExpr(sort)
+		s.optimizeGroupTask(g, required, parent)
+
+		// TODO(peter): While the expression did not provide the required
+		// properties, the children might have. We need to fall through a check if
+		// the expression + children satisfy the required properties. For now,
+		// we're hardcoding "pass through" expressions. Note that project is only a
+		// "pass through" operator if the projections do not affect ordering.
+		//
+		// Note that we might not have been able to satisfy the required properties
+		// via the children. For example, one of the projection expressions might
+		// be the sort key: SELECT lower(x) FROM a ORDER BY 1.
+		switch e.op {
+		case projectOp, renameOp, selectOp:
+		default:
+			return
+		}
 	}
+
+	// TODO(peter): This is extremely basic. We need to generalize the
+	// per-operator cost calculation. Need to add a method to operator and factor
+	// in the incoming cardinality.
+	var cost float32
+	op := e.info()
+	children := e.children(s.memo)
+	optChildren := make([]*memoOptState, len(children))
+
+	for i, c := range children {
+		optChildren[i] = s.memo.groups[c].getOptState(op.requiredProps(required, i))
+		cost += optChildren[i].cost
+	}
+	switch e.op {
+	case indexJoinOp:
+		cost += 10000
+	case indexScanOp:
+		cost += 100
+	case sortOp:
+		cost += 1000
+	}
+
+	opt := g.getOptState(required)
+	if cost > opt.cost {
+		return
+	}
+	opt.cost = cost
+	opt.loc = loc
+	opt.children = optChildren
 }
 
 func (s *search) implementGroupTask(g *memoGroup, parent *searchTask) {
@@ -318,6 +370,9 @@ func (s *search) exploreGroupTask(g *memoGroup, parent *searchTask) {
 
 		// Explore children groups.
 		for _, c := range e.children(s.memo) {
+			if c == g.id {
+				continue
+			}
 			s.exploreGroupTask(&s.memo.groups[c], t)
 		}
 

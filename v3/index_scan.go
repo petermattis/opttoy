@@ -55,7 +55,7 @@ func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *
 type indexScan struct{}
 
 func (indexScan) kind() operatorKind {
-	return relationalKind
+	return physicalKind | relationalKind
 }
 
 func (indexScan) layout() exprLayout {

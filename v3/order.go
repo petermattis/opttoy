@@ -19,7 +19,7 @@ func newOrderByExpr(input *expr) *expr {
 type orderBy struct{}
 
 func (orderBy) kind() operatorKind {
-	return relationalKind
+	return logicalKind | relationalKind
 }
 
 func (orderBy) layout() exprLayout {

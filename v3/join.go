@@ -23,7 +23,7 @@ func newJoinExpr(op operator, left, right *expr) *expr {
 type join struct{}
 
 func (join) kind() operatorKind {
-	return relationalKind
+	return logicalKind | relationalKind
 }
 
 func (join) layout() exprLayout {

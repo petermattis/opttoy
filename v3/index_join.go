@@ -9,7 +9,7 @@ func init() {
 type indexJoin struct{}
 
 func (indexJoin) kind() operatorKind {
-	return relationalKind
+	return physicalKind | relationalKind
 }
 
 func (indexJoin) layout() exprLayout {
@@ -25,6 +25,7 @@ func (indexJoin) initKeys(e *expr, state *queryState) {
 
 func (indexJoin) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
+	e.physicalProps = e.children[0].physicalProps
 }
 
 func (indexJoin) requiredProps(required *physicalProps, child int) *physicalProps {

@@ -52,5 +52,5 @@ SELECT * FROM a WHERE y > 1
 4: [gt [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index-scan a@primary <+0>] [index-join [6]]
+1: [scan a] [index-scan a@primary <+0>] [index-join <+1> [6]]
 6: [index-scan a@y_idx <+1>]
