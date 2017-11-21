@@ -42,11 +42,11 @@ SELECT * FROM a ORDER BY x
 prep,memo,search
 SELECT * FROM a ORDER BY x
 ----
-1: [scan a] [index scan a@primary <+0>]
+1: [scan a] [index-scan a@primary <+0>]
 
 prep,memo,search
 SELECT y FROM a ORDER BY y
 ----
 3: [project [1 2]]
 2: [variable a.y]
-1: [scan a] [index scan a@primary <+0>] [index scan a@y_idx <+1>] [sort [1.1] <+1>]
+1: [scan a] [index-scan a@primary <+0>] [index-scan a@y_idx <+1>] [sort [1.1] <+1>]

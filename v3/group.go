@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	registerOperator(groupByOp, "groupBy", groupBy{})
+	registerOperator(groupByOp, "group-by", groupBy{})
 }
 
 func newGroupByExpr(input *expr) *expr {

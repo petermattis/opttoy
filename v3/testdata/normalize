@@ -18,11 +18,11 @@ project [out=(1)]
       columns: a.x:0* a.y:1*
       equiv: (0,1)
       filters:
-        comp (=) [in=(0,1)]
+        eq [in=(0,1)]
           inputs:
             variable (a.x) [in=(0)]
             variable (a.y) [in=(1)]
-        comp (=) [in=(1)]
+        eq [in=(1)]
           inputs:
             variable (a.y) [in=(1)]
             const (1)

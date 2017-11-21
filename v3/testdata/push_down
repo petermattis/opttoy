@@ -29,11 +29,11 @@ project [out=(1,3)]
     variable (a.y) [in=(1)]
     variable (b.z) [in=(3)]
   inputs:
-    inner join [out=(1,3)]
+    inner-join [out=(1,3)]
       columns: a.x:0* a.y:1 b.x:2* b.z:3*
       equiv: (0,2)
       filters:
-        comp (=) [in=(0,2)]
+        eq [in=(0,2)]
           inputs:
             variable (a.x) [in=(0)]
             variable (b.x) [in=(2)]
@@ -41,11 +41,11 @@ project [out=(1,3)]
         select [out=(0,1)]
           columns: a.x:0* a.y:1
           filters:
-            comp (>) [in=(0)]
+            gt [in=(0)]
               inputs:
                 variable (a.x) [in=(0)]
                 const (7)
-            comp (IS NOT) [in=(0)]
+            IS-NOT [in=(0)]
               inputs:
                 variable (a.x) [in=(0)]
                 const (NULL)
@@ -55,15 +55,15 @@ project [out=(1,3)]
         select [out=(2,3)]
           columns: b.x:2* b.z:3*
           filters:
-            comp (=) [in=(3)]
+            eq [in=(3)]
               inputs:
                 variable (b.z) [in=(3)]
                 const (3)
-            comp (>) [in=(2)]
+            gt [in=(2)]
               inputs:
                 variable (b.x) [in=(2)]
                 const (7)
-            comp (IS NOT) [in=(2)]
+            IS-NOT [in=(2)]
               inputs:
                 variable (b.x) [in=(2)]
                 const (NULL)
@@ -74,17 +74,17 @@ project [out=(1,3)]
 prep
 SELECT * FROM a JOIN b ON (a.x = b.x) WHERE a.y + b.z > 1
 ----
-inner join [out=(0-3)]
+inner-join [out=(0-3)]
   columns: a.x:0* a.y:1* b.x:2* b.z:3*
   equiv: (0,2)
   filters:
-    comp (=) [in=(0,2)]
+    eq [in=(0,2)]
       inputs:
         variable (a.x) [in=(0)]
         variable (b.x) [in=(2)]
-    comp (>) [in=(1,3)]
+    gt [in=(1,3)]
       inputs:
-        binary (+) [in=(1,3)]
+        plus [in=(1,3)]
           inputs:
             variable (a.y) [in=(1)]
             variable (b.z) [in=(3)]
@@ -93,11 +93,11 @@ inner join [out=(0-3)]
     select [out=(0,1)]
       columns: a.x:0* a.y:1*
       filters:
-        comp (IS NOT) [in=(1)]
+        IS-NOT [in=(1)]
           inputs:
             variable (a.y) [in=(1)]
             const (NULL)
-        comp (IS NOT) [in=(0)]
+        IS-NOT [in=(0)]
           inputs:
             variable (a.x) [in=(0)]
             const (NULL)
@@ -107,11 +107,11 @@ inner join [out=(0-3)]
     select [out=(2,3)]
       columns: b.x:2* b.z:3*
       filters:
-        comp (IS NOT) [in=(3)]
+        IS-NOT [in=(3)]
           inputs:
             variable (b.z) [in=(3)]
             const (NULL)
-        comp (IS NOT) [in=(2)]
+        IS-NOT [in=(2)]
           inputs:
             variable (b.x) [in=(2)]
             const (NULL)
@@ -128,7 +128,7 @@ rename [out=(2)]
     project [out=(2)]
       columns: .column1:2
       projections:
-        binary (+) [in=(0)]
+        plus [in=(0)]
           inputs:
             variable (a.x) [in=(0)]
             const (1)
@@ -136,9 +136,9 @@ rename [out=(2)]
         select [out=(0)]
           columns: a.x:0* a.y:1
           filters:
-            comp (>) [in=(0)]
+            gt [in=(0)]
               inputs:
-                binary (+) [in=(0)]
+                plus [in=(0)]
                   inputs:
                     variable (a.x) [in=(0)]
                     const (1)
@@ -150,24 +150,24 @@ rename [out=(2)]
 prep
 SELECT * FROM a, b, c WHERE a.x = b.x AND b.x = c.x
 ----
-inner join [out=(0-5)]
+inner-join [out=(0-5)]
   columns: a.x:0* a.y:1 b.x:2* b.z:3 c.x:4* c.w:5
   equiv: (0,2,4)
   filters:
-    comp (=) [in=(2,4)]
+    eq [in=(2,4)]
       inputs:
         variable (b.x) [in=(2)]
         variable (c.x) [in=(4)]
-    comp (=) [in=(0,4)]
+    eq [in=(0,4)]
       inputs:
         variable (a.x) [in=(0)]
         variable (c.x) [in=(4)]
   inputs:
-    inner join [out=(0-3)]
+    inner-join [out=(0-3)]
       columns: a.x:0* a.y:1 b.x:2* b.z:3
       equiv: (0,2)
       filters:
-        comp (=) [in=(0,2)]
+        eq [in=(0,2)]
           inputs:
             variable (a.x) [in=(0)]
             variable (b.x) [in=(2)]
@@ -175,7 +175,7 @@ inner join [out=(0-5)]
         select [out=(0,1)]
           columns: a.x:0* a.y:1
           filters:
-            comp (IS NOT) [in=(0)]
+            IS-NOT [in=(0)]
               inputs:
                 variable (a.x) [in=(0)]
                 const (NULL)
@@ -185,7 +185,7 @@ inner join [out=(0-5)]
         select [out=(2,3)]
           columns: b.x:2* b.z:3
           filters:
-            comp (IS NOT) [in=(2)]
+            IS-NOT [in=(2)]
               inputs:
                 variable (b.x) [in=(2)]
                 const (NULL)
@@ -195,7 +195,7 @@ inner join [out=(0-5)]
     select [out=(4,5)]
       columns: c.x:4* c.w:5
       filters:
-        comp (IS NOT) [in=(4)]
+        IS-NOT [in=(4)]
           inputs:
             variable (c.x) [in=(4)]
             const (NULL)

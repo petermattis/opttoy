@@ -40,10 +40,10 @@ func init() {
 	}
 
 	// TODO(peter): using the join operator here is a temporary hack.
-	registerOperator(innerJoinApplyOp, "inner join (apply)", join{})
-	registerOperator(leftJoinApplyOp, "left join (apply)", join{})
-	registerOperator(rightJoinApplyOp, "right join (apply)", join{})
-	registerOperator(fullJoinApplyOp, "full join (apply)", join{})
+	registerOperator(innerJoinApplyOp, "inner-join (apply)", join{})
+	registerOperator(leftJoinApplyOp, "left-join (apply)", join{})
+	registerOperator(rightJoinApplyOp, "right-join (apply)", join{})
+	registerOperator(fullJoinApplyOp, "full-join (apply)", join{})
 	registerOperator(semiJoinApplyOp, "semi-join (apply)", join{})
 	registerOperator(antiJoinApplyOp, "anti-join (apply)", join{})
 }

@@ -13,7 +13,7 @@ project [out=(1)]
   projections:
     variable (a.y) [in=(1)]
   inputs:
-    groupBy [out=(0,1)]
+    group-by [out=(0,1)]
       columns: a.x:0 a.y:1
       groupings:
         variable (a.x) [in=(0)]
@@ -29,7 +29,7 @@ project [out=(1)]
   projections:
     variable (a.y) [in=(1)]
   inputs:
-    groupBy [out=(0,1)]
+    group-by [out=(0,1)]
       columns: a.x:0 a.y:1
       groupings:
         variable (a.y) [in=(1)]
@@ -41,7 +41,7 @@ project [out=(1)]
 build
 SELECT DISTINCT * FROM a
 ----
-groupBy [out=(0,1)]
+group-by [out=(0,1)]
   columns: a.x:0 a.y:1
   groupings:
     variable (a.x) [in=(0)]
@@ -53,7 +53,7 @@ groupBy [out=(0,1)]
 build
 SELECT COUNT(*) FROM a
 ----
-groupBy [out=(2)]
+group-by [out=(2)]
   columns: .column1:2
   aggregations:
     func (count)
@@ -71,7 +71,7 @@ project [out=(2)]
   projections:
     variable (column3) [in=(2)]
   inputs:
-    groupBy [out=(0-2)]
+    group-by [out=(0-2)]
       columns: a.x:0 a.y:1 .column3:2
       groupings:
         variable (a.x) [in=(0)]
@@ -94,12 +94,12 @@ project [out=(0)]
     select [out=(0-2)]
       columns: a.x:0 a.y:1 .column3:2*
       filters:
-        comp (>) [in=(2)]
+        gt [in=(2)]
           inputs:
             variable (column3) [in=(2)]
             const (0)
       inputs:
-        groupBy [out=(0-2)]
+        group-by [out=(0-2)]
           columns: a.x:0 a.y:1 .column3:2
           groupings:
             variable (a.x) [in=(0)]
@@ -120,7 +120,7 @@ project [out=(0,3)]
     variable (a.x) [in=(0)]
     variable (column1) [in=(3)]
   inputs:
-    groupBy [out=(3)]
+    group-by [out=(3)]
       columns: .column1:3
       aggregations:
         func (sum) [in=(1)]
@@ -130,12 +130,12 @@ project [out=(0,3)]
         select [out=(0-2)]
           columns: a.x:0 a.y:1 .column3:2*
           filters:
-            comp (>) [in=(2)]
+            gt [in=(2)]
               inputs:
                 variable (column3) [in=(2)]
                 const (0)
           inputs:
-            groupBy [out=(0-2)]
+            group-by [out=(0-2)]
               columns: a.x:0 a.y:1 .column3:2
               groupings:
                 variable (a.x) [in=(0)]
@@ -155,14 +155,14 @@ SELECT SUM(x) FROM a GROUP BY x UNION SELECT SUM(x) FROM a WHERE y > 1 GROUP BY 
 ----
 13: [union [6 12]]
 12: [project [11 5]]
-11: [groupBy [10 7 3]]
+11: [group-by [10 7 3]]
 10: [select [1 9]]
-9: [comp (>) [7 8]]
+9: [gt [7 8]]
 8: [const 1]
 7: [variable a.y]
 6: [project [4 5]]
 5: [variable column3]
-4: [groupBy [1 2 3]]
+4: [group-by [1 2 3]]
 3: [func sum [2]]
 2: [variable a.x]
 1: [scan a]

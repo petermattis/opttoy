@@ -42,7 +42,7 @@ project [out=(2,3)]
       weak key: (0)
       foreign key: (1) -> (4)
       filters:
-        comp (IS NOT) [in=(1)]
+        IS-NOT [in=(1)]
           inputs:
             variable (e.dept_id) [in=(1)]
             const (NULL)
@@ -69,7 +69,7 @@ project [out=(4,5)]
       weak key: (2)
       foreign key: (3) -> (0)
       filters:
-        comp (!=) [in=(3)]
+        ne [in=(3)]
           inputs:
             variable (e.dept_id) [in=(3)]
             const (0)
@@ -92,11 +92,11 @@ project [out=(2,3,5)]
     variable (e.salary) [in=(3)]
     variable (d."name") [in=(5)]
   inputs:
-    inner join [out=(2,3,5)]
+    inner-join [out=(2,3,5)]
       columns: e.emp_id:0 e.dept_id:1* e.name:2 e.salary:3 d.dept_id:4* d.name:5
       equiv: (1,4)
       filters:
-        comp (=) [in=(1,4)]
+        eq [in=(1,4)]
           inputs:
             variable (e.dept_id) [in=(1)]
             variable (d.dept_id) [in=(4)]
@@ -106,7 +106,7 @@ project [out=(2,3,5)]
           weak key: (0)
           foreign key: (1) -> (4)
           filters:
-            comp (IS NOT) [in=(1)]
+            IS-NOT [in=(1)]
               inputs:
                 variable (e.dept_id) [in=(1)]
                 const (NULL)
