@@ -214,7 +214,7 @@ func (s *search) optimizeGroupTask(g *memoGroup, required *physicalProps, parent
 
 	t := newSearchTask(s, parent)
 	t.id = optimizeGroupTask
-	t.loc = memoLoc{group: g.id}
+	t.loc = memoLoc{g.id, 0}
 	t.required = required
 	s.implementGroupTask(g, t)
 	s.schedule(t)
@@ -227,7 +227,7 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 		e := &g.exprs[g.optimized]
 		t := newSearchTask(s, parent)
 		t.id = optimizeGroupExprTask
-		t.loc = memoLoc{group: g.id, expr: g.optimized}
+		t.loc = memoLoc{g.id, g.optimized}
 		t.required = required
 
 		// Optimize children groups.
@@ -251,7 +251,7 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 		// TODO(peter): the enforcer mechanism here needs to be generalized.
 		sort := &expr{
 			op:    sortOp,
-			loc:   memoLoc{group: loc.group, expr: -1},
+			loc:   memoLoc{loc.group, -1},
 			props: g.props,
 			physicalProps: &physicalProps{
 				providedOrdering: required.providedOrdering,
@@ -271,7 +271,7 @@ func (s *search) implementGroupTask(g *memoGroup, parent *searchTask) {
 
 	t := newSearchTask(s, parent)
 	t.id = implementGroupTask
-	t.loc = memoLoc{group: g.id}
+	t.loc = memoLoc{g.id, 0}
 	s.exploreGroupTask(g, t)
 	s.schedule(t)
 }
@@ -283,7 +283,7 @@ func (s *search) implementGroup(loc memoLoc, parent *searchTask) {
 		e := &g.exprs[g.implemented]
 		t := newSearchTask(s, parent)
 		t.id = implementGroupExprTask
-		t.loc = memoLoc{group: g.id, expr: g.implemented}
+		t.loc = memoLoc{g.id, g.implemented}
 
 		// Implement children groups.
 		for _, c := range e.children(s.memo) {
@@ -314,7 +314,7 @@ func (s *search) exploreGroupTask(g *memoGroup, parent *searchTask) {
 		e := &g.exprs[g.explored]
 		t := newSearchTask(s, parent)
 		t.id = exploreGroupExprTask
-		t.loc = memoLoc{group: g.id, expr: g.explored}
+		t.loc = memoLoc{g.id, g.explored}
 
 		// Explore children groups.
 		for _, c := range e.children(s.memo) {

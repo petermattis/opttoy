@@ -518,8 +518,7 @@ func (m *memo) bindGroup(g *memoGroup, pattern *expr) *expr {
 		if !e.matchOp(pattern) {
 			continue
 		}
-		loc := memoLoc{group: g.id, expr: exprID(i)}
-		if cursor := m.bind(loc, pattern); cursor != nil {
+		if cursor := m.bind(memoLoc{g.id, exprID(i)}, pattern); cursor != nil {
 			return cursor
 		}
 	}
@@ -549,7 +548,7 @@ func (m *memo) advanceGroup(g *memoGroup, pattern, cursor *expr) *expr {
 		if !e.matchOp(pattern) {
 			continue
 		}
-		loc := memoLoc{group: g.id, expr: exprID(i) + cursor.loc.expr + 1}
+		loc := memoLoc{g.id, exprID(i) + cursor.loc.expr + 1}
 		if c := m.bind(loc, pattern); c != nil {
 			return c
 		}
