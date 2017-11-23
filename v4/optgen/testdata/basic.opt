@@ -1,0 +1,39 @@
+define Select {
+    Input  Expr
+    Filter Expr
+}
+
+define InnerJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+define And {
+    Left  Expr
+    Right Expr
+}
+
+define List {
+    Items ExprList
+}
+
+define Invoke {
+    Name Expr
+    Args ExprList
+    Meta FuncData
+}
+
+define String {
+    Value String
+}
+
+[MergeSelectWithInnerJoin]
+(Select
+    (InnerJoin $r:* $s:* $inner:*)
+    $outer:*
+) =>
+(InnerJoin $r $s (And $inner $outer))
+
+[EliminateConcat]
+(Invoke (String "concat") $items:* && (IsEmptyList $items)) => (String "")
