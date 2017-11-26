@@ -2,26 +2,16 @@ package v3
 
 import (
 	"bytes"
-	"fmt"
 )
 
 func init() {
 	registerOperator(sortOp, "sort", sorter{})
 }
 
-type sortSpec struct {
-	loc memoLoc
-	// NB: the required ordering is specified in expr.physicalProperties.
-}
-
-func (s *sortSpec) String() string {
-	return fmt.Sprintf("[%s]", s.loc)
-}
-
 type sorter struct{}
 
 func (sorter) kind() operatorKind {
-	return relationalKind
+	return physicalKind | relationalKind
 }
 
 func (sorter) layout() exprLayout {
@@ -30,6 +20,7 @@ func (sorter) layout() exprLayout {
 
 func (sorter) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
+	formatExprs(buf, "inputs", e.inputs(), level)
 }
 
 func (sorter) initKeys(e *expr, state *queryState) {

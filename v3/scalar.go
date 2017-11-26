@@ -104,7 +104,8 @@ func newBinaryExpr(op operator, input1, input2 *expr) *expr {
 type scalar struct{}
 
 func (scalar) kind() operatorKind {
-	return scalarKind
+	// Scalar is both a logical and a physical operator.
+	return logicalKind | physicalKind | scalarKind
 }
 
 func (scalar) layout() exprLayout {

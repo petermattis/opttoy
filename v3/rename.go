@@ -18,7 +18,7 @@ func newRenameExpr(input *expr) *expr {
 type rename struct{}
 
 func (rename) kind() operatorKind {
-	return relationalKind
+	return logicalKind | physicalKind | relationalKind
 }
 
 func (rename) layout() exprLayout {
@@ -46,5 +46,8 @@ func (rename) updateProps(e *expr) {
 }
 
 func (rename) requiredProps(required *physicalProps, child int) *physicalProps {
-	return required // pass through
+	if child == 0 {
+		return required // pass through
+	}
+	return nil
 }

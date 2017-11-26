@@ -1,3 +1,14 @@
+Cost
+----
+
+- Add per-operator cost calculation. Use cardinality stats from inputs
+  to estimate running time of the operator.
+
+- Distinguish between streaming operators such as select, project and
+  merge-join, and blocking operators such as sort, group-by and
+  hash-join. Note that there is a streaming version of group-by when
+  the input is providing the tuples in the grouping order.
+
 Memo
 ----
 
@@ -9,6 +20,23 @@ Memo
   arena to allocate from and when the iteration ends we bulk free all
   of the expressions. We'd also want to use this arena for the
   expressions created by the transformation.
+
+Operators
+---------
+
+- anti-join
+
+- hash-group-by
+
+- hash-join
+
+- merge-join
+
+- nested-loop-join
+
+- semi-join
+
+- stream-group-by
 
 Prep
 ----
@@ -31,7 +59,12 @@ Properties
 Search
 ------
 
-- Add optimization context which specifies required plan properties.
+- When an exploration transformation occurs, it adds the replacement
+  expressions to a group. This triggers a new search task to be
+  created for that group, since there's now an additional expression
+  to be explored. But what about new search task(s) for parent
+  group(s)? There might be parents that have already been explored,
+  but now have a new child expression to consider.
 
 - Internalize the following from the Cascades paper:
 
@@ -74,6 +107,10 @@ Testing
 
 Transformations
 ---------------
+
+- Scan expressions should be expanded to index-scan and inner-join
+  expressions during exploration so that the inner-join expressions
+  can be candidates for join reordering.
 
 - Distinct/group-by elimination. If the grouping columns are a key
   from the input, we don't need to perform the grouping.

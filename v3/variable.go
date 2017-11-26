@@ -23,7 +23,8 @@ func newVariableExpr(private interface{}, index bitmapIndex) *expr {
 type variable struct{}
 
 func (variable) kind() operatorKind {
-	return scalarKind
+	// Variable is both a logical and a physical operator.
+	return logicalKind | physicalKind | scalarKind
 }
 
 func (variable) layout() exprLayout {

@@ -308,12 +308,20 @@ func (e *expr) hasApply() bool {
 	return hasApply[e.op]
 }
 
+func (e *expr) isLogical() bool {
+	return (e.info().kind() & logicalKind) != 0
+}
+
+func (e *expr) isPhysical() bool {
+	return (e.info().kind() & physicalKind) != 0
+}
+
 func (e *expr) isRelational() bool {
-	return e.info().kind() == relationalKind
+	return (e.info().kind() & relationalKind) != 0
 }
 
 func (e *expr) isScalar() bool {
-	return e.info().kind() == scalarKind
+	return (e.info().kind() & scalarKind) != 0
 }
 
 func (e *expr) layout() exprLayout {

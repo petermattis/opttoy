@@ -3,6 +3,7 @@ package v3
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"sort"
 )
 
@@ -185,6 +186,19 @@ func (e *memoExpr) info() operatorInfo {
 	return operatorTab[e.op]
 }
 
+// memoOptState maintains the optimization state for a group for a particular
+// optimization context.
+type memoOptState struct {
+	// The index of the last optimized expression
+	optimized exprID
+	// The location of the lowest cost expression.
+	loc memoLoc
+	// The cost of the lowest cost expression.
+	cost float32
+	// The opt state of children of the lowest expression.
+	children []*memoOptState
+}
+
 // memoGroup stores a set of logically equivalent expressions. See the comments
 // on memoExpr for the definition of logical equivalency.
 type memoGroup struct {
@@ -194,8 +208,6 @@ type memoGroup struct {
 	explored exprID
 	// The index of the last implemented expression. Used by search.
 	implemented exprID
-	// The index of the last optimized expression. Used by search.
-	optimized exprID
 	// A map from memo expression fingerprint to the index of the memo expression
 	// in the exprs slice. Used to determine if a memoExpr already exists in the
 	// group.
@@ -207,6 +219,31 @@ type memoGroup struct {
 	// The scalar properties for the group. Nil if the group contains relational
 	// expressions.
 	scalarProps *scalarProps
+	// Map from optimization context (i.e. required physicalProperties)
+	// fingerprint to optimization state (the best plan and cost, the children
+	// locations associated with that plan, etc).
+	//
+	// TODO(peter): We intern the physicalProps in memo, which should allow this
+	// to be a map[*physicalProps]exprID.
+	//
+	// TODO(peter): This doesn't support wildcard matches. For example, we might
+	// want to find the best plan that provides a particular ordering but we
+	// don't care about a distribution requirement. This is speculative. We need
+	// some concrete examples before worrying about wildcard matches.
+	optMap map[string]*memoOptState
+}
+
+func (g *memoGroup) getOptState(required *physicalProps) *memoOptState {
+	if g.optMap == nil {
+		g.optMap = make(map[string]*memoOptState)
+	}
+	rf := required.fingerprint()
+	opt, ok := g.optMap[rf]
+	if !ok {
+		opt = &memoOptState{cost: math.MaxFloat32}
+		g.optMap[rf] = opt
+	}
+	return opt
 }
 
 type memo struct {
@@ -259,6 +296,11 @@ func (m *memo) String() string {
 		fmt.Fprintf(&buf, "%d:", id)
 		for _, e := range g.exprs {
 			fmt.Fprintf(&buf, " %s", e.DebugString(m))
+		}
+		if false {
+			for f, opt := range g.optMap {
+				fmt.Fprintf(&buf, " {%s:%d:%0.1f}", f, opt.loc.expr, opt.cost)
+			}
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
@@ -387,7 +429,7 @@ func (m *memo) addExpr(e *expr) groupID {
 			group = groupID(len(m.groups))
 			m.groups = append(m.groups, memoGroup{
 				id:          group,
-				exprMap:     make(map[memoExprFingerprint]exprID),
+				exprMap:     make(map[memoExprFingerprint]exprID, 1),
 				props:       e.props,
 				scalarProps: e.scalarProps,
 			})
@@ -417,12 +459,13 @@ func (m *memo) bind(loc memoLoc, pattern *expr) *expr {
 	}
 
 	cursor := &expr{
-		props:       g.props,
-		scalarProps: g.scalarProps,
-		op:          e.op,
-		loc:         loc,
-		children:    make([]*expr, len(e.children(m))),
-		private:     m.private[e.private],
+		op:            e.op,
+		loc:           loc,
+		children:      make([]*expr, len(e.children(m))),
+		props:         g.props,
+		scalarProps:   g.scalarProps,
+		physicalProps: m.physicalProps[e.physicalProps],
+		private:       m.private[e.private],
 	}
 
 	if isPatternLeaf(pattern) {
@@ -556,4 +599,32 @@ func (m *memo) advanceGroup(g *memoGroup, pattern, cursor *expr) *expr {
 
 	// We've exhausted the group.
 	return nil
+}
+
+// extract recursively extracts the lowest cost expression that provides the
+// specified properties from the specified group.
+func (m *memo) extract(required *physicalProps, group groupID) *expr {
+	opt, ok := m.groups[group].optMap[required.fingerprint()]
+	if !ok {
+		return nil
+	}
+	return m.extractBest(opt)
+}
+
+func (m *memo) extractBest(opt *memoOptState) *expr {
+	g := &m.groups[opt.loc.group]
+	e := &g.exprs[opt.loc.expr]
+	r := &expr{
+		op:            e.op,
+		loc:           opt.loc,
+		children:      make([]*expr, len(opt.children)),
+		props:         g.props,
+		scalarProps:   g.scalarProps,
+		physicalProps: m.physicalProps[e.physicalProps],
+		private:       m.private[e.private],
+	}
+	for i, c := range opt.children {
+		r.children[i] = m.extractBest(c)
+	}
+	return r
 }

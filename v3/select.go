@@ -16,7 +16,8 @@ func newSelectExpr(input *expr) *expr {
 type sel struct{}
 
 func (sel) kind() operatorKind {
-	return relationalKind
+	// Select is both a logical and a physical operator.
+	return logicalKind | physicalKind | relationalKind
 }
 
 func (sel) layout() exprLayout {
@@ -52,5 +53,8 @@ func (sel) updateProps(e *expr) {
 }
 
 func (sel) requiredProps(required *physicalProps, child int) *physicalProps {
-	return required // pass through
+	if child == 0 {
+		return required // pass through
+	}
+	return nil
 }
