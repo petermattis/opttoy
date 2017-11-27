@@ -31,6 +31,8 @@ const (
 	EQUALS
 	ARROW
 	AMPERSANDS
+	COMMA
+	CARET
 
 	// Keywords.
 	DEFINE
@@ -133,6 +135,14 @@ func (s *Scanner) Scan() Token {
 	case '*':
 		s.tok = ASTERISK
 		s.lit = "*"
+
+	case ',':
+		s.tok = COMMA
+		s.lit = ","
+
+	case '^':
+		s.tok = CARET
+		s.lit = "^"
 
 	case '&':
 		if s.read() == '&' {

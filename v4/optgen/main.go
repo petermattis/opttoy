@@ -30,10 +30,10 @@ func main() {
 
 	cmd := args[0]
 	switch cmd {
+	case "compile":
 	case "exprs":
 	case "factory":
 	case "ops":
-	case "parse":
 
 	default:
 		flag.Usage()
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	compiler := NewCompiler(io.MultiReader(readers...))
-	root, err := compiler.Compile()
+	compiled, err := compiler.Compile()
 	if err != nil {
 		exit(err)
 	}
@@ -71,8 +71,11 @@ func main() {
 		writer = os.Stderr
 	}
 
-	gen := NewGenerator(*pkg, root)
+	gen := NewGenerator(*pkg, compiled)
 	switch cmd {
+	case "compile":
+		writer.Write([]byte(compiled.String()))
+
 	case "exprs":
 		err = gen.GenerateExprs(writer)
 
@@ -81,9 +84,6 @@ func main() {
 
 	case "ops":
 		err = gen.GenerateOps(writer)
-
-	case "parse":
-		writer.Write([]byte(root.String()))
 	}
 
 	if err != nil {
@@ -103,10 +103,10 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\toptgen command [flags] sources...\n\n")
 
 	fmt.Fprintf(os.Stderr, "The commands are:\n\n")
+	fmt.Fprintf(os.Stderr, "\tcompile  generates the optgen compiled format\n")
 	fmt.Fprintf(os.Stderr, "\texprs    generates expression definitions and functions\n")
 	fmt.Fprintf(os.Stderr, "\tfactory  generates expression tree creation and normalization functions\n")
 	fmt.Fprintf(os.Stderr, "\tops      generates operator definitions and functions\n")
-	fmt.Fprintf(os.Stderr, "\tparse    generates the optgen parse tree\n")
 	fmt.Fprintf(os.Stderr, "\n")
 
 	fmt.Fprintf(os.Stderr, "Flags:\n")

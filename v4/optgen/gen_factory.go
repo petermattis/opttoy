@@ -3,162 +3,272 @@ package main
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
-func (g *generator) generateFactory(w io.Writer) {
-	fmt.Fprintf(w, "package %s\n\n", g.pkg)
+func (g *generator) generateFactory(_w io.Writer) {
+	w := &matchWriter{writer: _w}
 
-	for _, elem := range g.root.Defines().All() {
-		define := elem.AsDefine()
+	w.writeIndent("package %s\n\n", g.pkg)
 
-		fmt.Fprintf(w, "func (f *factory) construct%s(\n", define.Name())
+	for _, elem := range g.compiled.Root().Defines().All() {
+		define := elem.(*DefineExpr)
+
+		w.writeIndent("func (_f *factory) construct%s(\n", define.Name())
 
 		for _, elem := range define.Fields() {
-			field := elem.AsDefineField()
-			fmt.Fprintf(w, "  %s %s,\n", unTitle(field.Name()), mapType(field.Type()))
+			field := elem.(*DefineFieldExpr)
+			w.writeIndent("  %s %s,\n", unTitle(field.Name()), mapType(field.Type()))
 		}
 
-		fmt.Fprintf(w, ") exprOffset {\n")
+		w.nest(") groupID {\n")
 
 		hasRule := false
-		for _, elem := range g.root.Rules().All() {
-			rule := elem.AsRule()
-			if rule.Match().Op() != define.Name() {
+		for _, elem := range g.compiled.Root().Rules().All() {
+			rule := elem.(*RuleExpr)
+			if rule.Match().OpName() != define.Name() {
 				continue
 			}
 
-			fmt.Fprintf(w, "  // [%s]\n", rule.Header().Name())
-			fmt.Fprintf(w, "  for {\n")
+			if !rule.Header().Tags().Contains("Normalize") {
+				continue
+			}
 
 			g.unique = make(map[string]bool)
 
-			for index, matchField := range rule.Match().Fields() {
-				defineField := g.lookupField(rule.Match().Op(), index)
-				if defineField == nil {
-					panic(fmt.Sprintf("unrecognized pattern match operation '%s'", rule.Match().Op()))
-				}
+			w.writeIndent("// [%s]\n", rule.Header().Name())
+			w.nest("{\n")
 
-				g.generateMatch(w, matchField, defineField.Name())
+			// Do initial pass over rule match parse tree, and generate all
+			// variable declarations. These need to be done at the top level
+			// so that they're accessible to the generated replace code.
+			hasVarDef := false
+			for index, matchField := range rule.Match().Fields() {
+				fieldName := g.lookupFieldName(rule.Match(), index)
+				hasVarDef = hasVarDef || g.generateVarDefs(w, matchField, fieldName)
 			}
 
-			fmt.Fprintf(w, "\n")
-			fmt.Fprintf(w, "    return ")
-			g.generateReplace(w, rule.Replace())
-			fmt.Fprintf(w, "\n")
+			if hasVarDef {
+				w.write("\n")
+			}
 
-			fmt.Fprintf(w, "  }\n")
+			for index, matchField := range rule.Match().Fields() {
+				fieldName := g.lookupFieldName(rule.Match(), index)
+				g.generateMatch(w, matchField, fieldName, false)
+			}
+
+			w.writeIndent("return ")
+			g.generateReplace(w, rule.Replace())
+			w.write("\n")
+
+			w.unnest(w.nesting - 1)
+			w.write("\n")
 
 			hasRule = true
 		}
 
 		if hasRule {
-			fmt.Fprintf(w, "\n")
+			w.write("\n")
 		}
 
-		exprName := fmt.Sprintf("%sExpr", unTitle(define.Name()))
-		fmt.Fprintf(w, "  %s := &%s{op: %sOp", exprName, exprName, unTitle(define.Name()))
+		varName := unTitle(define.Name())
+		exprName := fmt.Sprintf("%sExpr", varName)
+		w.writeIndent("_%s := &%s{op: %sOp", varName, exprName, varName)
 
 		for _, elem := range define.Fields() {
-			field := elem.AsDefineField()
+			field := elem.(*DefineFieldExpr)
 			fieldName := unTitle(field.Name())
-			fmt.Fprintf(w, ", %s: %s", fieldName, fieldName)
+			w.write(", %s: %s", fieldName, fieldName)
 		}
 
-		fmt.Fprintf(w, "}\n")
-		fmt.Fprintf(w, "  return f.memo.memoize%sExpr(%s)\n", define.Name(), exprName)
-		fmt.Fprintf(w, "}\n\n")
+		w.write("}\n")
+		w.writeIndent("return _f.memo.memoize%s(_%s)\n", define.Name(), varName)
+		w.unnest(1)
+		w.write("\n")
 	}
 }
 
-func (g *generator) generateMatch(w io.Writer, match *Expr, fieldName string) {
-	if matchList := match.AsMatchList(); matchList != nil {
-		for _, matchField := range matchList.All() {
-			g.generateMatch(w, matchField, fieldName)
-		}
-
-		return
+func (g *generator) generateVarDefs(w *matchWriter, match ParsedExpr, fieldName string) bool {
+	if _, ok := match.(*MatchFieldsExpr); ok {
+		fieldName = ""
 	}
 
-	if matchFields := match.AsMatchFields(); matchFields != nil {
-		op := matchFields.Op()
-		define := g.lookupOp(op)
-		if define != nil {
-			exprName := fmt.Sprintf("%sExpr", g.uniquify(unTitle(op)))
-			fmt.Fprintf(w, "    %s := f.memo.lookupExpr(%s).as%s()\n", exprName, unTitle(fieldName), op)
-			fmt.Fprintf(w, "    if %s == nil {\n", exprName)
-			fmt.Fprintf(w, "      break\n")
-			fmt.Fprintf(w, "    }\n\n")
+	if bind, ok := match.(*BindExpr); ok {
+		if bind.Label() != fieldName {
+			w.writeIndent("var %s groupID\n", bind.Label())
+			return true
+		}
+	}
 
-			for index, matchField := range matchFields.Fields() {
-				defineField := g.lookupField(op, index)
-				g.generateMatch(w, matchField, fmt.Sprintf("%s.%s", exprName, defineField.Name()))
-			}
+	hasVarDef := false
+	for _, child := range match.Children() {
+		hasVarDef = hasVarDef || g.generateVarDefs(w, child, fieldName)
+	}
+
+	return hasVarDef
+}
+
+func (g *generator) generateMatch(w *matchWriter, match ParsedExpr, fieldName string, negate bool) {
+	if matchFields, ok := match.(*MatchFieldsExpr); ok {
+		opName := matchFields.OpName()
+		numFields := len(matchFields.Fields())
+		varName := g.makeUnique(fmt.Sprintf("_%s", unTitle(opName)))
+
+		if negate && numFields != 0 {
+			w.writeIndent("match := false\n")
+		}
+
+		nesting := w.nesting
+
+		w.writeIndent("%s := _f.memo.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
+
+		if negate && numFields == 0 {
+			w.nest("if %s == nil {\n", varName)
 		} else {
-			fmt.Fprintf(w, "    if !f.%s(", unTitle(op))
+			w.nest("if %s != nil {\n", varName)
+		}
 
-			for _, matchField := range matchFields.Fields() {
-				ref := matchField.AsRef()
-				if ref == nil {
-					panic("user function arguments can only be variable references")
-				}
+		for index, matchField := range matchFields.Fields() {
+			fieldName := g.lookupFieldName(matchFields, index)
+			g.generateMatch(w, matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
+		}
 
-				fmt.Fprint(w, ref.Label())
-			}
-
-			fmt.Fprintf(w, ") {\n")
-
-			fmt.Fprintf(w, "      break\n")
-			fmt.Fprintf(w, "    }\n\n")
+		if negate && numFields != 0 {
+			w.writeIndent("match = true\n")
+			w.unnest(w.nesting - nesting)
+			w.writeIndent("\n")
+			w.nest("if !match {\n")
 		}
 
 		return
 	}
 
-	if str := match.AsString(); str != nil {
-		fmt.Fprintf(w, "    if %s != m.memo.internPrivate(\"%s\") {\n", unTitle(fieldName), str.Value())
-		fmt.Fprintf(w, "      break\n")
-		fmt.Fprintf(w, "    }\n\n")
+	if matchInvoke, ok := match.(*MatchInvokeExpr); ok {
+		funcName := unTitle(matchInvoke.FuncName())
+
+		if negate {
+			w.nest("if !_f.%s(", funcName)
+		} else {
+			w.nest("if _f.%s(", funcName)
+		}
+
+		for index, matchArg := range matchInvoke.Args() {
+			ref := matchArg.(*RefExpr)
+
+			if index != 0 {
+				w.write(", ")
+			}
+
+			w.write(ref.Label())
+		}
+
+		w.write(") {\n")
 		return
 	}
 
-	if bind := match.AsBind(); bind != nil {
-		fmt.Fprintf(w, "    %s := %s\n", bind.Label(), unTitle(fieldName))
-		g.generateMatch(w, bind.Target(), fieldName)
+	if matchAnd, ok := match.(*MatchAndExpr); ok {
+		if negate {
+			panic("negate is not yet supported by the and match op")
+		}
+
+		g.generateMatch(w, matchAnd.Left(), fieldName, negate)
+		g.generateMatch(w, matchAnd.Right(), fieldName, negate)
 		return
 	}
 
-	if match.AsMatchAny() != nil {
+	if not, ok := match.(*MatchNotExpr); ok {
+		g.generateMatch(w, not.Input(), fieldName, !negate)
+		return
+	}
+
+	if bind, ok := match.(*BindExpr); ok {
+		if bind.Label() != fieldName {
+			w.writeIndent("%s = %s\n", bind.Label(), fieldName)
+		}
+
+		g.generateMatch(w, bind.Target(), fieldName, negate)
+		return
+	}
+
+	if str, ok := match.(*StringExpr); ok {
+		if negate {
+			w.nest("if %s != m.memo.storePrivate(\"%s\") {\n", fieldName, str.Value())
+		} else {
+			w.nest("if %s == m.memo.storePrivate(\"%s\") {\n", fieldName, str.Value())
+		}
+
+		return
+	}
+
+	if _, ok := match.(*MatchAnyExpr); ok {
+		if negate {
+			w.nest("if false {\n")
+		}
+
 		return
 	}
 
 	panic(fmt.Sprintf("unrecognized match expression: %v", match))
 }
 
-func (g *generator) generateReplace(w io.Writer, replace *Expr) {
-	if construct := replace.AsConstruct(); construct != nil {
-		fmt.Fprintf(w, "f.construct%s(", construct.Op())
+func (g *generator) generateReplace(w *matchWriter, replace ParsedExpr) {
+	if construct, ok := replace.(*ConstructExpr); ok {
+		w.write("_f.construct%s(", construct.Name())
 
 		for index, elem := range construct.All() {
 			if index != 0 {
-				fmt.Fprintf(w, ", ")
+				w.write(", ")
 			}
 
 			g.generateReplace(w, elem)
 		}
 
-		fmt.Fprintf(w, ")")
+		w.write(")")
 		return
 	}
 
-	if ref := replace.AsRef(); ref != nil {
-		fmt.Fprint(w, ref.Label())
+	if ref, ok := replace.(*RefExpr); ok {
+		w.write(ref.Label())
 		return
 	}
 
-	if str := replace.AsString(); str != nil {
-		fmt.Fprintf(w, "m.memo.internPrivate(\"%s\")", str.Value())
+	if str, ok := replace.(*StringExpr); ok {
+		w.write("m.memo.storePrivate(\"%s\")", str.Value())
 		return
 	}
 
 	panic(fmt.Sprintf("unrecognized replace expression: %v", replace))
+}
+
+func (g *generator) lookupFieldName(matchFields *MatchFieldsExpr, index int) string {
+	define := g.compiled.LookupDefinition(matchFields.OpName())
+	defineField := define.Fields()[index].(*DefineFieldExpr)
+	return unTitle(defineField.Name())
+}
+
+type matchWriter struct {
+	writer  io.Writer
+	nesting int
+}
+
+func (w *matchWriter) nest(format string, args ...interface{}) {
+	w.writeIndent(format, args...)
+	w.nesting++
+}
+
+func (w *matchWriter) write(format string, args ...interface{}) {
+	fmt.Fprintf(w.writer, format, args...)
+}
+
+func (w *matchWriter) writeIndent(format string, args ...interface{}) {
+	fmt.Fprintf(w.writer, strings.Repeat("  ", w.nesting))
+	fmt.Fprintf(w.writer, format, args...)
+}
+
+func (w *matchWriter) unnest(n int) {
+	for ; n > 0; n-- {
+		w.nesting--
+		fmt.Fprintf(w.writer, strings.Repeat("  ", w.nesting))
+		fmt.Fprintf(w.writer, "}\n")
+	}
 }

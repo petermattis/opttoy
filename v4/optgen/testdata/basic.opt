@@ -14,6 +14,11 @@ define And {
     Right Expr
 }
 
+define Eq {
+    Left  Expr
+    Right Expr
+}
+
 define List {
     Items ExprList
 }
@@ -24,16 +29,31 @@ define Invoke {
     Meta FuncData
 }
 
+define Variable {
+    Col ColData
+}
+
 define String {
     Value String
 }
 
-[MergeSelectWithInnerJoin]
+[NormalizeVariable, Normalize]
+(Eq $left:^(Variable $colData:*) $right:(Variable)) => (Eq $right $left)
+
+[NormalizeVarEq, Normalize]
+(Eq
+    $left:(Variable)
+    $right:(Variable) && (IsLowerExpr $right $left)
+)
+=>
+(Eq $right $left)
+
+[MergeSelectWithInnerJoin, Normalize]
 (Select
     (InnerJoin $r:* $s:* $inner:*)
     $outer:*
 ) =>
 (InnerJoin $r $s (And $inner $outer))
 
-[EliminateConcat]
-(Invoke (String "concat") $items:* && (IsEmptyList $items)) => (String "")
+[EliminateConcat, Normalize]
+(Invoke (String "concat") $args:* && (IsEmptyList $args)) => (String "")

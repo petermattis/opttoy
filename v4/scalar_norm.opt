@@ -1,0 +1,15 @@
+[NormalizeVar]
+(Eq
+    $left:^(Variable)
+    $right:(Variable)
+)
+=>
+(Eq $right $left)
+
+[NormalizeVarEq]
+(Eq
+    $left:(Variable)
+    $right:(Variable) && (IsLowerExpr $right $left)
+)
+=>
+(Eq $right $left)

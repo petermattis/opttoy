@@ -1,0 +1,6 @@
+[Relational, Logical]
+define InnerJoin {
+   Left   Expr
+   Right  Expr
+   Filter Expr
+}

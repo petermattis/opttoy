@@ -1,0 +1,290 @@
+[Scalar, Logical, Physical]
+define Variable {
+    Col ColProps
+}
+
+[Scalar, Logical, Physical]
+define Const {
+    Value Interface
+}
+
+[Scalar, Logical, Physical]
+define List {
+    Items ExprList
+}
+
+[Scalar, Logical, Physical]
+define OrderedList {
+    Items ExprList
+}
+
+[Scalar, Logical, Physical]
+define Exists {
+    Input Expr
+}
+
+[Scalar, Logical, Physical]
+define And {
+    Left  Expr
+    Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Or {
+    Left  Expr
+    Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Not {
+    Input Expr
+}
+
+[Scalar, Logical, Physical]
+define Eq {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Lt {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Gt {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Le {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Ge {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Ne {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define InOp {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotIn {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Like {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotLike {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define ILike {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotILike {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define SimilarTo {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotSimilarTo {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define RegMatch {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotRegMatch {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define RegIMatch {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define NotRegIMatch {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define IsDistinctFrom {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define IsNotDistinctFrom {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Is {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define IsNot {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Any {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Some {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define All {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define BitAnd {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define BitOr {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define BitXor {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Plus {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Minus {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Mult {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Div {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define FloorDiv {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Mod {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Pow {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define Concat {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define LShift {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define RShift {
+   Left  Expr
+   Right Expr
+}
+
+[Scalar, Logical, Physical]
+define UnaryPlus {
+    Input Expr
+}
+
+[Scalar, Logical, Physical]
+define UnaryMinus {
+    Input Expr
+}
+
+[Scalar, Logical, Physical]
+define UnaryComplement {
+    Input Expr
+}
+
+[Scalar, Logical, Physical]
+define Function {
+    Args ExprList
+    Def  FuncDef
+}

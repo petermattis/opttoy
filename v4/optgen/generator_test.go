@@ -14,8 +14,8 @@ var _ = fmt.Println
 func TestOpGen(t *testing.T) {
 	s := `
 		define Lt {
-			Left  Expr
-			Right Expr
+			Left  expr
+			Right expr
 		}
 
 		define Int {
@@ -26,8 +26,8 @@ func TestOpGen(t *testing.T) {
 	`
 
 	r := strings.NewReader(s)
-	c := NewCompiler(r)
-	root, err := c.Compile()
+	c := NewParser(r)
+	root, err := c.Parse()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
@@ -41,8 +41,8 @@ func TestOpGen(t *testing.T) {
 func TestExprGen(t *testing.T) {
 	s := `
 		define Lt {
-			Left  Expr
-			Right Expr
+			Left  expr
+			Right expr
 		}
 
 		define Int {
@@ -53,8 +53,8 @@ func TestExprGen(t *testing.T) {
 	`
 
 	r := strings.NewReader(s)
-	c := NewCompiler(r)
-	root, err := c.Compile()
+	c := NewParser(r)
+	root, err := c.Parse()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
@@ -68,19 +68,19 @@ func TestExprGen(t *testing.T) {
 func TestFactoryGen(t *testing.T) {
 	s := `
 		define Select {
-			Input  Expr
-			Filter Expr
+			Input  expr
+			Filter expr
 		}
 
 		define InnerJoin {
-			Left   Expr
-			Right  Expr
-			Filter Expr
+			Left   expr
+			Right  expr
+			Filter expr
 		}
 
 		define And {
-			Left  Expr
-			Right Expr
+			Left  expr
+			Right expr
 		}
 
 		define Int {
@@ -96,8 +96,8 @@ func TestFactoryGen(t *testing.T) {
 	`
 
 	r := strings.NewReader(s)
-	c := NewCompiler(r)
-	root, err := c.Compile()
+	c := NewParser(r)
+	root, err := c.Parse()
 	require.NoError(t, err)
 
 	var buf bytes.Buffer

@@ -13,8 +13,8 @@ var _ = fmt.Println
 func TestCompiler(t *testing.T) {
 	s := `
 		define Lt {
-			Left  Expr
-			Right Expr
+			Left  expr
+			Right expr
 		}
 
 		define Int {
@@ -30,12 +30,15 @@ func TestCompiler(t *testing.T) {
 		(Join $r:* $s:* && (IsLower $s $r))
 		=>
 		(Join $s $r)
+
+		[EliminateVariable]
+		(Eq $left:^(Variable) $right:(Variable)) => (Eq $right $left)
 	`
 
 	r := strings.NewReader(s)
-	c := NewCompiler(r)
-	opt, err := c.Compile()
+	c := NewParser(r)
+	root, err := c.Parse()
 	require.NoError(t, err)
 
-	fmt.Printf("%v\n", opt)
+	fmt.Printf("%v\n", root)
 }

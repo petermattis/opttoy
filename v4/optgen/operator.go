@@ -18,13 +18,15 @@ const (
 	bindOp
 	refOp
 
-	matchListOp
+	matchInvokeOp
 	matchFieldsOp
-	matchStringOp
+	matchAndOp
+	matchNotOp
 	matchAnyOp
 
 	replaceListOp
 	constructOp
 
+	tagsOp
 	stringOp
 )

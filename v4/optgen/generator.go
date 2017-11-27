@@ -12,27 +12,13 @@ import (
 const useGoFmt = true
 
 type generator struct {
-	pkg     string
-	root    *RootExpr
-	opIndex map[string]*DefineExpr
-	unique  map[string]bool
+	pkg      string
+	compiled CompiledExpr
+	unique   map[string]bool
 }
 
-func NewGenerator(pkg string, root *RootExpr) *generator {
-	return &generator{pkg: pkg, root: root, opIndex: createOpIndex(root)}
-}
-
-func (g *generator) lookupOp(opName string) *DefineExpr {
-	return g.opIndex[opName]
-}
-
-func (g *generator) lookupField(opName string, fieldPos int) *DefineFieldExpr {
-	define, ok := g.opIndex[opName]
-	if !ok {
-		panic(fmt.Sprintf("unrecognized op '%s'", opName))
-	}
-
-	return define.Fields()[fieldPos].AsDefineField()
+func NewGenerator(pkg string, compiled CompiledExpr) *generator {
+	return &generator{pkg: pkg, compiled: compiled}
 }
 
 func (g *generator) GenerateExprs(w io.Writer) error {
@@ -68,29 +54,17 @@ func (g *generator) generate(w io.Writer, genFunc func(w io.Writer)) error {
 	return err
 }
 
-func (g *generator) uniquify(name string) string {
-	try := name
+func (g *generator) makeUnique(s string) string {
+	try := s
 	for i := 2; ; i++ {
 		_, ok := g.unique[try]
 		if !ok {
-			break
+			g.unique[try] = true
+			return try
 		}
 
-		try = fmt.Sprintf("%s%d", name, i)
+		try = fmt.Sprintf("%s%d", s, i)
 	}
-
-	return try
-}
-
-func createOpIndex(root *RootExpr) map[string]*DefineExpr {
-	opIndex := make(map[string]*DefineExpr)
-
-	for _, elem := range root.Defines().All() {
-		define := elem.AsDefine()
-		opIndex[define.Name()] = define
-	}
-
-	return opIndex
 }
 
 func unTitle(name string) string {
@@ -101,7 +75,7 @@ func unTitle(name string) string {
 func mapType(typ string) string {
 	switch typ {
 	case "Expr":
-		return "exprOffset"
+		return "groupID"
 
 	case "ExprList":
 		return "listID"

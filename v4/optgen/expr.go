@@ -6,153 +6,53 @@ import (
 	"strings"
 )
 
-type Expr struct {
+type ParsedExpr interface {
+	Op() operator
+	Children() []ParsedExpr
+	ChildName(pos int) string
+	Private() interface{}
+
+	String() string
+	Format(buf *bytes.Buffer, level int)
+}
+
+type expr struct {
 	op       operator
-	children []*Expr
-	names    []string
+	children []ParsedExpr
+	names    map[int]string
 	private  interface{}
 }
 
-func (e *Expr) Op() operator {
+func (e *expr) Op() operator {
 	return e.op
 }
 
-func (e *Expr) Children() []*Expr {
+func (e *expr) Children() []ParsedExpr {
 	return e.children
 }
 
-func (e *Expr) AsRoot() *RootExpr {
-	if e.op != rootOp {
-		return nil
-	}
-
-	return (*RootExpr)(e)
+func (e *expr) ChildName(pos int) string {
+	return e.names[pos]
 }
 
-func (e *Expr) AsDefineList() *DefineListExpr {
-	if e.op != defineListOp {
-		return nil
-	}
-
-	return (*DefineListExpr)(e)
+func (e *expr) Private() interface{} {
+	return e.private
 }
 
-func (e *Expr) AsDefine() *DefineExpr {
-	if e.op != defineOp {
-		return nil
-	}
-
-	return (*DefineExpr)(e)
-}
-
-func (e *Expr) AsDefineField() *DefineFieldExpr {
-	if e.op != defineFieldOp {
-		return nil
-	}
-
-	return (*DefineFieldExpr)(e)
-}
-
-func (e *Expr) AsRuleList() *RuleListExpr {
-	if e.op != ruleListOp {
-		return nil
-	}
-
-	return (*RuleListExpr)(e)
-}
-
-func (e *Expr) AsRuleHeader() *RuleHeaderExpr {
-	if e.op != ruleHeaderOp {
-		return nil
-	}
-
-	return (*RuleHeaderExpr)(e)
-}
-
-func (e *Expr) AsRule() *RuleExpr {
-	if e.op != ruleOp {
-		return nil
-	}
-
-	return (*RuleExpr)(e)
-}
-
-func (e *Expr) AsBind() *BindExpr {
-	if e.op != bindOp {
-		return nil
-	}
-
-	return (*BindExpr)(e)
-}
-
-func (e *Expr) AsRef() *RefExpr {
-	if e.op != refOp {
-		return nil
-	}
-
-	return (*RefExpr)(e)
-}
-
-func (e *Expr) AsMatchList() *MatchListExpr {
-	if e.op != matchListOp {
-		return nil
-	}
-
-	return (*MatchListExpr)(e)
-}
-
-func (e *Expr) AsMatchFields() *MatchFieldsExpr {
-	if e.op != matchFieldsOp {
-		return nil
-	}
-
-	return (*MatchFieldsExpr)(e)
-}
-
-func (e *Expr) AsMatchAny() *MatchAnyExpr {
-	if e.op != matchAnyOp {
-		return nil
-	}
-
-	return (*MatchAnyExpr)(e)
-}
-
-func (e *Expr) AsReplaceList() *ReplaceListExpr {
-	if e.op != replaceListOp {
-		return nil
-	}
-
-	return (*ReplaceListExpr)(e)
-}
-
-func (e *Expr) AsConstruct() *ConstructExpr {
-	if e.op != constructOp {
-		return nil
-	}
-
-	return (*ConstructExpr)(e)
-}
-
-func (e *Expr) AsString() *StringExpr {
-	if e.op != stringOp {
-		return nil
-	}
-
-	return (*StringExpr)(e)
-}
-
-func (e *Expr) String() string {
-	var buf indentBuffer
-	e.format(&buf)
+func (e *expr) String() string {
+	var buf bytes.Buffer
+	e.Format(&buf, 0)
 	return buf.String()
 }
 
-func (e *Expr) format(buf *indentBuffer) {
+func (e *expr) Format(buf *bytes.Buffer, level int) {
 	if e.private != nil {
 		if s, ok := e.private.(string); ok {
-			buf.write("\"%s\"", s)
+			buf.WriteByte('"')
+			buf.WriteString(s)
+			buf.WriteByte('"')
 		} else {
-			buf.write("%v", e.private)
+			buf.WriteString(fmt.Sprintf("%v", e.private))
 		}
 
 		return
@@ -162,125 +62,135 @@ func (e *Expr) format(buf *indentBuffer) {
 	opName = opName[:len(opName)-2]
 
 	if len(e.children) == 0 {
-		buf.write("(%s)", opName)
+		buf.WriteByte('(')
+		buf.WriteString(opName)
+		buf.WriteByte(')')
 		return
 	}
 
 	nested := false
 	for _, child := range e.children {
-		if child.private == nil && len(child.children) != 0 {
+		if child.Private() == nil && len(child.Children()) != 0 {
 			nested = true
 			break
 		}
 	}
 
 	if !nested {
-		buf.write("(%s", opName)
+		buf.WriteByte('(')
+		buf.WriteString(opName)
 
 		for i, child := range e.children {
+			buf.WriteByte(' ')
+
 			if i < len(e.names) {
-				buf.write(" %s=", e.names[i])
-				child.format(buf)
-			} else {
-				buf.write(" ")
-				child.format(buf)
+				buf.WriteString(e.names[i])
+				buf.WriteByte('=')
 			}
+
+			child.Format(buf, level)
 		}
 
-		buf.write(")")
+		buf.WriteByte(')')
 	} else {
-		buf.write("(%s\n", opName)
-		buf.increaseIndent()
+		buf.WriteByte('(')
+		buf.WriteString(opName)
+		buf.WriteByte('\n')
+		level++
 
 		for i, child := range e.children {
+			writeIndent(buf, level)
+
 			if i < len(e.names) {
-				buf.writeIndented("%s=", e.names[i])
-				child.format(buf)
-			} else {
-				buf.writeIndented("")
-				child.format(buf)
+				buf.WriteString(e.names[i])
+				buf.WriteByte('=')
 			}
 
-			buf.writeIndented("\n")
+			child.Format(buf, level)
+			buf.WriteByte('\n')
 		}
 
-		buf.decreaseIndent()
-		buf.writeIndented(")")
+		level--
+		writeIndent(buf, level)
+		buf.WriteByte(')')
 	}
 }
 
-type RootExpr Expr
+type RootExpr struct {
+	expr
+}
 
 func NewRootExpr() *RootExpr {
-	children := []*Expr{
-		(*Expr)(NewDefineListExpr()),
-		(*Expr)(NewRuleListExpr()),
+	children := []ParsedExpr{
+		NewDefineListExpr(),
+		NewRuleListExpr(),
 	}
 
-	names := []string{"Defines", "Rules"}
+	names := map[int]string{0: "Defines", 1: "Rules"}
 
-	return &RootExpr{op: rootOp, children: children, names: names}
+	return &RootExpr{expr{op: rootOp, children: children, names: names}}
 }
 
 func (e *RootExpr) Defines() *DefineListExpr {
-	return e.children[0].AsDefineList()
+	return e.children[0].(*DefineListExpr)
 }
 
 func (e *RootExpr) Rules() *RuleListExpr {
-	return e.children[1].AsRuleList()
+	return e.children[1].(*RuleListExpr)
 }
 
-func (e *RootExpr) String() string {
-	return (*Expr)(e).String()
+type DefineListExpr struct {
+	expr
 }
-
-type DefineListExpr Expr
 
 func NewDefineListExpr() *DefineListExpr {
-	return &DefineListExpr{op: defineListOp}
+	return &DefineListExpr{expr{op: defineListOp}}
 }
 
-func (e *DefineListExpr) All() []*Expr {
+func (e *DefineListExpr) All() []ParsedExpr {
 	return e.children
 }
 
 func (e *DefineListExpr) Add(define *DefineExpr) {
-	e.children = append(e.children, (*Expr)(define))
+	e.children = append(e.children, define)
 }
 
-func (e *DefineListExpr) String() string {
-	return (*Expr)(e).String()
+type DefineExpr struct {
+	expr
 }
 
-type DefineExpr Expr
-
-func NewDefineExpr(name string) *DefineExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(name)),
+func NewDefineExpr(name string, tags []string) *DefineExpr {
+	children := []ParsedExpr{
+		NewStringExpr(name),
+		NewTagsExpr(tags),
 	}
 
-	names := []string{"Name"}
+	names := map[int]string{0: "Name", 1: "Tags"}
 
-	return &DefineExpr{op: defineOp, children: children, names: names}
+	return &DefineExpr{expr{op: defineOp, children: children, names: names}}
 }
 
 func (e *DefineExpr) Name() string {
-	return e.children[0].AsString().Value()
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *DefineExpr) List() *DefineFieldExpr {
+func (e *DefineExpr) Tags() *TagsExpr {
+	return e.children[1].(*TagsExpr)
+}
+
+func (e *DefineExpr) ListField() *DefineFieldExpr {
 	// If list-typed field is present, it will be the last field, or the second
 	// to last field if a private field is present.
 	index := len(e.children) - 1
-	if e.Private() != nil {
+	if e.PrivateField() != nil {
 		index--
 	}
 
-	if index < 1 {
+	if index < 2 {
 		return nil
 	}
 
-	defineField := e.children[index].AsDefineField()
+	defineField := e.children[index].(*DefineFieldExpr)
 	if defineField.IsListType() {
 		return defineField
 	}
@@ -288,14 +198,14 @@ func (e *DefineExpr) List() *DefineFieldExpr {
 	return nil
 }
 
-func (e *DefineExpr) Private() *DefineFieldExpr {
+func (e *DefineExpr) PrivateField() *DefineFieldExpr {
 	// If private is present, it will be the last field.
 	index := len(e.children) - 1
-	if index < 1 {
+	if index < 2 {
 		return nil
 	}
 
-	defineField := e.children[index].AsDefineField()
+	defineField := e.children[index].(*DefineFieldExpr)
 	if defineField.IsPrivateType() {
 		return defineField
 	}
@@ -303,37 +213,35 @@ func (e *DefineExpr) Private() *DefineFieldExpr {
 	return nil
 }
 
-func (e *DefineExpr) Fields() []*Expr {
-	return e.children[1:]
+func (e *DefineExpr) Fields() []ParsedExpr {
+	return e.children[2:]
 }
 
 func (e *DefineExpr) Add(field *DefineFieldExpr) {
-	e.children = append(e.children, (*Expr)(field))
+	e.children = append(e.children, field)
 }
 
-func (e *DefineExpr) String() string {
-	return (*Expr)(e).String()
+type DefineFieldExpr struct {
+	expr
 }
-
-type DefineFieldExpr Expr
 
 func NewDefineFieldExpr(name, typ string) *DefineFieldExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(name)),
-		(*Expr)(NewStringExpr(typ)),
+	children := []ParsedExpr{
+		NewStringExpr(name),
+		NewStringExpr(typ),
 	}
 
-	names := []string{"Name", "Type"}
+	names := map[int]string{0: "Name", 1: "Type"}
 
-	return &DefineFieldExpr{op: defineFieldOp, children: children, names: names}
+	return &DefineFieldExpr{expr{op: defineFieldOp, children: children, names: names}}
 }
 
 func (e *DefineFieldExpr) Name() string {
-	return e.children[0].AsString().Value()
+	return e.children[0].(*StringExpr).Value()
 }
 
 func (e *DefineFieldExpr) Type() string {
-	return e.children[1].AsString().Value()
+	return e.children[1].(*StringExpr).Value()
 }
 
 func (e *DefineFieldExpr) IsListType() bool {
@@ -345,267 +253,287 @@ func (e *DefineFieldExpr) IsPrivateType() bool {
 	return typ != "Expr" && typ != "ExprList"
 }
 
-func (e *DefineFieldExpr) String() string {
-	return (*Expr)(e).String()
+type RuleListExpr struct {
+	expr
 }
-
-type RuleListExpr Expr
 
 func NewRuleListExpr() *RuleListExpr {
-	return &RuleListExpr{op: ruleListOp}
+	return &RuleListExpr{expr{op: ruleListOp}}
 }
 
-func (e *RuleListExpr) All() []*Expr {
+func (e *RuleListExpr) All() []ParsedExpr {
 	return e.children
 }
 
 func (e *RuleListExpr) Add(rule *RuleExpr) {
-	e.children = append(e.children, (*Expr)(rule))
+	e.children = append(e.children, rule)
 }
 
-func (e *RuleListExpr) String() string {
-	return (*Expr)(e).String()
+type RuleExpr struct {
+	expr
 }
 
-type RuleExpr Expr
-
-func NewRuleExpr(header *RuleHeaderExpr, matchFields *MatchFieldsExpr, replace *Expr) *RuleExpr {
-	children := []*Expr{
-		(*Expr)(header),
-		(*Expr)(matchFields),
+func NewRuleExpr(header *RuleHeaderExpr, matchFields *MatchFieldsExpr, replace ParsedExpr) *RuleExpr {
+	children := []ParsedExpr{
+		header,
+		matchFields,
 		replace,
 	}
 
-	names := []string{"Header", "Match", "Replace"}
+	names := map[int]string{0: "Header", 1: "Match", 2: "Replace"}
 
-	return &RuleExpr{op: ruleOp, children: children, names: names}
+	return &RuleExpr{expr{op: ruleOp, children: children, names: names}}
 }
 
 func (e *RuleExpr) Header() *RuleHeaderExpr {
-	return e.children[0].AsRuleHeader()
+	return e.children[0].(*RuleHeaderExpr)
 }
 
 func (e *RuleExpr) Match() *MatchFieldsExpr {
-	return e.children[1].AsMatchFields()
+	return e.children[1].(*MatchFieldsExpr)
 }
 
-func (e *RuleExpr) Replace() *Expr {
+func (e *RuleExpr) Replace() ParsedExpr {
 	return e.children[2]
 }
 
-func (e *RuleExpr) String() string {
-	return (*Expr)(e).String()
+type RuleHeaderExpr struct {
+	expr
 }
 
-type RuleHeaderExpr Expr
-
-func NewRuleHeaderExpr(name string) *RuleHeaderExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(name)),
+func NewRuleHeaderExpr(name string, tags []string) *RuleHeaderExpr {
+	children := []ParsedExpr{
+		NewStringExpr(name),
+		NewTagsExpr(tags),
 	}
 
-	names := []string{"Name"}
+	names := map[int]string{0: "Name", 1: "Tags"}
 
-	return &RuleHeaderExpr{op: ruleHeaderOp, children: children, names: names}
+	return &RuleHeaderExpr{expr{op: ruleHeaderOp, children: children, names: names}}
 }
 
 func (e *RuleHeaderExpr) Name() string {
-	return e.children[0].AsString().Value()
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *RuleHeaderExpr) String() string {
-	return (*Expr)(e).String()
+func (e *RuleHeaderExpr) Tags() *TagsExpr {
+	return e.children[1].(*TagsExpr)
 }
 
-type BindExpr Expr
+type BindExpr struct {
+	expr
+}
 
-func NewBindExpr(label string, target *Expr) *BindExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(label)),
+func NewBindExpr(label string, target ParsedExpr) *BindExpr {
+	children := []ParsedExpr{
+		NewStringExpr(label),
 		target,
 	}
 
-	names := []string{"Label", "Target"}
+	names := map[int]string{0: "Label", 1: "Target"}
 
-	return &BindExpr{op: bindOp, children: children, names: names}
+	return &BindExpr{expr{op: bindOp, children: children, names: names}}
 }
 
 func (e *BindExpr) Label() string {
-	return e.children[0].AsString().Value()
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *BindExpr) Target() *Expr {
+func (e *BindExpr) Target() ParsedExpr {
 	return e.children[1]
 }
 
-func (e *BindExpr) String() string {
-	return (*Expr)(e).String()
+type RefExpr struct {
+	expr
 }
 
-type RefExpr Expr
-
 func NewRefExpr(label string) *RefExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(label)),
+	children := []ParsedExpr{
+		NewStringExpr(label),
 	}
 
-	names := []string{"Label"}
+	names := map[int]string{0: "Label"}
 
-	return &RefExpr{op: refOp, children: children, names: names}
+	return &RefExpr{expr{op: refOp, children: children, names: names}}
 }
 
 func (e *RefExpr) Label() string {
-	return e.children[0].AsString().Value()
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *RefExpr) String() string {
-	return (*Expr)(e).String()
+type MatchAndExpr struct {
+	expr
 }
 
-type MatchListExpr Expr
-
-func NewMatchListExpr() *MatchListExpr {
-	return &MatchListExpr{op: matchListOp}
+func NewMatchAndExpr(left, right ParsedExpr) *MatchAndExpr {
+	return &MatchAndExpr{expr{op: matchAndOp, children: []ParsedExpr{left, right}}}
 }
 
-func (e *MatchListExpr) All() []*Expr {
-	return e.children
+func (e *MatchAndExpr) Left() ParsedExpr {
+	return e.children[0]
 }
 
-func (e *MatchListExpr) Add(match *Expr) {
-	e.children = append(e.children, match)
+func (e *MatchAndExpr) Right() ParsedExpr {
+	return e.children[1]
 }
 
-func (e *MatchListExpr) String() string {
-	return (*Expr)(e).String()
+type MatchInvokeExpr struct {
+	expr
 }
 
-type MatchFieldsExpr Expr
-
-func NewMatchFieldsExpr(op string) *MatchFieldsExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(op)),
+func NewMatchInvokeExpr(funcName string) *MatchInvokeExpr {
+	children := []ParsedExpr{
+		NewStringExpr(funcName),
 	}
 
-	names := []string{"Op"}
+	names := map[int]string{0: "FuncName"}
 
-	return &MatchFieldsExpr{op: matchFieldsOp, children: children, names: names}
+	return &MatchInvokeExpr{expr{op: matchInvokeOp, children: children, names: names}}
 }
 
-func (e *MatchFieldsExpr) Op() string {
-	return e.children[0].AsString().Value()
+func (e *MatchInvokeExpr) FuncName() string {
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *MatchFieldsExpr) Fields() []*Expr {
+func (e *MatchInvokeExpr) Args() []ParsedExpr {
 	return e.children[1:]
 }
 
-func (e *MatchFieldsExpr) Add(match *Expr) {
+func (e *MatchInvokeExpr) Add(match ParsedExpr) {
 	e.children = append(e.children, match)
 }
 
-func (e *MatchFieldsExpr) String() string {
-	return (*Expr)(e).String()
+type MatchFieldsExpr struct {
+	expr
 }
 
-type MatchAnyExpr Expr
+func NewMatchFieldsExpr(opName string) *MatchFieldsExpr {
+	children := []ParsedExpr{
+		NewStringExpr(opName),
+	}
 
-var matchAnySingleton = &MatchAnyExpr{op: matchAnyOp}
+	names := map[int]string{0: "OpName"}
+
+	return &MatchFieldsExpr{expr{op: matchFieldsOp, children: children, names: names}}
+}
+
+func (e *MatchFieldsExpr) OpName() string {
+	return e.children[0].(*StringExpr).Value()
+}
+
+func (e *MatchFieldsExpr) Fields() []ParsedExpr {
+	return e.children[1:]
+}
+
+func (e *MatchFieldsExpr) Add(match ParsedExpr) {
+	e.children = append(e.children, match)
+}
+
+type MatchNotExpr struct {
+	expr
+}
+
+func NewMatchNotExpr(input ParsedExpr) *MatchNotExpr {
+	return &MatchNotExpr{expr{op: matchNotOp, children: []ParsedExpr{input}}}
+}
+
+func (e *MatchNotExpr) Input() ParsedExpr {
+	return e.children[0]
+}
+
+type MatchAnyExpr struct {
+	expr
+}
+
+var matchAnySingleton = &MatchAnyExpr{expr{op: matchAnyOp}}
 
 func NewMatchAnyExpr() *MatchAnyExpr {
 	return matchAnySingleton
 }
 
-func (e *MatchAnyExpr) String() string {
-	return (*Expr)(e).String()
+type ReplaceListExpr struct {
+	expr
 }
-
-type ReplaceListExpr Expr
 
 func NewReplaceListExpr() *ReplaceListExpr {
-	return &ReplaceListExpr{op: replaceListOp}
+	return &ReplaceListExpr{expr{op: replaceListOp}}
 }
 
-func (e *ReplaceListExpr) All() []*Expr {
+func (e *ReplaceListExpr) All() []ParsedExpr {
 	return e.children
 }
 
-func (e *ReplaceListExpr) Add(replace *Expr) {
+func (e *ReplaceListExpr) Add(replace ParsedExpr) {
 	e.children = append(e.children, replace)
 }
 
-func (e *ReplaceListExpr) String() string {
-	return (*Expr)(e).String()
+type ConstructExpr struct {
+	expr
 }
-
-type ConstructExpr Expr
 
 func NewConstructExpr(op string) *ConstructExpr {
-	children := []*Expr{
-		(*Expr)(NewStringExpr(op)),
+	children := []ParsedExpr{
+		NewStringExpr(op),
 	}
 
-	names := []string{"Op"}
+	names := map[int]string{0: "Name"}
 
-	return &ConstructExpr{op: constructOp, children: children, names: names}
+	return &ConstructExpr{expr{op: constructOp, children: children, names: names}}
 }
 
-func (e *ConstructExpr) Op() string {
-	return e.children[0].AsString().Value()
+func (e *ConstructExpr) Name() string {
+	return e.children[0].(*StringExpr).Value()
 }
 
-func (e *ConstructExpr) All() []*Expr {
+func (e *ConstructExpr) All() []ParsedExpr {
 	return e.children[1:]
 }
 
-func (e *ConstructExpr) Add(replace *Expr) {
+func (e *ConstructExpr) Add(replace ParsedExpr) {
 	e.children = append(e.children, replace)
 }
 
-func (e *ConstructExpr) String() string {
-	return (*Expr)(e).String()
+type TagsExpr struct {
+	expr
 }
 
-type StringExpr Expr
+func NewTagsExpr(tags []string) *TagsExpr {
+	e := &TagsExpr{expr{op: tagsOp}}
+
+	for _, tag := range tags {
+		e.children = append(e.children, NewStringExpr(tag))
+	}
+
+	return e
+}
+
+func (e *TagsExpr) All() []ParsedExpr {
+	return e.children
+}
+
+func (e *TagsExpr) Contains(tag string) bool {
+	for _, elem := range e.children {
+		value := elem.(*StringExpr).Value()
+		if value == tag {
+			return true
+		}
+	}
+
+	return false
+}
+
+type StringExpr struct {
+	expr
+}
 
 func NewStringExpr(s string) *StringExpr {
-	return &StringExpr{op: stringOp, private: s}
+	return &StringExpr{expr{op: stringOp, private: s}}
 }
 
 func (e *StringExpr) Value() string {
 	return e.private.(string)
 }
 
-func (e *StringExpr) String() string {
-	return (*Expr)(e).String()
-}
-
-type indentBuffer struct {
-	buf    bytes.Buffer
-	indent int
-}
-
-func (b *indentBuffer) increaseIndent() {
-	b.indent++
-}
-
-func (b *indentBuffer) decreaseIndent() {
-	if b.indent <= 0 {
-		panic("indent cannot be decreased below zero")
-	}
-
-	b.indent--
-}
-
-func (b *indentBuffer) write(format string, args ...interface{}) {
-	fmt.Fprintf(&b.buf, format, args...)
-}
-
-func (b *indentBuffer) writeIndented(format string, args ...interface{}) {
-	b.buf.WriteString(strings.Repeat("  ", b.indent))
-	fmt.Fprintf(&b.buf, format, args...)
-}
-
-func (b *indentBuffer) String() string {
-	return b.buf.String()
+func writeIndent(buf *bytes.Buffer, level int) {
+	buf.WriteString(strings.Repeat("  ", level))
 }
