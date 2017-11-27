@@ -612,6 +612,9 @@ func (m *memo) extract(required *physicalProps, group groupID) *expr {
 }
 
 func (m *memo) extractBest(opt *memoOptState) *expr {
+	if opt == nil {
+		return nil
+	}
 	g := &m.groups[opt.loc.group]
 	e := &g.exprs[opt.loc.expr]
 	r := &expr{

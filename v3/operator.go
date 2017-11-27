@@ -97,7 +97,6 @@ const (
 	functionOp
 
 	// Physical operators
-	indexJoinOp
 	indexScanOp
 
 	sortOp
@@ -158,25 +157,27 @@ func registerOperator(op operator, name string, info operatorInfo) {
 		// Normalize the layout so that auxiliary expressions that are not present
 		// are given an invalid index which will cause a panic if they are accessed.
 		l := info.layout()
-		if l.aggregations == 0 {
-			l.aggregations = -1
-		} else {
-			l.numAux++
-		}
-		if l.groupings == 0 {
-			l.groupings = -1
-		} else {
-			l.numAux++
-		}
-		if l.projections == 0 {
-			l.projections = -1
-		} else {
-			l.numAux++
-		}
-		if l.filters == 0 {
-			l.filters = -1
-		} else {
-			l.numAux++
+		if l.numAux == 0 {
+			if l.aggregations == 0 {
+				l.aggregations = -1
+			} else {
+				l.numAux++
+			}
+			if l.groupings == 0 {
+				l.groupings = -1
+			} else {
+				l.numAux++
+			}
+			if l.projections == 0 {
+				l.projections = -1
+			} else {
+				l.numAux++
+			}
+			if l.filters == 0 {
+				l.filters = -1
+			} else {
+				l.numAux++
+			}
 		}
 		operatorLayout[op] = l
 	}

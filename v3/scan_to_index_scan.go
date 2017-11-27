@@ -24,7 +24,7 @@ func (scanToIndexScan) check(e *expr) bool {
 
 func (scanToIndexScan) apply(e *expr, results []*expr) []*expr {
 	table := e.private.(*table)
-	indexScan := newIndexScanExpr(table, nil, e.props)
+	indexScan := newIndexScanExpr(table, table.getPrimaryKey(), e.props)
 	results = append(results, indexScan)
 
 	// For any index that can satisfy the output columns, generate an index scan

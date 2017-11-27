@@ -6,27 +6,13 @@ func init() {
 	registerOperator(indexScanOp, "index-scan", indexScan{})
 }
 
-var implicitPrimaryKey = &tableKey{name: "primary", primary: true}
-
 func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *expr {
-	if key == nil {
-		for i := range table.keys {
-			k := &table.keys[i]
-			if k.primary {
-				key = k
-				break
-			}
-		}
-		if key == nil {
-			key = implicitPrimaryKey
-		}
-	}
-
 	index := *table
 	index.name += "@" + key.name
 	indexScan := &expr{
-		op:      indexScanOp,
-		private: &index,
+		op:       indexScanOp,
+		children: []*expr{nil /* projections */},
+		private:  &index,
 	}
 
 	// Make index scans on the primary index retrieve all columns.
@@ -37,6 +23,17 @@ func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *
 			columns: make([]columnProps, 0, len(key.columns)),
 		}
 		for _, i := range key.columns {
+			indexScan.props.columns = append(indexScan.props.columns, scanProps.columns[i])
+		}
+		indexScan.initProps()
+
+		// Add in any columns of the primary key that were not specified in the
+		// index.
+		primaryKey := table.getPrimaryKey()
+		for _, i := range primaryKey.columns {
+			if indexScan.props.outputCols.Contains(scanProps.columns[i].index) {
+				continue
+			}
 			indexScan.props.columns = append(indexScan.props.columns, scanProps.columns[i])
 		}
 		indexScan.initProps()
@@ -59,11 +56,18 @@ func (indexScan) kind() operatorKind {
 }
 
 func (indexScan) layout() exprLayout {
-	return exprLayout{}
+	return exprLayout{
+		numAux:       1,
+		aggregations: -1,
+		filters:      -1,
+		groupings:    -1,
+		projections:  0,
+	}
 }
 
 func (indexScan) format(e *expr, buf *bytes.Buffer, level int) {
 	formatRelational(e, buf, level)
+	formatExprs(buf, "projections", e.projections(), level)
 }
 
 func (indexScan) initKeys(e *expr, state *queryState) {

@@ -303,12 +303,12 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 	optChildren := make([]*memoOptState, len(children))
 
 	for i, c := range children {
-		optChildren[i] = s.memo.groups[c].getOptState(op.requiredProps(required, i))
-		cost += optChildren[i].cost
+		if c != 0 {
+			optChildren[i] = s.memo.groups[c].getOptState(op.requiredProps(required, i))
+			cost += optChildren[i].cost
+		}
 	}
 	switch e.op {
-	case indexJoinOp:
-		cost += 10000
 	case indexScanOp:
 		cost += 100
 	case sortOp:

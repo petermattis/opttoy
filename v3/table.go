@@ -299,3 +299,15 @@ func (t *table) getColumnIndexes(names []string) []int {
 	}
 	return res
 }
+
+var implicitPrimaryKey = &tableKey{name: "primary", primary: true}
+
+func (t *table) getPrimaryKey() *tableKey {
+	for i := range t.keys {
+		k := &t.keys[i]
+		if k.primary {
+			return k
+		}
+	}
+	return implicitPrimaryKey
+}
