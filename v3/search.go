@@ -36,7 +36,7 @@ import (
 //
 //   6. transform: applies a transform to the forest of expressions rooted at a
 //      particular group expression. There are two flavors of transformation
-//      task: exploration transformation and imlementation transformation. The
+//      task: exploration transformation and implementation transformation. The
 //      primary difference is the state transition after the task finishes. An
 //      exploration transformation recursively schedules exploration of the
 //      group it is associated with. An implementation transformation schedules
@@ -303,12 +303,12 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 	optChildren := make([]*memoOptState, len(children))
 
 	for i, c := range children {
-		optChildren[i] = s.memo.groups[c].getOptState(op.requiredProps(required, i))
-		cost += optChildren[i].cost
+		if c != 0 {
+			optChildren[i] = s.memo.groups[c].getOptState(op.requiredProps(required, i))
+			cost += optChildren[i].cost
+		}
 	}
 	switch e.op {
-	case indexJoinOp:
-		cost += 10000
 	case indexScanOp:
 		cost += 100
 	case sortOp:

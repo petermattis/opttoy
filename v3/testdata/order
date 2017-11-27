@@ -1,33 +1,34 @@
 exec
-CREATE TABLE a (x INT PRIMARY KEY, y INT UNIQUE)
+CREATE TABLE a (x INT PRIMARY KEY, y INT UNIQUE, z INT)
 ----
 table a
   x NOT NULL
   y NULL
+  z NULL
   (x) KEY
   (y) WEAK KEY
 
 build
 SELECT * FROM a ORDER BY y, x
 ----
-order-by [out=(0,1)]
-  columns: a.x:0 a.y:1
+order-by [out=(0-2)]
+  columns: a.x:0 a.y:1 a.z:2
   ordering: +1,+0
   inputs:
-    scan [out=(0,1)]
-      columns: a.x:0* a.y:1
+    scan [out=(0-2)]
+      columns: a.x:0* a.y:1 a.z:2
       key: (0)
       weak key: (1)
 
 build
 SELECT * FROM a ORDER BY y DESC, x ASC
 ----
-order-by [out=(0,1)]
-  columns: a.x:0 a.y:1
+order-by [out=(0-2)]
+  columns: a.x:0 a.y:1 a.z:2
   ordering: -1,+0
   inputs:
-    scan [out=(0,1)]
-      columns: a.x:0* a.y:1
+    scan [out=(0-2)]
+      columns: a.x:0* a.y:1 a.z:2
       key: (0)
       weak key: (1)
 
@@ -37,23 +38,30 @@ order-by [out=(0,1)]
 prep,memo,search
 SELECT * FROM a ORDER BY x
 ----
-1: [scan a] [index-scan a@primary <+0>]
+1: [scan a] [index-scan a@primary <+0> [-]]
 
 prep,memo,search,extract
 SELECT * FROM a ORDER BY x
 ----
-index-scan [out=(0,1)]
-  columns: a.x:0* a.y:1
+index-scan [out=(0-2)]
+  columns: a.x:0* a.y:1 a.z:2
   key: (0)
   weak key: (1)
   ordering: +0
+
+prep,memo,search
+SELECT y FROM a ORDER BY x
+----
+3: [project [1 2]] [sort <+0> [3]]
+2: [variable a.y]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]] [sort <+0> [1]]
 
 prep,memo,search
 SELECT y FROM a ORDER BY y
 ----
 3: [project [1 2]] [sort <+1> [3]]
 2: [variable a.y]
-1: [scan a] [index-scan a@primary <+0>] [index-scan a@y_idx <+1>] [sort <+1> [1]]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]] [sort <+1> [1]]
 
 prep,memo,search,extract
 SELECT y FROM a ORDER BY y
@@ -64,7 +72,7 @@ project [out=(1)]
     variable (a.y) [in=(1)]
   inputs:
     index-scan [out=(1)]
-      columns: a.x:0* a.y:1
+      columns: a.x:0* a.y:1 a.z:2
       key: (0)
       weak key: (1)
       ordering: +1
@@ -72,19 +80,19 @@ project [out=(1)]
 prep,memo,search
 SELECT * FROM a ORDER BY y
 ----
-1: [scan a] [index-scan a@primary <+0>] [sort <+1> [1]]
+1: [scan a] [index-scan a@primary <+0> [-]] [sort <+1> [1]]
 
 prep,memo,search,extract
 SELECT * FROM a ORDER BY y
 ----
-sort [out=(0,1)]
-  columns: a.x:0* a.y:1
+sort [out=(0-2)]
+  columns: a.x:0* a.y:1 a.z:2
   key: (0)
   weak key: (1)
   ordering: +1
   inputs:
-    index-scan [out=(0,1)]
-      columns: a.x:0* a.y:1
+    index-scan [out=(0-2)]
+      columns: a.x:0* a.y:1 a.z:2
       key: (0)
       weak key: (1)
       ordering: +0
@@ -97,7 +105,7 @@ SELECT y FROM a WHERE y > 1 ORDER BY y
 4: [gt [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index-scan a@primary <+0>] [index-scan a@y_idx <+1>] [sort <+1> [1]]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]] [sort <+1> [1]]
 
 prep,memo,search,extract
 SELECT y FROM a WHERE y > 1 ORDER BY y
@@ -108,7 +116,7 @@ project [out=(1)]
     variable (a.y) [in=(1)]
   inputs:
     select [out=(1)]
-      columns: a.x:0 a.y:1*
+      columns: a.x:0 a.y:1* a.z:2
       weak key: (0)
       key: (1)
       filters:
@@ -118,7 +126,7 @@ project [out=(1)]
             const (1)
       inputs:
         index-scan [out=(1)]
-          columns: a.x:0* a.y:1
+          columns: a.x:0* a.y:1 a.z:2
           key: (0)
           weak key: (1)
           ordering: +1
