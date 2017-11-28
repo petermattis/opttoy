@@ -288,7 +288,7 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 		// via the children. For example, one of the projection expressions might
 		// be the sort key: SELECT lower(x) FROM a ORDER BY 1.
 		switch e.op {
-		case projectOp, renameOp, selectOp:
+		case projectOp, selectOp:
 		default:
 			return
 		}

@@ -122,30 +122,27 @@ inner-join [out=(0-3)]
 prep
 SELECT * FROM (SELECT a.x+1 FROM a) AS b(x) WHERE x > 1
 ----
-rename [out=(2)]
+project [out=(2)]
   columns: b.x:2
+  projections:
+    plus [in=(0)]
+      inputs:
+        variable (a.x) [in=(0)]
+        const (1)
   inputs:
-    project [out=(2)]
-      columns: .column1:2
-      projections:
-        plus [in=(0)]
+    select [out=(0)]
+      columns: a.x:0* a.y:1
+      filters:
+        gt [in=(0)]
           inputs:
-            variable (a.x) [in=(0)]
+            plus [in=(0)]
+              inputs:
+                variable (a.x) [in=(0)]
+                const (1)
             const (1)
       inputs:
-        select [out=(0)]
-          columns: a.x:0* a.y:1
-          filters:
-            gt [in=(0)]
-              inputs:
-                plus [in=(0)]
-                  inputs:
-                    variable (a.x) [in=(0)]
-                    const (1)
-                const (1)
-          inputs:
-            scan [out=(0)]
-              columns: a.x:0 a.y:1
+        scan [out=(0)]
+          columns: a.x:0 a.y:1
 
 prep
 SELECT * FROM a, b, c WHERE a.x = b.x AND b.x = c.x

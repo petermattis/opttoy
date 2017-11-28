@@ -13,7 +13,6 @@ const (
 	// Relational operators
 	scanOp
 	selectOp
-	renameOp
 
 	unionOp
 	intersectOp
