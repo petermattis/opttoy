@@ -1,6 +1,9 @@
 package v3
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 func init() {
 	registerOperator(indexScanOp, "index-scan", indexScan{})
@@ -8,7 +11,7 @@ func init() {
 
 func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *expr {
 	index := *table
-	index.name += "@" + key.name
+	index.name = tableName(fmt.Sprintf("%s@%s", table.name, key.name))
 	indexScan := &expr{
 		op:       indexScanOp,
 		children: []*expr{nil /* projections */},

@@ -7,6 +7,8 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
+type tableName string
+
 type column struct {
 	name    string
 	notNull bool
@@ -40,13 +42,13 @@ func (k *tableKey) equalColumns(other tableKey) bool {
 }
 
 type table struct {
-	name    string
+	name    tableName
 	colMap  map[string]int
 	columns []column
 	keys    []tableKey
 }
 
-func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
+func createTable(catalog map[tableName]*table, stmt *tree.CreateTable) *table {
 	getKey := func(t *table, key tableKey) *tableKey {
 		for i := range t.keys {
 			if t.keys[i].equalColumns(key) {
@@ -99,11 +101,11 @@ func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 		return res
 	}
 
-	tableName, err := stmt.Table.Normalize()
+	tn, err := stmt.Table.Normalize()
 	if err != nil {
 		fatalf("%s", err)
 	}
-	name := tableName.Table()
+	name := tableName(tn.Table())
 	if _, ok := catalog[name]; ok {
 		fatalf("table %s already exists", name)
 	}
@@ -146,7 +148,7 @@ func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 				if err != nil {
 					fatalf("%s", err)
 				}
-				refName := refTable.Table()
+				refName := tableName(refTable.Table())
 				ref, ok := catalog[refName]
 				if !ok {
 					fatalf("unable to find referenced table %s", refTable)
@@ -201,7 +203,7 @@ func createTable(catalog map[string]*table, stmt *tree.CreateTable) *table {
 			if err != nil {
 				fatalf("%s", err)
 			}
-			refName := refTable.Table()
+			refName := tableName(refTable.Table())
 			ref, ok := catalog[refName]
 			if !ok {
 				fatalf("unable to find referenced table %s", refTable)
