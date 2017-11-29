@@ -19,7 +19,7 @@ type queryState struct {
 }
 
 type columnProps struct {
-	name   string
+	name   columnName
 	table  tableName
 	index  bitmapIndex
 	hidden bool
@@ -32,7 +32,7 @@ func (c columnProps) String() string {
 	return fmt.Sprintf("%s.%s", tree.Name(c.table), tree.Name(c.name))
 }
 
-func (c columnProps) hasColumn(tblName tableName, colName string) bool {
+func (c columnProps) hasColumn(tblName tableName, colName columnName) bool {
 	if colName != c.name {
 		return false
 	}
@@ -147,7 +147,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		}
 		buf.WriteString(string(col.table))
 		buf.WriteString(".")
-		buf.WriteString(col.name)
+		buf.WriteString(string(col.name))
 		buf.WriteString(":")
 		fmt.Fprintf(buf, "%d", col.index)
 		if p.notNullCols.Contains(col.index) {
@@ -177,7 +177,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	}
 }
 
-func (p *relationalProps) findColumn(name string) *columnProps {
+func (p *relationalProps) findColumn(name columnName) *columnProps {
 	for i := range p.columns {
 		col := &p.columns[i]
 		if col.name == name {

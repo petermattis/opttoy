@@ -47,7 +47,9 @@ func (p *planner) exec(stmt tree.Statement) string {
 		// The histogram.table.column tokens map to
 		// PrefixName.DatabaseName.TableName. So we get the table name from
 		// DatabaseName and the column name from TableName.
-		h := createHistogram(p.catalog, tableName(tname.DatabaseName), string(tname.TableName), stmt.Rows)
+		h := createHistogram(
+			p.catalog, tableName(tname.DatabaseName), columnName(tname.TableName), stmt.Rows,
+		)
 		return h.String()
 	default:
 		unimplemented("%T", stmt)

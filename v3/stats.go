@@ -56,7 +56,7 @@ func (h *histogram) String() string {
 // and no buckets.
 func createHistogram(
 	catalog map[tableName]*table,
-	tblName tableName, colName string,
+	tblName tableName, colName columnName,
 	rows *tree.Select,
 ) *histogram {
 	values, ok := rows.Select.(*tree.ValuesClause)

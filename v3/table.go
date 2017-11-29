@@ -8,9 +8,10 @@ import (
 )
 
 type tableName string
+type columnName string
 
 type column struct {
-	name    string
+	name    columnName
 	notNull bool
 	hist    *histogram
 }
@@ -43,7 +44,7 @@ func (k *tableKey) equalColumns(other tableKey) bool {
 
 type table struct {
 	name    tableName
-	colMap  map[string]int
+	colMap  map[columnName]int
 	columns []column
 	keys    []tableKey
 }
@@ -85,18 +86,18 @@ func createTable(catalog map[tableName]*table, stmt *tree.CreateTable) *table {
 		}
 	}
 
-	extractColumns := func(def *tree.IndexTableDef) []string {
-		res := make([]string, len(def.Columns))
+	extractColumns := func(def *tree.IndexTableDef) []columnName {
+		res := make([]columnName, len(def.Columns))
 		for i, col := range def.Columns {
-			res[i] = string(col.Column)
+			res[i] = columnName(col.Column)
 		}
 		return res
 	}
 
-	extractNames := func(names tree.NameList) []string {
-		res := make([]string, len(names))
+	extractNames := func(names tree.NameList) []columnName {
+		res := make([]columnName, len(names))
 		for i, name := range names {
-			res[i] = string(name)
+			res[i] = columnName(name)
 		}
 		return res
 	}
@@ -111,20 +112,21 @@ func createTable(catalog map[tableName]*table, stmt *tree.CreateTable) *table {
 	}
 	tab := &table{
 		name:   name,
-		colMap: make(map[string]int),
+		colMap: make(map[columnName]int),
 	}
 	catalog[name] = tab
 
 	for _, def := range stmt.Defs {
 		switch def := def.(type) {
 		case *tree.ColumnTableDef:
-			if _, ok := tab.colMap[string(def.Name)]; ok {
+			colName := columnName(def.Name)
+			if _, ok := tab.colMap[colName]; ok {
 				fatalf("column %s already exists", def.Name)
 			}
 			index := int(len(tab.columns))
-			tab.colMap[string(def.Name)] = index
+			tab.colMap[colName] = index
 			tab.columns = append(tab.columns, column{
-				name:    string(def.Name),
+				name:    colName,
 				notNull: def.PrimaryKey || (def.Nullable.Nullability == tree.NotNull),
 			})
 
@@ -155,7 +157,7 @@ func createTable(catalog map[tableName]*table, stmt *tree.CreateTable) *table {
 				}
 				var refCols []int
 				if def.References.Col != "" {
-					refCols = ref.getColumnIndexes([]string{string(def.References.Col)})
+					refCols = ref.getColumnIndexes([]columnName{columnName(def.References.Col)})
 				} else {
 					for _, key := range ref.keys {
 						if key.primary {
@@ -257,7 +259,7 @@ func (t *table) String() string {
 			if i > 0 {
 				buf.WriteString(",")
 			}
-			buf.WriteString(t.columns[colIdx].name)
+			buf.WriteString(string(t.columns[colIdx].name))
 		}
 		buf.WriteString(")")
 		if fkey := key.fkey; fkey != nil {
@@ -266,7 +268,7 @@ func (t *table) String() string {
 				if i > 0 {
 					buf.WriteString(",")
 				}
-				buf.WriteString(fkey.referenced.columns[colIdx].name)
+				buf.WriteString(string(fkey.referenced.columns[colIdx].name))
 			}
 			buf.WriteString(")")
 		}
@@ -290,7 +292,7 @@ func (t *table) getColumns(columns []int) []column {
 	return res
 }
 
-func (t *table) getColumnIndexes(names []string) []int {
+func (t *table) getColumnIndexes(names []columnName) []int {
 	res := make([]int, len(names))
 	for i, name := range names {
 		index, ok := t.colMap[name]

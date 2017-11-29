@@ -109,7 +109,7 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 			for i := range result.props.columns {
 				col := &result.props.columns[i]
 				if i < len(source.As.Cols) {
-					col.name = string(source.As.Cols[i])
+					col.name = columnName(source.As.Cols[i])
 				}
 				col.table = tableName(source.As.Alias)
 			}
@@ -235,9 +235,9 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 	right := inputs[1].props
 	e.props.columns = make([]columnProps, 0, len(left.columns)+len(right.columns))
 
-	joined := make(map[string]*columnProps, len(names))
+	joined := make(map[columnName]*columnProps, len(names))
 	for _, name := range names {
-		name := string(name)
+		name := columnName(name)
 		// For every adjacent pair of tables, add an equality predicate.
 		leftCol := left.findColumn(name)
 		if leftCol == nil {
@@ -300,7 +300,7 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 
 	case *tree.ColumnItem:
 		tblName := tableName(t.TableName.Table())
-		colName := string(t.ColumnName)
+		colName := columnName(t.ColumnName)
 
 		for s := scope; s != nil; s = s.parent {
 			for _, col := range s.props.columns {
@@ -480,7 +480,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 
 		index := scope.state.nextVar
 		scope.state.nextVar++
-		name := fmt.Sprintf("column%d", len(g.props.columns)+1)
+		name := columnName(fmt.Sprintf("column%d", len(g.props.columns)+1))
 		g.props.columns = append(g.props.columns, columnProps{
 			index: index,
 			name:  name,
@@ -567,13 +567,13 @@ func buildProjections(
 				input.initProps()
 			}
 
-			name := string(sexpr.As)
+			name := columnName(sexpr.As)
 			if p.op != variableOp {
 				passthru = false
 				index := scope.state.nextVar
 				scope.state.nextVar++
 				if name == "" {
-					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
+					name = columnName(fmt.Sprintf("column%d", len(result.props.columns)+1))
 				}
 				p.scalarProps.definedCols.Add(index)
 				result.props.columns = append(result.props.columns, columnProps{
