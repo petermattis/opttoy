@@ -15,20 +15,14 @@ table b
 build
 SELECT * FROM (SELECT * FROM a) AS b
 ----
-rename [out=(0,1)]
+scan [out=(0,1)]
   columns: b.x:0 b.y:1
-  inputs:
-    scan [out=(0,1)]
-      columns: a.x:0 a.y:1
 
 build
 SELECT * FROM (SELECT * FROM a) AS b (e, f)
 ----
-rename [out=(0,1)]
+scan [out=(0,1)]
   columns: b.e:0 b.f:1
-  inputs:
-    scan [out=(0,1)]
-      columns: a.x:0 a.y:1
 
 build
 SELECT d.*, c.* FROM a AS c NATURAL JOIN b AS d
@@ -50,16 +44,10 @@ project [out=(0,1,3)]
             variable (c.x) [in=(0)]
             variable (d.x) [in=(2)]
       inputs:
-        rename [out=(0,1)]
+        scan [out=(0,1)]
           columns: c.x:0 c.y:1
-          inputs:
-            scan [out=(0,1)]
-              columns: a.x:0 a.y:1
-        rename [out=(2,3)]
+        scan [out=(2,3)]
           columns: d.x:2 d.z:3
-          inputs:
-            scan [out=(2,3)]
-              columns: b.x:2 b.z:3
 
 build
 SELECT x AS e FROM a
@@ -82,3 +70,18 @@ project [out=(0)]
   inputs:
     scan [out=(0,1)]
       columns: a.x:0 a.y:1
+
+prep,memo
+SELECT * FROM a AS a1 JOIN b AS b1 ON (a1.x = b1.x)
+----
+11: [inner-join [5 9 10]]
+10: [eq [2 7]]
+9: [select [6 8]]
+8: [IS-NOT [7 3]]
+7: [variable b1.x]
+6: [scan b]
+5: [select [1 4]]
+4: [IS-NOT [2 3]]
+3: [const NULL]
+2: [variable a1.x]
+1: [scan a]

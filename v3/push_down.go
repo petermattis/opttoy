@@ -29,8 +29,6 @@ func pushDownFilters(e *expr) {
 			pushDownFiltersSelectInnerJoin(e)
 		case projectOp:
 			pushDownFiltersSelectProject(e)
-		case renameOp:
-			pushDownFiltersSelectRename(e)
 		case unionOp:
 			pushDownFiltersSelectUnion(e)
 		}
@@ -140,26 +138,6 @@ func pushDownFiltersSelectProject(e *expr) {
 
 	e.replaceFilters(newFilters)
 	projectInput.updateProps()
-	e.updateProps()
-}
-
-func pushDownFiltersSelectRename(e *expr) {
-	filters := e.filters()
-	newFilters := filters[:0]
-	input := e.children[0]
-	renameInput := input.children[0]
-
-	for _, filter := range e.filters() {
-		if filter.scalarInputCols().SubsetOf(renameInput.props.availableOutputCols()) {
-			pushFilter(renameInput, filter)
-			continue
-		}
-
-		newFilters = append(newFilters, filter)
-	}
-
-	e.replaceFilters(newFilters)
-	renameInput.updateProps()
 	e.updateProps()
 }
 

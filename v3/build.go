@@ -106,27 +106,13 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 					n, len(result.props.columns))
 			}
 
-			tab := result.props
-			result = newRenameExpr(result)
-			result.props = &relationalProps{
-				columns: make([]columnProps, 0, len(tab.columns)),
-			}
-
-			for i, col := range tab.columns {
-				name := col.name
+			for i := range result.props.columns {
+				col := &result.props.columns[i]
 				if i < len(source.As.Cols) {
-					name = string(source.As.Cols[i])
+					col.name = string(source.As.Cols[i])
 				}
-
-				result.props.columns = append(result.props.columns, columnProps{
-					name:  name,
-					table: string(source.As.Alias),
-					index: col.index,
-				})
+				col.table = string(source.As.Alias)
 			}
-
-			result.initProps()
-			return result
 		}
 		return result
 
