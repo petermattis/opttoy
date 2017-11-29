@@ -14,17 +14,27 @@ table b
   x NULL
   z NULL
 
+exec
+CREATE TABLE c (x INT PRIMARY KEY, y INT UNIQUE, z INT)
+----
+table c
+  x NOT NULL
+  y NULL
+  z NULL
+  (x) KEY
+  (y) WEAK KEY
+
 prep,memo,search
 SELECT * FROM a
 ----
-1: [scan a] [index-scan a@primary <+0>]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]]
 
 prep,memo,search
 SELECT * FROM a, b
 ----
 3: [inner-join [1 2 -]] [inner-join [2 1 -]]
-2: [scan b] [index-scan b@primary]
-1: [scan a] [index-scan a@primary <+0>]
+2: [scan b] [index-scan b@primary [-]]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]]
 
 prep,memo,search
 SELECT * FROM a WHERE x > 1
@@ -33,7 +43,7 @@ SELECT * FROM a WHERE x > 1
 4: [gt [2 3]]
 3: [const 1]
 2: [variable a.x]
-1: [scan a] [index-scan a@primary <+0>]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]]
 
 prep,memo,search
 SELECT y FROM a WHERE y > 1
@@ -43,7 +53,7 @@ SELECT y FROM a WHERE y > 1
 4: [gt [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index-scan a@primary <+0>] [index-scan a@y_idx <+1>]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]]
 
 prep,memo,search
 SELECT * FROM a WHERE y > 1
@@ -52,5 +62,16 @@ SELECT * FROM a WHERE y > 1
 4: [gt [2 3]]
 3: [const 1]
 2: [variable a.y]
-1: [scan a] [index-scan a@primary <+0>] [index-join <+1> [6]]
-6: [index-scan a@y_idx <+1>]
+1: [scan a] [index-scan a@primary <+0> [-]] [index-scan a@y_idx <+1> [-]]
+
+prep,memo,search
+SELECT * FROM c WHERE y > 1
+----
+5: [select [1 4]]
+4: [gt [2 3]]
+3: [const 1]
+2: [variable c.y]
+1: [scan c] [index-scan c@primary <+0> [-]] [inner-join [6 8 -]] [inner-join [8 6 -]]
+8: [index-scan c@primary <+0> [7]]
+7: [variable c.z]
+6: [index-scan c@y_idx <+1> [-]]

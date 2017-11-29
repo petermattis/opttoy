@@ -108,10 +108,6 @@ Testing
 Transformations
 ---------------
 
-- Scan expressions should be expanded to index-scan and inner-join
-  expressions during exploration so that the inner-join expressions
-  can be candidates for join reordering.
-
 - Distinct/group-by elimination. If the grouping columns are a key
   from the input, we don't need to perform the grouping.
 

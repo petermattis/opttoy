@@ -61,10 +61,24 @@ func (selectToIndexScan) apply(e *expr, results []*expr) []*expr {
 
 			indexScan := newIndexScanExpr(table, key, scan.props)
 			if !scan.props.outputCols.SubsetOf(indexScan.props.outputCols) {
+				primaryScan := newIndexScanExpr(table, table.getPrimaryKey(), scan.props)
+				var projections []*expr
+				for _, col := range scan.props.columns {
+					if indexScan.props.outputCols.Contains(col.index) {
+						continue
+					}
+					projections = append(projections, col.newVariableExpr(""))
+				}
+				primaryScan.addProjections(projections)
+
+				// TODO(peter): need to add a join condition on the columns of the
+				// primary key.
 				indexScan = &expr{
-					op: indexJoinOp,
+					op: innerJoinOp,
 					children: []*expr{
-						indexScan,
+						indexScan,   // left
+						primaryScan, // right
+						nil,         // filter
 					},
 					props: scan.props,
 				}
