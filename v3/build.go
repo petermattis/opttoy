@@ -86,11 +86,11 @@ func build(stmt tree.Statement, scope *scope) *expr {
 func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 	switch source := texpr.(type) {
 	case *tree.NormalizableTableName:
-		tableName, err := source.Normalize()
+		tn, err := source.Normalize()
 		if err != nil {
 			fatalf("%s", err)
 		}
-		name := tableName.Table()
+		name := tableName(tn.Table())
 		tab, ok := scope.state.catalog[name]
 		if !ok {
 			fatalf("unknown table %s", name)
@@ -109,9 +109,9 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 			for i := range result.props.columns {
 				col := &result.props.columns[i]
 				if i < len(source.As.Cols) {
-					col.name = string(source.As.Cols[i])
+					col.name = columnName(source.As.Cols[i])
 				}
-				col.table = string(source.As.Alias)
+				col.table = tableName(source.As.Alias)
 			}
 		}
 		return result
@@ -235,9 +235,9 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 	right := inputs[1].props
 	e.props.columns = make([]columnProps, 0, len(left.columns)+len(right.columns))
 
-	joined := make(map[string]*columnProps, len(names))
+	joined := make(map[columnName]*columnProps, len(names))
 	for _, name := range names {
-		name := string(name)
+		name := columnName(name)
 		// For every adjacent pair of tables, add an equality predicate.
 		leftCol := left.findColumn(name)
 		if leftCol == nil {
@@ -299,13 +299,13 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 		result = newUnaryExpr(unaryOpMap[t.Operator], buildScalar(t.Expr, scope))
 
 	case *tree.ColumnItem:
-		tableName := t.TableName.Table()
-		colName := string(t.ColumnName)
+		tblName := tableName(t.TableName.Table())
+		colName := columnName(t.ColumnName)
 
 		for s := scope; s != nil; s = s.parent {
 			for _, col := range s.props.columns {
-				if col.hasColumn(tableName, colName) {
-					if tableName == "" && col.table != "" {
+				if col.hasColumn(tblName, colName) {
+					if tblName == "" && col.table != "" {
 						t.TableName.TableName = tree.Name(col.table)
 						t.TableName.DBNameOriginallyOmitted = true
 					}
@@ -480,7 +480,7 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 
 		index := scope.state.nextVar
 		scope.state.nextVar++
-		name := fmt.Sprintf("column%d", len(g.props.columns)+1)
+		name := columnName(fmt.Sprintf("column%d", len(g.props.columns)+1))
 		g.props.columns = append(g.props.columns, columnProps{
 			index: index,
 			name:  name,
@@ -514,7 +514,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		return projections
 
 	case *tree.AllColumnsSelector:
-		tableName := t.TableName.Table()
+		tableName := tableName(t.TableName.Table())
 		var projections []*expr
 		for _, col := range scope.props.columns {
 			if !col.hidden && col.table == tableName {
@@ -567,13 +567,13 @@ func buildProjections(
 				input.initProps()
 			}
 
-			name := string(sexpr.As)
+			name := columnName(sexpr.As)
 			if p.op != variableOp {
 				passthru = false
 				index := scope.state.nextVar
 				scope.state.nextVar++
 				if name == "" {
-					name = fmt.Sprintf("column%d", len(result.props.columns)+1)
+					name = columnName(fmt.Sprintf("column%d", len(result.props.columns)+1))
 				}
 				p.scalarProps.definedCols.Add(index)
 				result.props.columns = append(result.props.columns, columnProps{

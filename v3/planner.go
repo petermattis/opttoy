@@ -15,12 +15,12 @@ func fatalf(format string, args ...interface{}) {
 }
 
 type planner struct {
-	catalog map[string]*table
+	catalog map[tableName]*table
 }
 
 func newPlanner() *planner {
 	return &planner{
-		catalog: make(map[string]*table),
+		catalog: make(map[tableName]*table),
 	}
 }
 
@@ -41,7 +41,15 @@ func (p *planner) exec(stmt tree.Statement) string {
 		if tname.PrefixName != "histogram" {
 			unimplemented("%s", stmt)
 		}
-		h := createHistogram(p.catalog, string(tname.DatabaseName), string(tname.TableName), stmt.Rows)
+		// This is a statement of the form
+		//   INSERT INTO histogram.table.column VALUES ...
+		//
+		// The histogram.table.column tokens map to
+		// PrefixName.DatabaseName.TableName. So we get the table name from
+		// DatabaseName and the column name from TableName.
+		h := createHistogram(
+			p.catalog, tableName(tname.DatabaseName), columnName(tname.TableName), stmt.Rows,
+		)
 		return h.String()
 	default:
 		unimplemented("%T", stmt)
@@ -52,7 +60,7 @@ func (p *planner) exec(stmt tree.Statement) string {
 func (p *planner) build(stmt tree.Statement) *expr {
 	state := &queryState{
 		catalog: p.catalog,
-		tables:  make(map[string]bitmapIndex),
+		tables:  make(map[tableName]bitmapIndex),
 	}
 	e := build(stmt, &scope{
 		props: &relationalProps{},

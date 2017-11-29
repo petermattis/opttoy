@@ -7,18 +7,20 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
 
-// queryState holds per-query state such as the tables referenced by the query
-// and the mapping from table name to the column index for those tables columns
-// within the query.
+// queryState holds per-query state
 type queryState struct {
-	catalog map[string]*table
-	tables  map[string]bitmapIndex
+	// map from table name to table
+	catalog map[tableName]*table
+	// map from table name to the column index for the table's columns within the
+	// query (they form a contiguous group starting at this index).
+	tables map[tableName]bitmapIndex
+	// nextVar keeps track of the next index for a column (used during build).
 	nextVar bitmapIndex
 }
 
 type columnProps struct {
-	name   string
-	table  string
+	name   columnName
+	table  tableName
 	index  bitmapIndex
 	hidden bool
 }
@@ -30,19 +32,19 @@ func (c columnProps) String() string {
 	return fmt.Sprintf("%s.%s", tree.Name(c.table), tree.Name(c.name))
 }
 
-func (c columnProps) hasColumn(tableName, colName string) bool {
+func (c columnProps) hasColumn(tblName tableName, colName columnName) bool {
 	if colName != c.name {
 		return false
 	}
-	if tableName == "" {
+	if tblName == "" {
 		return true
 	}
-	return c.table == tableName
+	return c.table == tblName
 }
 
-func (c columnProps) newVariableExpr(tableName string) *expr {
-	if tableName != "" {
-		c.table = tableName
+func (c columnProps) newVariableExpr(table tableName) *expr {
+	if table != "" {
+		c.table = table
 	}
 	return newVariableExpr(c, c.index)
 }
@@ -143,9 +145,9 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		if col.hidden {
 			buf.WriteString("(")
 		}
-		buf.WriteString(col.table)
+		buf.WriteString(string(col.table))
 		buf.WriteString(".")
-		buf.WriteString(col.name)
+		buf.WriteString(string(col.name))
 		buf.WriteString(":")
 		fmt.Fprintf(buf, "%d", col.index)
 		if p.notNullCols.Contains(col.index) {
@@ -175,7 +177,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 	}
 }
 
-func (p *relationalProps) findColumn(name string) *columnProps {
+func (p *relationalProps) findColumn(name columnName) *columnProps {
 	for i := range p.columns {
 		col := &p.columns[i]
 		if col.name == name {

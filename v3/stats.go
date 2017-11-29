@@ -55,8 +55,8 @@ func (h *histogram) String() string {
 // This creates a histogram with rowCount=1000, distinctCount=100, nullCount=10
 // and no buckets.
 func createHistogram(
-	catalog map[string]*table,
-	tableName, colName string,
+	catalog map[tableName]*table,
+	tblName tableName, colName columnName,
 	rows *tree.Select,
 ) *histogram {
 	values, ok := rows.Select.(*tree.ValuesClause)
@@ -64,14 +64,14 @@ func createHistogram(
 		fatalf("unsupported rows: %s", rows)
 	}
 
-	tab, ok := catalog[tableName]
+	tab, ok := catalog[tblName]
 	if !ok {
-		fatalf("unable to find table %s", tableName)
+		fatalf("unable to find table %s", tblName)
 	}
 
 	colIdx, ok := tab.colMap[colName]
 	if !ok {
-		fatalf("unable to find %s.%s", tableName, colName)
+		fatalf("unable to find %s.%s", tblName, colName)
 	}
 
 	col := &tab.columns[colIdx]
