@@ -249,6 +249,58 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 		return
 	}
 
+	if e.physicalProps == 0 {
+		// Physical operators must have physical properties. We can fall into this
+		// code block because select and project are both logical and physical
+		// operators. We need to create "pass through" physical expressions for
+		// these operators.
+
+		switch e.op {
+		case projectOp:
+			// TODO(peter): Note that project is only a "pass through" operator if
+			// the projections do not affect ordering. For example, one of the
+			// projection expressions might be the sort key: SELECT lower(x) FROM a
+			// ORDER BY 1. Check to see that the projections on the ordering column are
+			// monotonic.
+			fallthrough
+		case selectOp:
+			// Lookup the child which provides the required properties.
+			children := e.children(s.memo)
+			if s.memo.groups[children[0]].getOptState(required) != nil {
+				// Add a new expression which is identical to the current expression
+				// except that it provides the required properties. This is a "pass
+				// through" expression.
+				n := &expr{
+					op:  e.op,
+					loc: memoLoc{loc.group, -1},
+					children: []*expr{
+						&expr{loc: memoLoc{children[0], 0}},
+						&expr{loc: memoLoc{children[1], 0}},
+					},
+					physicalProps: required,
+				}
+				s.memo.addExpr(n)
+				s.optimizeGroupTask(g, required, parent)
+			}
+		default:
+			if (e.info().kind() & relationalKind) != 0 {
+				return
+			}
+			// Allow scalar ops to fall through.
+		}
+
+		// Fall through to addition of the enforcer. While the current expression
+		// does not provide the required properties, we can add an enforcer to do
+		// so. An example of a query for which we want to attempt the sort both
+		// below and above an expression is:
+		//
+		//   SELECT * FROM a WHERE y > 1 ORDER BY x
+		//
+		// We might have an index on "x" turning the sorting into a no-op. If we
+		// don't have an index on "x" we'll want to sort after the filtering so
+		// that we have fewer rows to sort.
+	}
+
 	if !s.memo.physicalProps[e.physicalProps].provides(required) {
 		// TODO(peter): The enforcer mechanism here needs to be generalized.
 		//
@@ -269,29 +321,7 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 		}
 		s.memo.addExpr(sort)
 		s.optimizeGroupTask(g, required, parent)
-
-		// TODO(peter): While the expression did not provide the required
-		// properties, the children might have. We need to fall through a check if
-		// the expression + children satisfy the required properties. For now,
-		// we're hardcoding "pass through" expressions. Note that project is only a
-		// "pass through" operator if the projections do not affect ordering. An
-		// example of a query for which we want to attempt the sort both below and
-		// above an expression is:
-		//
-		//   SELECT * FROM a WHERE y > 1 ORDER BY x
-		//
-		// We might have an index on "x" turning the sorting into a no-op. If we
-		// don't have an index on "x" we'll want to sort after the filtering so
-		// that we have fewer rows to sort.
-		//
-		// Note that we might not have been able to satisfy the required properties
-		// via the children. For example, one of the projection expressions might
-		// be the sort key: SELECT lower(x) FROM a ORDER BY 1.
-		switch e.op {
-		case projectOp, selectOp:
-		default:
-			return
-		}
+		return
 	}
 
 	// TODO(peter): This is extremely basic. We need to generalize the
