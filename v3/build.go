@@ -325,6 +325,13 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 	case *tree.NumVal:
 		result = newConstExpr(t)
 
+	case *tree.Placeholder:
+		result = &expr{
+			op:          placeholderOp,
+			scalarProps: &scalarProps{},
+			private:     t,
+		}
+
 	case *tree.FuncExpr:
 		def, err := t.Func.Resolve(tree.SearchPath{})
 		if err != nil {
