@@ -40,6 +40,7 @@ const (
 	// Scalar operators
 	variableOp
 	constOp
+	placeholderOp
 	listOp
 	orderedListOp
 
