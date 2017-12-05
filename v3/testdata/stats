@@ -10,9 +10,11 @@ INSERT INTO histogram.a.x VALUES
   ('rows', 1000),
   ('distinct', 100),
   ('nulls', 10),
-  (4, 5), (2, 3), (6, 7)
+  ('lowerBound', 0),
+  (4, 5, 2), (2, 3, 3), (100, 976, 1)
 ----
-rows:     1000
-distinct: 100
-nulls:    10
-buckets:  2:3 4:5 6:7
+rows:       1000
+distinct:   100
+nulls:      10
+lowerBound: 0
+buckets:  2:3,3 4:5,2 100:976,1
