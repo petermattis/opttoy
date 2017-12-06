@@ -120,8 +120,12 @@ func pushDownFiltersSelectProject(e *expr) {
 
 		// Failed to push the filter as-is, so try to create a new filter using one
 		// of the projection expressions.
-		for _, project := range input.projections() {
-			if filter.scalarInputCols().Equals(project.scalarProps.definedCols) {
+		for i, project := range input.projections() {
+			// The order of the projections maps precisely to the order of the output
+			// columns.
+			col := &input.props.columns[i]
+			inputCols := filter.scalarInputCols()
+			if inputCols.Contains(col.index) {
 				newFilter := substitute(filter, filter.scalarInputCols(), project)
 				if newFilter.scalarInputCols().SubsetOf(projectInput.props.availableOutputCols()) {
 					pushFilter(projectInput, newFilter)
