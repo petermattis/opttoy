@@ -24,10 +24,6 @@ func (selectToIndexScan) pattern() *expr {
 	}
 }
 
-func (selectToIndexScan) check(e *expr) bool {
-	return true
-}
-
 func (selectToIndexScan) apply(e *expr, results []*expr) []*expr {
 	// TODO(peter): Note that this logic is simplistic and incomplete. We really
 	// want to be translating the filters into a set of per-column constraints.

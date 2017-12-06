@@ -18,10 +18,6 @@ func (scanToIndexScan) pattern() *expr {
 	}
 }
 
-func (scanToIndexScan) check(e *expr) bool {
-	return true
-}
-
 func (scanToIndexScan) apply(e *expr, results []*expr) []*expr {
 	table := e.private.(*table)
 	indexScan := newIndexScanExpr(table, table.getPrimaryKey(), e.props)

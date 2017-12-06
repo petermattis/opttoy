@@ -435,9 +435,6 @@ func (s *search) applyTransform(loc memoLoc, xid xformID, parent *searchTask, id
 	var results []*expr
 
 	for cursor := s.memo.bind(loc, pattern); cursor != nil; cursor = s.memo.advance(loc, pattern, cursor) {
-		if !xform.check(cursor) {
-			continue
-		}
 		results = xform.apply(cursor, results)
 	}
 
