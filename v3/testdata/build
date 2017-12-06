@@ -369,14 +369,14 @@ union [out=(0,1)]
   inputs:
     scan [out=(0,1)]
       columns: a.x:0 a.y:1
-    project [out=(0,1)]
-      columns: a.y:1 a.x:0
+    project [out=(2,3)]
+      columns: a.y:3 a.x:2
       projections:
-        variable (a.y) [in=(1)]
-        variable (a.x) [in=(0)]
+        variable (a.y) [in=(3)]
+        variable (a.x) [in=(2)]
       inputs:
-        scan [out=(0,1)]
-          columns: a.x:0 a.y:1
+        scan [out=(2,3)]
+          columns: a.x:2 a.y:3
 
 build
 SELECT b.x FROM a NATURAL JOIN b NATURAL JOIN c
