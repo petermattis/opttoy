@@ -199,3 +199,36 @@ inner-join [out=(0-5)]
       inputs:
         scan [out=(4,5)]
           columns: c.x:4 c.w:5
+
+prep
+SELECT * FROM a AS l JOIN a AS r ON (l.x = r.y)
+----
+inner-join [out=(0-3)]
+  columns: l.x:0* l.y:1 r.x:2 r.y:3*
+  equiv: (0,3)
+  filters:
+    eq [in=(0,3)]
+      inputs:
+        variable (l.x) [in=(0)]
+        variable (r.y) [in=(3)]
+  inputs:
+    select [out=(0,1)]
+      columns: l.x:0* l.y:1
+      filters:
+        IS-NOT [in=(0)]
+          inputs:
+            variable (l.x) [in=(0)]
+            const (NULL)
+      inputs:
+        scan [out=(0,1)]
+          columns: l.x:0 l.y:1
+    select [out=(2,3)]
+      columns: r.x:2 r.y:3*
+      filters:
+        IS-NOT [in=(3)]
+          inputs:
+            variable (r.y) [in=(3)]
+            const (NULL)
+      inputs:
+        scan [out=(2,3)]
+          columns: r.x:2 r.y:3

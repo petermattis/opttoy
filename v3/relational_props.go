@@ -13,6 +13,10 @@ type queryState struct {
 	catalog map[tableName]*table
 	// map from table name to the column index for the table's columns within the
 	// query (they form a contiguous group starting at this index).
+	//
+	// TODO(peter): This is used to lookup tables for foreign keys, but such
+	// lookups need to be scoped. Or the handling of foreign keys needs to be
+	// rethought.
 	tables map[tableName]bitmapIndex
 	// nextVar keeps track of the next index for a column (used during build).
 	nextVar bitmapIndex

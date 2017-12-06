@@ -158,12 +158,23 @@ func buildScan(tab *table, scope *scope) *expr {
 	}
 	props := result.props
 
+	// Every reference to a table in the query gets a new set of output column
+	// indexes. Consider the query:
+	//
+	//   SELECT * FROM a AS l JOIN a AS r ON (l.x = r.y)
+	//
+	// In this query, `l.x` is not equivalent to `r.x` and `l.y` is not
+	// equivalent to `r.y`. In order to achieve this, we need to give these
+	// columns different indexes.
 	state := scope.state
-	base, ok := state.tables[tab.name]
-	if !ok {
-		base = state.nextVar
+	base := state.nextVar
+	state.nextVar += bitmapIndex(len(tab.columns))
+
+	// TODO(peter): queryState.tables is used for looking up foreign key
+	// references. Currently, this lookup is global, but it likely needs to be
+	// scoped.
+	if _, ok := state.tables[tab.name]; !ok {
 		state.tables[tab.name] = base
-		state.nextVar += bitmapIndex(len(tab.columns))
 	}
 
 	for i, col := range tab.columns {
