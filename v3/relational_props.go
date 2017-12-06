@@ -136,14 +136,14 @@ func (p *relationalProps) init() {
 }
 
 func (p *relationalProps) String() string {
-	var buf bytes.Buffer
-	p.format(&buf, 0)
-	return buf.String()
+	tp := makeTreePrinter()
+	p.format(&tp)
+	return tp.String()
 }
 
-func (p *relationalProps) format(buf *bytes.Buffer, level int) {
-	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%scolumns:", indent)
+func (p *relationalProps) format(tp *treePrinter) {
+	var buf bytes.Buffer
+	buf.WriteString("columns:")
 	for _, col := range p.columns {
 		buf.WriteString(" ")
 		if col.hidden {
@@ -153,7 +153,7 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 		buf.WriteString(".")
 		buf.WriteString(string(col.name))
 		buf.WriteString(":")
-		fmt.Fprintf(buf, "%d", col.index)
+		fmt.Fprintf(&buf, "%d", col.index)
 		if p.notNullCols.Contains(col.index) {
 			buf.WriteString("*")
 		}
@@ -161,23 +161,24 @@ func (p *relationalProps) format(buf *bytes.Buffer, level int) {
 			buf.WriteString(")")
 		}
 	}
-	buf.WriteString("\n")
+	tp.Add(buf.String())
 	for _, key := range p.weakKeys {
 		var prefix string
 		if !key.SubsetOf(p.notNullCols) {
 			prefix = "weak "
 		}
-		fmt.Fprintf(buf, "%s%skey: %s\n", indent, prefix, key)
+		tp.Addf("%skey: %s", prefix, key)
 	}
 	for _, fkey := range p.foreignKeys {
-		fmt.Fprintf(buf, "%sforeign key: %s -> %s\n", indent, fkey.src, fkey.dest)
+		tp.Addf("foreign key: %s -> %s", fkey.src, fkey.dest)
 	}
 	if len(p.equivCols) > 0 {
-		fmt.Fprintf(buf, "%sequiv:", indent)
+		var buf bytes.Buffer
+		buf.WriteString("equiv:")
 		for _, equiv := range p.equivCols {
-			fmt.Fprintf(buf, " %s", equiv)
+			fmt.Fprintf(&buf, " %s", equiv)
 		}
-		buf.WriteString("\n")
+		tp.Add(buf.String())
 	}
 }
 

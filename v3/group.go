@@ -1,9 +1,5 @@
 package v3
 
-import (
-	"bytes"
-)
-
 func init() {
 	registerOperator(groupByOp, "group-by", groupBy{})
 }
@@ -28,11 +24,13 @@ func (groupBy) layout() exprLayout {
 	}
 }
 
-func (groupBy) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "groupings", e.groupings(), level)
-	formatExprs(buf, "aggregations", e.aggregations(), level)
-	formatExprs(buf, "inputs", e.inputs(), level)
+func (groupBy) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	tp.Enter()
+	formatExprs(tp, "groupings", e.groupings())
+	formatExprs(tp, "aggregations", e.aggregations())
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (groupBy) initKeys(e *expr, state *queryState) {

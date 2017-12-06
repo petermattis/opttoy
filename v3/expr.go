@@ -91,9 +91,9 @@ type exprLayout struct {
 }
 
 func (e *expr) String() string {
-	var buf bytes.Buffer
-	e.format(&buf, 0)
-	return buf.String()
+	tp := makeTreePrinter()
+	e.format(&tp)
+	return tp.String()
 }
 
 func (e *expr) MemoString() string {
@@ -112,34 +112,38 @@ func (e *expr) MemoString() string {
 	return buf.String()
 }
 
-func (e *expr) format(buf *bytes.Buffer, level int) {
-	e.info().format(e, buf, level)
+func (e *expr) format(tp *treePrinter) {
+	e.info().format(e, tp)
 }
 
-func formatRelational(e *expr, buf *bytes.Buffer, level int) {
-	fmt.Fprintf(buf, "%s%v", spaces[:2*level], e.op)
+func formatRelational(e *expr, tp *treePrinter) {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%v", e.op)
 	if !e.props.outputCols.Empty() {
-		fmt.Fprintf(buf, " [out=%s]", e.props.outputCols)
+		fmt.Fprintf(&buf, " [out=%s]", e.props.outputCols)
 	}
 	if !e.props.outerCols.Empty() {
-		fmt.Fprintf(buf, " [outer=%s]", e.props.outerCols)
+		fmt.Fprintf(&buf, " [outer=%s]", e.props.outerCols)
 	}
-	buf.WriteString("\n")
-	e.props.format(buf, level+1)
+	tp.Add(buf.String())
+	tp.Enter()
+	e.props.format(tp)
 	if e.physicalProps != nil {
-		e.physicalProps.format(buf, level+1)
+		e.physicalProps.format(tp)
 	}
+	tp.Exit()
 }
 
-func formatExprs(buf *bytes.Buffer, title string, exprs []*expr, level int) {
+func formatExprs(tp *treePrinter, title string, exprs []*expr) {
 	if len(exprs) > 0 {
-		indent := spaces[:2*level]
-		fmt.Fprintf(buf, "%s  %s:\n", indent, title)
+		tp.Add(title)
+		tp.Enter()
 		for _, e := range exprs {
 			if e != nil {
-				e.format(buf, level+2)
+				e.format(tp)
 			}
 		}
+		tp.Exit()
 	}
 }
 

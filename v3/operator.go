@@ -1,7 +1,6 @@
 package v3
 
 import (
-	"bytes"
 	"fmt"
 )
 
@@ -115,7 +114,7 @@ const (
 
 type operatorInfo interface {
 	kind() operatorKind
-	format(e *expr, buf *bytes.Buffer, level int)
+	format(e *expr, tp *treePrinter)
 
 	// The layout of auxiliary expressions.
 	layout() exprLayout

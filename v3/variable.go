@@ -1,10 +1,5 @@
 package v3
 
-import (
-	"bytes"
-	"fmt"
-)
-
 func init() {
 	registerOperator(variableOp, "variable", variable{})
 }
@@ -31,11 +26,8 @@ func (variable) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (variable) format(e *expr, buf *bytes.Buffer, level int) {
-	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%s%v (%s) [in=%s]",
-		indent, e.op, e.private, e.scalarProps.inputCols)
-	buf.WriteString("\n")
+func (variable) format(e *expr, tp *treePrinter) {
+	tp.Addf("%v (%s) [in=%s]", e.op, e.private, e.scalarProps.inputCols)
 }
 
 func (variable) initKeys(e *expr, state *queryState) {
