@@ -582,7 +582,6 @@ func buildProjections(
 				if name == "" {
 					name = columnName(fmt.Sprintf("column%d", len(result.props.columns)+1))
 				}
-				p.scalarProps.definedCols.Add(index)
 				result.props.columns = append(result.props.columns, columnProps{
 					index: index,
 					name:  name,
