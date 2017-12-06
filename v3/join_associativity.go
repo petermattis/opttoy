@@ -30,10 +30,6 @@ func (joinAssociativity) pattern() *expr {
 	}
 }
 
-func (joinAssociativity) check(e *expr) bool {
-	return true
-}
-
 // (RS)T -> (RT)S
 func (joinAssociativity) apply(e *expr, results []*expr) []*expr {
 	left := e.children[0]

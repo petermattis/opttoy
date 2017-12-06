@@ -26,9 +26,7 @@ const (
 //
 // Transformations specify a pattern expression which is used to extract
 // expressions from the memo to transform. The root of a pattern expression
-// must be a concrete operator (i.e. it can't be patternOp or nil). A check()
-// method can provide additional checking for whether the transformation can be
-// applied to a specific expression.
+// must be a concrete operator (i.e. it can't be patternOp or nil).
 type xform interface {
 	// The ID of the transform.
 	id() xformID
@@ -43,9 +41,6 @@ type xform interface {
 	// memo. Check and apply will only be called for expressions that match the
 	// pattern.
 	pattern() *expr
-
-	// Check whether the transform can be applied to an expression.
-	check(e *expr) bool
 
 	// Apply the transform to an expression, producing zero or more new
 	// expressions. The output expressions are appended to the results slice and
@@ -104,7 +99,7 @@ func xformApplyAll(xform xform, e *expr) {
 }
 
 func xformApplyAllInternal(xform xform, pattern, e *expr) {
-	if patternMatch(pattern, e) && xform.check(e) {
+	if patternMatch(pattern, e) {
 		results := xform.apply(e, nil)
 		if len(results) > 0 {
 			*e = *results[0]

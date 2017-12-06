@@ -23,10 +23,6 @@ func (joinCommutativity) pattern() *expr {
 	}
 }
 
-func (joinCommutativity) check(e *expr) bool {
-	return true
-}
-
 // RS -> SR
 func (joinCommutativity) apply(e *expr, results []*expr) []*expr {
 	t := newJoinExpr(e.op, e.children[1], e.children[0])

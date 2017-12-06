@@ -23,10 +23,6 @@ func (joinElimination) pattern() *expr {
 	}
 }
 
-func (joinElimination) check(e *expr) bool {
-	return true
-}
-
 func (joinElimination) apply(e *expr, results []*expr) []*expr {
 	// Try to eliminate the right side of the join. Because inner join is
 	// symmetric, we can use the same code to try and eliminate the left side

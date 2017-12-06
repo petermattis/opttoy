@@ -51,7 +51,7 @@ func inferFilters(e *expr) {
 }
 
 func inferEquivFilters(e *expr) {
-	// For each equivalent column set, look for filters which use on one of the
+	// For each equivalent column set, look for filters which use one of the
 	// equivalent columns. If such a filter, is found, create additional filters
 	// via substitution.
 	var inferredFilters []*expr
