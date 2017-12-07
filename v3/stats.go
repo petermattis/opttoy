@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
+	"github.com/gogo/protobuf/sortkeys"
 )
 
 type bucket struct {
@@ -22,6 +23,23 @@ type bucket struct {
 	upperBound tree.Datum
 }
 
+// A histogram struct stores statistics for a table column, as well as
+// buckets representing the distribution of non-NULL values.
+//
+// The statistics calculated on the base table will be 100% accurate
+// at the time of collection (except for distinctCount, which is an estimate).
+// Statistics become stale quickly, however, if the table is updated
+// frequently.  This struct does not currently include any estimate of
+// the error due to staleness.
+//
+// For histograms representing intermediate states in the query tree,
+// there is an additional source of error due to lack of information
+// about the distribution of values within each histogram bucket at
+// the base of the query tree. For example, when a bucket is split,
+// we calculate the size of the new buckets by assuming that values are
+// uniformly distributed across the original bucket.  The histogram struct does
+// not currently include any estimate of the error due to data distribution
+// within buckets.
 type histogram struct {
 	// The total number of rows in the table.
 	rowCount int64
@@ -41,8 +59,15 @@ func (h *histogram) String() string {
 	fmt.Fprintf(&buf, "rows:       %d\n", h.rowCount)
 	fmt.Fprintf(&buf, "distinct:   %d\n", h.distinctCount)
 	fmt.Fprintf(&buf, "nulls:      %d\n", h.nullCount)
-	fmt.Fprintf(&buf, "lowerBound: %s\n", h.lowerBound)
+	if h.lowerBound == nil {
+		fmt.Fprintf(&buf, "lowerBound: nil\n")
+	} else {
+		fmt.Fprintf(&buf, "lowerBound: %s\n", h.lowerBound)
+	}
 	fmt.Fprintf(&buf, "buckets:   ")
+	if len(h.buckets) == 0 {
+		fmt.Fprintf(&buf, " none")
+	}
 	for _, b := range h.buckets {
 		fmt.Fprintf(&buf, " %s:%d,%d", b.upperBound, b.numRange, b.numEq)
 	}
@@ -186,20 +211,86 @@ func filterHistogram(catalog map[tableName]*table, stmt *tree.Select) *histogram
 		unimplemented("%s", stmt)
 	}
 	op := comparisonOpMap[expr.Operator]
-	val, err := expr.Right.(*tree.NumVal).AsInt64()
-	if err != nil {
-		unimplemented("%s", stmt)
+	var val int64
+	var vals []int64
+	switch v := expr.Right.(type) {
+	case *tree.NumVal:
+		val, err = v.AsInt64()
+		if err != nil {
+			fatalf("unable to cast datum to int64: %v", err)
+		}
+		vals = []int64{val}
+	case *tree.Tuple:
+		for _, elem := range v.Exprs {
+			numVal, ok := elem.(*tree.NumVal)
+			if !ok {
+				unimplemented("%s", stmt)
+			}
+			val, err = numVal.AsInt64()
+			if err != nil {
+				fatalf("unable to cast datum to int64: %v", err)
+			}
+			vals = append(vals, val)
+		}
+	default:
+		unimplemented("%T", v)
 	}
+
 	switch op {
-	case leOp, ltOp:
+	case ltOp, leOp:
 		return hist.filterHistogramLtOpLeOp(op, val)
-	case geOp, gtOp:
+	case gtOp, geOp:
 		return hist.filterHistogramGtOpGeOp(op, val)
+	case eqOp, inOp:
+		return hist.filterHistogramEqOpInOp(vals)
+	case neOp, notInOp:
+		return hist.filterHistogramNeOpNotInOp(vals)
 	default:
 		unimplemented("%s", stmt)
 	}
 
 	return nil
+}
+
+func makeDatum(val int64) tree.Datum {
+	v := &tree.NumVal{Value: constant.MakeInt64(val)}
+	datum, err := v.ResolveAsType(nil, types.Int)
+	if err != nil {
+		fatalf("could not create Datum: %s: %v", v, err)
+	}
+
+	return datum
+}
+
+func newBucket(upperBound, numRange, numEq int64) bucket {
+	return bucket{
+		numEq:      numEq,
+		numRange:   numRange,
+		upperBound: makeDatum(upperBound),
+	}
+}
+
+func (b bucket) splitBucket(splitPoint, lowerBound, upperBound int64) (bucket, bucket) {
+	// The bucket size calculation has a -1 because numRange does not
+	// include values equal to upperBound.
+	bucketSize := upperBound - lowerBound - 1
+	if bucketSize <= 0 {
+		panic("empty bucket should have been skipped")
+	}
+
+	// Split the bucket into two buckets. The lower bucket contains the values
+	// below splitPoint, and the upper bucket contains the values above splitPoint.
+	// The count of values in numRange is split between the two buckets assuming a
+	// uniform distribution.
+	lowerMatchSize := splitPoint - lowerBound - 1
+	lowerNumRange := (int64)(float64(b.numRange) * float64(lowerMatchSize) / float64(bucketSize))
+	bucLower := newBucket(splitPoint, lowerNumRange, 0 /* numEq */)
+
+	upperMatchSize := upperBound - splitPoint - 1
+	bucUpper := b
+	bucUpper.numRange = (int64)(float64(b.numRange) * float64(upperMatchSize) / float64(bucketSize))
+
+	return bucLower, bucUpper
 }
 
 // newHistogram creates a new histogram given new buckets and a new lower bound,
@@ -210,14 +301,25 @@ func (h *histogram) newHistogram(newBuckets []bucket, lowerBound tree.Datum) *hi
 		total += b.numEq + b.numRange
 	}
 
-	selectivity := float64(total) / float64(h.rowCount)
-	return &histogram{
-		rowCount: total,
+	if total == 0 {
+		return &histogram{}
+	}
 
-		// Estimate the new distinctCount based on the selectivity of this filter.
-		// todo(rytaft): this could be more precise if we take into account the
-		// null count of the original histogram.
-		distinctCount: int64(float64(h.distinctCount) * selectivity),
+	selectivity := float64(total) / float64(h.rowCount)
+
+	// Estimate the new distinctCount based on the selectivity of this filter.
+	// todo(rytaft): this could be more precise if we take into account the
+	// null count of the original histogram. This could also be more precise for
+	// the operators =, !=, in, and not in, since we know how these operators
+	// should affect the distinct count.
+	distinctCount := int64(float64(h.distinctCount) * selectivity)
+	if distinctCount == 0 {
+		// There must be at least one distinct value since rowCount > 0.
+		distinctCount++
+	}
+	return &histogram{
+		rowCount:      total,
+		distinctCount: distinctCount,
 
 		// All the returned rows will be non-null for this column.
 		nullCount:  0,
@@ -244,36 +346,12 @@ func (h *histogram) filterHistogramLtOpLeOp(op operator, val int64) *histogram {
 		}
 		upperBound := (int64)(*b.upperBound.(*tree.DInt))
 		if val < upperBound {
-			// The bucket size calculation has a -1 because numRange does not
-			// include values equal to upperBound.
-			bucketSize := upperBound - lowerBound - 1
-			if bucketSize > 0 {
-				var bucketMatchSize int64
-				var newUpperBound int64
-				if op == leOp {
-					// The matching values include val for leOp.
-					bucketMatchSize = val - lowerBound
-					newUpperBound = val + 1
-				} else { /* op == ltOp */
-					// The matching values do not include val for ltOp.
-					bucketMatchSize = val - lowerBound - 1
-					newUpperBound = val
-				}
-
-				// Create the new bucket.
-				buc := bucket{
-					numEq: 0,
-					// Assuming a uniform distribution.
-					numRange: (int64)(float64(b.numRange) * float64(bucketMatchSize) / float64(bucketSize)),
-				}
-				v := &tree.NumVal{Value: constant.MakeInt64(newUpperBound)}
-				var err error
-				buc.upperBound, err = v.ResolveAsType(nil, types.Int)
-				if err != nil {
-					fatalf("malformed histogram bucket: %s: %v", v, err)
-				}
-				newBuckets = append(newBuckets, buc)
+			splitPoint := val
+			if op == leOp {
+				splitPoint += 1
 			}
+			buc, _ := b.splitBucket(splitPoint, lowerBound, upperBound)
+			newBuckets = append(newBuckets, buc)
 			break
 		}
 		if val == upperBound {
@@ -325,25 +403,11 @@ func (h *histogram) filterHistogramGtOpGeOp(op operator, val int64) *histogram {
 			lowerBound = (int64)(*h.buckets[i-1].upperBound.(*tree.DInt))
 		}
 		if val > lowerBound {
-			// The bucket size calculation has a -1 because numRange does not
-			// include values equal to upperBound.
-			bucketSize := upperBound - lowerBound - 1
-			numRange := int64(0)
-			if bucketSize > 0 {
-				var bucketMatchSize int64
-				if op == geOp {
-					// The matching values include val for geOp.
-					bucketMatchSize = upperBound - val
-				} else { /* op == gtOp */
-					// The matching values do not include val for gtOp.
-					bucketMatchSize = upperBound - val - 1
-				}
-
-				// Assuming a uniform distribution.
-				numRange = (int64)(float64(b.numRange) * float64(bucketMatchSize) / float64(bucketSize))
+			splitPoint := val
+			if op == geOp {
+				splitPoint -= 1
 			}
-			buc := b
-			buc.numRange = numRange
+			_, buc := b.splitBucket(splitPoint, lowerBound, upperBound)
 			newBuckets = append(newBuckets, buc)
 			break
 		}
@@ -357,16 +421,107 @@ func (h *histogram) filterHistogramGtOpGeOp(op operator, val int64) *histogram {
 	}
 
 	// Find the new lower bound of the histogram.
-	var newLowerBound int64
+	newLowerBound := val
 	if op == geOp {
-		newLowerBound = val - 1
-	} else { /* op == gtOp */
-		newLowerBound = val
+		newLowerBound -= 1
 	}
-	v := &tree.NumVal{Value: constant.MakeInt64(newLowerBound)}
-	lb, err := v.ResolveAsType(nil, types.Int)
-	if err != nil {
-		fatalf("could not create lower bound Datum: %s: %v", v, err)
-	}
+	lb := makeDatum(newLowerBound)
 	return h.newHistogram(newBuckets, lb)
+}
+
+// filterHistogramEqOpInOp applies a filter to the histogram that compares
+// the histogram column value to a constant value or set of values with an
+// eqOp (e.g., x == 4) or an inOp (e.g., x in (4, 5, 6)).
+// Returns an updated histogram including only the values that satisfy the predicate.
+func (h *histogram) filterHistogramEqOpInOp(vals []int64) *histogram {
+	if len(vals) == 0 {
+		return &histogram{}
+	}
+
+	// NB: The following logic only works for integer valued columns. This will need to
+	// be altered for floating point columns and other types.
+	sortkeys.Int64s(vals)
+	valIdx := 0
+	lowerBound := (int64)(*h.lowerBound.(*tree.DInt))
+	var newBuckets []bucket
+	for _, b := range h.buckets {
+		if valIdx >= len(vals) {
+			break
+		}
+
+		for valIdx < len(vals) && vals[valIdx] <= lowerBound {
+			valIdx++
+		}
+
+		upperBound := (int64)(*b.upperBound.(*tree.DInt))
+		bucketSize := upperBound - lowerBound - 1
+		for valIdx < len(vals) && vals[valIdx] < upperBound && bucketSize > 0 {
+			// Assuming a uniform distribution.
+			numEq := (int64)(float64(b.numRange) / float64(bucketSize))
+			buc := newBucket(vals[valIdx], 0 /* numRange */, numEq)
+			newBuckets = append(newBuckets, buc)
+			valIdx++
+		}
+
+		for valIdx < len(vals) && vals[valIdx] == upperBound {
+			buc := b
+			buc.numRange = 0
+			newBuckets = append(newBuckets, buc)
+			valIdx++
+		}
+
+		lowerBound = upperBound
+	}
+
+	// Find the new lower bound of the histogram.
+	newLowerBound := (int64)(*h.lowerBound.(*tree.DInt))
+	if newLowerBound < vals[0] - 1 {
+		newLowerBound = vals[0] - 1
+	}
+	lb := makeDatum(newLowerBound)
+	return h.newHistogram(newBuckets, lb)
+}
+
+// filterHistogramNeOpNotInOp applies a filter to the histogram that compares
+// the histogram column value to a constant value or set of values with a
+// neOp (e.g., x != 4) or notInOp (e.g., x not in (4, 5, 6)).
+// Returns an updated histogram including only the values that satisfy the predicate.
+func (h *histogram) filterHistogramNeOpNotInOp(vals []int64) *histogram {
+	if len(vals) == 0 {
+		return h
+	}
+
+	// NB: The following logic only works for integer valued columns. This will need to
+	// be altered for floating point columns and other types.
+	sortkeys.Int64s(vals)
+	valIdx := 0
+	lowerBound := (int64)(*h.lowerBound.(*tree.DInt))
+	var newBuckets []bucket
+	for _, b := range h.buckets {
+		for valIdx < len(vals) && vals[valIdx] <= lowerBound {
+			valIdx++
+		}
+
+		buc := b
+		upperBound := (int64)(*b.upperBound.(*tree.DInt))
+		for valIdx < len(vals) && vals[valIdx] > lowerBound && vals[valIdx] < upperBound {
+			var bucLower bucket
+			// Upper bucket will either be split again or added once this inner
+			// loop terminates.
+			bucLower, buc = buc.splitBucket(vals[valIdx], lowerBound, upperBound)
+			newBuckets = append(newBuckets, bucLower)
+			lowerBound = vals[valIdx]
+			valIdx++
+		}
+
+		for valIdx < len(vals) && vals[valIdx] == upperBound {
+			buc.numEq = 0
+			valIdx++
+		}
+
+		newBuckets = append(newBuckets, buc)
+		lowerBound = upperBound
+	}
+
+	return h.newHistogram(newBuckets, h.lowerBound)
 }
