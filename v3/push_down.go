@@ -33,6 +33,14 @@ func pushDownFilters(e *expr) {
 			pushDownFiltersSelectUnion(e)
 		}
 
+		// We possibly pushed a filter down below the select input. Update the
+		// output columns for the input.
+		requiredInputCols := e.requiredInputCols().Union(e.props.outputCols)
+		for _, input := range e.inputs() {
+			input.props.outputCols = requiredInputCols.Intersection(input.props.availableOutputCols())
+		}
+		e.updateProps()
+
 		// Elide the select expression if there are no more filters.
 		if len(e.filters()) == 0 {
 			*e = *e.children[0]
@@ -61,6 +69,7 @@ func pushFilter(e, filter *expr) {
 			},
 		}
 		copy(e.props.columns, t.props.columns)
+		e.props.outputCols = t.props.outputCols.Copy()
 	}
 	e.addFilter(filter)
 }
@@ -124,8 +133,7 @@ func pushDownFiltersSelectProject(e *expr) {
 			// The order of the projections maps precisely to the order of the output
 			// columns.
 			col := &input.props.columns[i]
-			inputCols := filter.scalarInputCols()
-			if inputCols.Contains(col.index) {
+			if filter.scalarInputCols().Contains(col.index) {
 				newFilter := substitute(filter, filter.scalarInputCols(), project)
 				if newFilter.scalarInputCols().SubsetOf(projectInput.props.availableOutputCols()) {
 					pushFilter(projectInput, newFilter)

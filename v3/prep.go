@@ -10,8 +10,6 @@ func prep(e *expr) *physicalProps {
 	normalize(e)
 	inferFilters(e)
 	pushDownFilters(e)
-	// TODO(peter): pushing down filters adjusts the output columns.
-	trimOutputCols(e, e.props.outputCols)
 	xformApplyAll(joinElimination{}, e)
 	return required
 }
