@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	registerOperator(indexScanOp, "index-scan", indexScan{})
+	registerOperator(indexScanOp, "index-scan", indexScanClass{})
 }
 
 func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *expr {
@@ -51,13 +51,15 @@ func newIndexScanExpr(table *table, key *tableKey, scanProps *relationalProps) *
 	return indexScan
 }
 
-type indexScan struct{}
+type indexScanClass struct{}
 
-func (indexScan) kind() operatorKind {
+var _ operatorClass = indexScanClass{}
+
+func (indexScanClass) kind() operatorKind {
 	return physicalKind | relationalKind
 }
 
-func (indexScan) layout() exprLayout {
+func (indexScanClass) layout() exprLayout {
 	return exprLayout{
 		numAux:       1,
 		aggregations: -1,
@@ -67,18 +69,18 @@ func (indexScan) layout() exprLayout {
 	}
 }
 
-func (indexScan) format(e *expr, tp *treePrinter) {
+func (indexScanClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	formatExprs(tp, "projections", e.projections())
 }
 
-func (indexScan) initKeys(e *expr, state *queryState) {
+func (indexScanClass) initKeys(e *expr, state *queryState) {
 }
 
-func (indexScan) updateProps(e *expr) {
+func (indexScanClass) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
 }
 
-func (indexScan) requiredProps(required *physicalProps, child int) *physicalProps {
+func (indexScanClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }

@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(projectOp, "project", project{})
+	registerOperator(projectOp, "project", projectClass{})
 }
 
 func newProjectExpr(input *expr) *expr {
@@ -11,20 +11,22 @@ func newProjectExpr(input *expr) *expr {
 	}
 }
 
-type project struct{}
+type projectClass struct{}
 
-func (project) kind() operatorKind {
+var _ operatorClass = projectClass{}
+
+func (projectClass) kind() operatorKind {
 	// Project is both a logical and a physical operator.
 	return logicalKind | physicalKind | relationalKind
 }
 
-func (project) layout() exprLayout {
+func (projectClass) layout() exprLayout {
 	return exprLayout{
 		projections: 1,
 	}
 }
 
-func (project) format(e *expr, tp *treePrinter) {
+func (projectClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "projections", e.projections())
@@ -32,10 +34,10 @@ func (project) format(e *expr, tp *treePrinter) {
 	tp.Exit()
 }
 
-func (project) initKeys(e *expr, state *queryState) {
+func (projectClass) initKeys(e *expr, state *queryState) {
 }
 
-func (project) updateProps(e *expr) {
+func (projectClass) updateProps(e *expr) {
 	excluded := e.props.outputCols.Union(e.providedInputCols())
 	e.props.outerCols = e.requiredInputCols().Difference(excluded)
 	for _, input := range e.inputs() {
@@ -45,7 +47,7 @@ func (project) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
-func (project) requiredProps(required *physicalProps, child int) *physicalProps {
+func (projectClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	if child == 0 {
 		return required // pass through
 	}

@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(scanOp, "scan", scan{})
+	registerOperator(scanOp, "scan", scanClass{})
 }
 
 func newScanExpr(tab *table) *expr {
@@ -11,21 +11,23 @@ func newScanExpr(tab *table) *expr {
 	}
 }
 
-type scan struct{}
+type scanClass struct{}
 
-func (scan) kind() operatorKind {
+var _ operatorClass = scanClass{}
+
+func (scanClass) kind() operatorKind {
 	return logicalKind | relationalKind
 }
 
-func (scan) layout() exprLayout {
+func (scanClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scan) format(e *expr, tp *treePrinter) {
+func (scanClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 }
 
-func (scan) initKeys(e *expr, state *queryState) {
+func (scanClass) initKeys(e *expr, state *queryState) {
 	tab := e.private.(*table)
 	props := e.props
 	props.foreignKeys = nil
@@ -55,10 +57,10 @@ func (scan) initKeys(e *expr, state *queryState) {
 	}
 }
 
-func (scan) updateProps(e *expr) {
+func (scanClass) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
 }
 
-func (scan) requiredProps(required *physicalProps, child int) *physicalProps {
+func (scanClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }

@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(selectOp, "select", sel{})
+	registerOperator(selectOp, "select", selectClass{})
 }
 
 func newSelectExpr(input *expr) *expr {
@@ -11,20 +11,22 @@ func newSelectExpr(input *expr) *expr {
 	}
 }
 
-type sel struct{}
+type selectClass struct{}
 
-func (sel) kind() operatorKind {
+var _ operatorClass = selectClass{}
+
+func (selectClass) kind() operatorKind {
 	// Select is both a logical and a physical operator.
 	return logicalKind | physicalKind | relationalKind
 }
 
-func (sel) layout() exprLayout {
+func (selectClass) layout() exprLayout {
 	return exprLayout{
 		filters: 1,
 	}
 }
 
-func (sel) format(e *expr, tp *treePrinter) {
+func (selectClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "filters", e.filters())
@@ -32,10 +34,10 @@ func (sel) format(e *expr, tp *treePrinter) {
 	tp.Exit()
 }
 
-func (sel) initKeys(e *expr, state *queryState) {
+func (selectClass) initKeys(e *expr, state *queryState) {
 }
 
-func (sel) updateProps(e *expr) {
+func (selectClass) updateProps(e *expr) {
 	// Select is pass through and requires any input columns that its inputs
 	// require.
 	excluded := e.props.outputCols.Union(e.providedInputCols())
@@ -52,7 +54,7 @@ func (sel) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
-func (sel) requiredProps(required *physicalProps, child int) *physicalProps {
+func (selectClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	if child == 0 {
 		return required // pass through
 	}

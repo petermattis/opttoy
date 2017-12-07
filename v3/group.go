@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(groupByOp, "group-by", groupBy{})
+	registerOperator(groupByOp, "group-by", groupByClass{})
 }
 
 func newGroupByExpr(input *expr) *expr {
@@ -11,20 +11,22 @@ func newGroupByExpr(input *expr) *expr {
 	}
 }
 
-type groupBy struct{}
+type groupByClass struct{}
 
-func (groupBy) kind() operatorKind {
+var _ operatorClass = groupByClass{}
+
+func (groupByClass) kind() operatorKind {
 	return logicalKind | relationalKind
 }
 
-func (groupBy) layout() exprLayout {
+func (groupByClass) layout() exprLayout {
 	return exprLayout{
 		groupings:    1,
 		aggregations: 2,
 	}
 }
 
-func (groupBy) format(e *expr, tp *treePrinter) {
+func (groupByClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "groupings", e.groupings())
@@ -33,10 +35,10 @@ func (groupBy) format(e *expr, tp *treePrinter) {
 	tp.Exit()
 }
 
-func (groupBy) initKeys(e *expr, state *queryState) {
+func (groupByClass) initKeys(e *expr, state *queryState) {
 }
 
-func (groupBy) updateProps(e *expr) {
+func (groupByClass) updateProps(e *expr) {
 	e.props.outerCols = e.requiredInputCols().Difference(e.props.outputCols)
 	e.props.outerCols.DifferenceWith(e.providedInputCols())
 	for _, input := range e.inputs() {
@@ -46,6 +48,6 @@ func (groupBy) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
-func (groupBy) requiredProps(required *physicalProps, child int) *physicalProps {
+func (groupByClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }

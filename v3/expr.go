@@ -113,7 +113,7 @@ func (e *expr) MemoString() string {
 }
 
 func (e *expr) format(tp *treePrinter) {
-	e.info().format(e, tp)
+	e.opClass().format(e, tp)
 }
 
 func formatRelational(e *expr, tp *treePrinter) {
@@ -313,42 +313,42 @@ func (e *expr) hasApply() bool {
 }
 
 func (e *expr) isLogical() bool {
-	return (e.info().kind() & logicalKind) != 0
+	return (e.opClass().kind() & logicalKind) != 0
 }
 
 func (e *expr) isPhysical() bool {
-	return (e.info().kind() & physicalKind) != 0
+	return (e.opClass().kind() & physicalKind) != 0
 }
 
 func (e *expr) isRelational() bool {
-	return (e.info().kind() & relationalKind) != 0
+	return (e.opClass().kind() & relationalKind) != 0
 }
 
 func (e *expr) isScalar() bool {
-	return (e.info().kind() & scalarKind) != 0
+	return (e.opClass().kind() & scalarKind) != 0
 }
 
 func (e *expr) layout() exprLayout {
-	return operatorLayout[e.op]
+	return operatorTab[e.op].layout
 }
 
-func (e *expr) info() operatorInfo {
-	return operatorTab[e.op]
+func (e *expr) opClass() operatorClass {
+	return operatorTab[e.op].class
 }
 
 func (e *expr) initKeys(state *queryState) {
-	e.info().initKeys(e, state)
+	e.opClass().initKeys(e, state)
 }
 
 func (e *expr) initProps() {
 	if e.props != nil {
 		e.props.init()
 	}
-	e.info().updateProps(e)
+	e.opClass().updateProps(e)
 }
 
 func (e *expr) updateProps() {
-	e.info().updateProps(e)
+	e.opClass().updateProps(e)
 }
 
 func (e *expr) scalarInputCols() bitmap {

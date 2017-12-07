@@ -112,7 +112,7 @@ const (
 	scalarKind
 )
 
-type operatorInfo interface {
+type operatorClass interface {
 	kind() operatorKind
 	format(e *expr, tp *treePrinter)
 
@@ -131,31 +131,31 @@ type operatorInfo interface {
 	requiredProps(required *physicalProps, child int) *physicalProps
 }
 
-var (
-	operatorTab = [numOperators]operatorInfo{}
-
-	operatorLayout = [numOperators]exprLayout{}
-
-	operatorNames = [numOperators]string{
-		unknownOp: "unknown",
-	}
-)
-
-func (op operator) String() string {
-	if op < 0 || op > operator(len(operatorNames)-1) {
-		return fmt.Sprintf("operator(%d)", op)
-	}
-	return operatorNames[op]
+type operatorInfo struct {
+	name   string
+	class  operatorClass
+	layout exprLayout
 }
 
-func registerOperator(op operator, name string, info operatorInfo) {
-	operatorNames[op] = name
-	operatorTab[op] = info
+var operatorTab = [numOperators]operatorInfo{
+	unknownOp: operatorInfo{name: "unknown"},
+}
 
-	if info != nil {
+func (op operator) String() string {
+	if op < 0 || op >= numOperators {
+		return fmt.Sprintf("operator(%d)", op)
+	}
+	return operatorTab[op].name
+}
+
+func registerOperator(op operator, name string, class operatorClass) {
+	operatorTab[op].name = name
+	operatorTab[op].class = class
+
+	if class != nil {
 		// Normalize the layout so that auxiliary expressions that are not present
 		// are given an invalid index which will cause a panic if they are accessed.
-		l := info.layout()
+		l := class.layout()
 		if l.numAux == 0 {
 			if l.aggregations == 0 {
 				l.aggregations = -1
@@ -178,6 +178,6 @@ func registerOperator(op operator, name string, info operatorInfo) {
 				l.numAux++
 			}
 		}
-		operatorLayout[op] = l
+		operatorTab[op].layout = l
 	}
 }

@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(unionOp, "union", union{})
+	registerOperator(unionOp, "union", unionClass{})
 	registerOperator(intersectOp, "intersect", nil)
 	registerOperator(exceptOp, "except", nil)
 }
@@ -13,27 +13,29 @@ func newSetExpr(op operator, input1, input2 *expr) *expr {
 	}
 }
 
-type union struct{}
+type unionClass struct{}
 
-func (union) kind() operatorKind {
+var _ operatorClass = unionClass{}
+
+func (unionClass) kind() operatorKind {
 	return logicalKind | relationalKind
 }
 
-func (union) layout() exprLayout {
+func (unionClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (union) format(e *expr, tp *treePrinter) {
+func (unionClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "inputs", e.inputs())
 	tp.Exit()
 }
 
-func (union) initKeys(e *expr, state *queryState) {
+func (unionClass) initKeys(e *expr, state *queryState) {
 }
 
-func (union) updateProps(e *expr) {
+func (unionClass) updateProps(e *expr) {
 	// Union is pass through and requires any input columns that its inputs
 	// require.
 	excluded := e.props.outputCols.Union(e.providedInputCols())
@@ -45,6 +47,6 @@ func (union) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
-func (union) requiredProps(required *physicalProps, child int) *physicalProps {
+func (unionClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }
