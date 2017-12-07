@@ -131,26 +131,26 @@ type operatorClass interface {
 	requiredProps(required *physicalProps, child int) *physicalProps
 }
 
-var (
-	operatorTab = [numOperators]operatorClass{}
+type operatorInfo struct {
+	name   string
+	class  operatorClass
+	layout exprLayout
+}
 
-	operatorLayout = [numOperators]exprLayout{}
-
-	operatorNames = [numOperators]string{
-		unknownOp: "unknown",
-	}
-)
+var operatorTab = [numOperators]operatorInfo{
+	unknownOp: operatorInfo{name: "unknown"},
+}
 
 func (op operator) String() string {
-	if op < 0 || op > operator(len(operatorNames)-1) {
+	if op < 0 || op >= numOperators {
 		return fmt.Sprintf("operator(%d)", op)
 	}
-	return operatorNames[op]
+	return operatorTab[op].name
 }
 
 func registerOperator(op operator, name string, class operatorClass) {
-	operatorNames[op] = name
-	operatorTab[op] = class
+	operatorTab[op].name = name
+	operatorTab[op].class = class
 
 	if class != nil {
 		// Normalize the layout so that auxiliary expressions that are not present
@@ -178,6 +178,6 @@ func registerOperator(op operator, name string, class operatorClass) {
 				l.numAux++
 			}
 		}
-		operatorLayout[op] = l
+		operatorTab[op].layout = l
 	}
 }

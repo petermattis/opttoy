@@ -329,11 +329,11 @@ func (e *expr) isScalar() bool {
 }
 
 func (e *expr) layout() exprLayout {
-	return operatorLayout[e.op]
+	return operatorTab[e.op].layout
 }
 
 func (e *expr) opClass() operatorClass {
-	return operatorTab[e.op]
+	return operatorTab[e.op].class
 }
 
 func (e *expr) initKeys(state *queryState) {

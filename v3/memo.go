@@ -183,7 +183,7 @@ func (e *memoExpr) commonFingerprint(m *memo, physicalProps int32) memoExprFinge
 }
 
 func (e *memoExpr) opClass() operatorClass {
-	return operatorTab[e.op]
+	return operatorTab[e.op].class
 }
 
 // memoOptState maintains the optimization state for a group for a particular
