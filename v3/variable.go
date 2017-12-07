@@ -1,7 +1,7 @@
 package v3
 
 func init() {
-	registerOperator(variableOp, "variable", variable{})
+	registerOperator(variableOp, "variable", variableClass{})
 }
 
 func newVariableExpr(private interface{}, index bitmapIndex) *expr {
@@ -15,27 +15,29 @@ func newVariableExpr(private interface{}, index bitmapIndex) *expr {
 	return e
 }
 
-type variable struct{}
+type variableClass struct{}
 
-func (variable) kind() operatorKind {
+var _ operatorClass = variableClass{}
+
+func (variableClass) kind() operatorKind {
 	// Variable is both a logical and a physical operator.
 	return logicalKind | physicalKind | scalarKind
 }
 
-func (variable) layout() exprLayout {
+func (variableClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (variable) format(e *expr, tp *treePrinter) {
+func (variableClass) format(e *expr, tp *treePrinter) {
 	tp.Addf("%v (%s) [in=%s]", e.op, e.private, e.scalarProps.inputCols)
 }
 
-func (variable) initKeys(e *expr, state *queryState) {
+func (variableClass) initKeys(e *expr, state *queryState) {
 }
 
-func (variable) updateProps(e *expr) {
+func (variableClass) updateProps(e *expr) {
 }
 
-func (variable) requiredProps(required *physicalProps, child int) *physicalProps {
+func (variableClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }

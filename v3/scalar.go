@@ -11,56 +11,56 @@ import (
 const spaces = "                                                                "
 
 func init() {
-	registerOperator(constOp, "const", scalar{})
-	registerOperator(placeholderOp, "placeholder", scalar{})
-	registerOperator(listOp, "list", scalar{})
-	registerOperator(orderedListOp, "ordered-list", scalar{})
-	registerOperator(existsOp, "exists", scalar{})
-	registerOperator(andOp, "AND", scalar{})
-	registerOperator(orOp, "OR", scalar{})
-	registerOperator(notOp, "NOT", scalar{})
-	registerOperator(eqOp, "eq", scalar{})
-	registerOperator(ltOp, "lt", scalar{})
-	registerOperator(gtOp, "gt", scalar{})
-	registerOperator(leOp, "le", scalar{})
-	registerOperator(geOp, "ge", scalar{})
-	registerOperator(neOp, "ne", scalar{})
-	registerOperator(inOp, "IN", scalar{})
-	registerOperator(notInOp, "NOT-IN", scalar{})
-	registerOperator(likeOp, "LIKE", scalar{})
-	registerOperator(notLikeOp, "NOT-LIKE", scalar{})
-	registerOperator(iLikeOp, "ILIKE", scalar{})
-	registerOperator(notILikeOp, "NOT-ILIKE", scalar{})
-	registerOperator(similarToOp, "SIMILAR-TO", scalar{})
-	registerOperator(notSimilarToOp, "NOT-SIMILAR-TO", scalar{})
-	registerOperator(regMatchOp, "regmatch", scalar{})
-	registerOperator(notRegMatchOp, "not-regmatch", scalar{})
-	registerOperator(regIMatchOp, "regimatch", scalar{})
-	registerOperator(notRegIMatchOp, "not-regimatch", scalar{})
-	registerOperator(isDistinctFromOp, "IS-DISTINCT-FROM", scalar{})
-	registerOperator(isNotDistinctFromOp, "IS-NOT-DISTINCT-FROM", scalar{})
-	registerOperator(isOp, "IS", scalar{})
-	registerOperator(isNotOp, "IS-NOT", scalar{})
-	registerOperator(anyOp, "ANY", scalar{})
-	registerOperator(someOp, "SOME", scalar{})
-	registerOperator(allOp, "ALL", scalar{})
-	registerOperator(bitandOp, "bitand", scalar{})
-	registerOperator(bitorOp, "bitor", scalar{})
-	registerOperator(bitxorOp, "bitxor", scalar{})
-	registerOperator(plusOp, "plus", scalar{})
-	registerOperator(minusOp, "minux", scalar{})
-	registerOperator(multOp, "mult", scalar{})
-	registerOperator(divOp, "div", scalar{})
-	registerOperator(floorDivOp, "floor-div", scalar{})
-	registerOperator(modOp, "mod", scalar{})
-	registerOperator(powOp, "pow", scalar{})
-	registerOperator(concatOp, "concat", scalar{})
-	registerOperator(lShiftOp, "lshift", scalar{})
-	registerOperator(rShiftOp, "rshift", scalar{})
-	registerOperator(unaryPlusOp, "unary-plus", scalar{})
-	registerOperator(unaryMinusOp, "unary-minus", scalar{})
-	registerOperator(unaryComplementOp, "complement", scalar{})
-	registerOperator(functionOp, "func", scalar{})
+	registerOperator(constOp, "const", scalarClass{})
+	registerOperator(placeholderOp, "placeholder", scalarClass{})
+	registerOperator(listOp, "list", scalarClass{})
+	registerOperator(orderedListOp, "ordered-list", scalarClass{})
+	registerOperator(existsOp, "exists", scalarClass{})
+	registerOperator(andOp, "AND", scalarClass{})
+	registerOperator(orOp, "OR", scalarClass{})
+	registerOperator(notOp, "NOT", scalarClass{})
+	registerOperator(eqOp, "eq", scalarClass{})
+	registerOperator(ltOp, "lt", scalarClass{})
+	registerOperator(gtOp, "gt", scalarClass{})
+	registerOperator(leOp, "le", scalarClass{})
+	registerOperator(geOp, "ge", scalarClass{})
+	registerOperator(neOp, "ne", scalarClass{})
+	registerOperator(inOp, "IN", scalarClass{})
+	registerOperator(notInOp, "NOT-IN", scalarClass{})
+	registerOperator(likeOp, "LIKE", scalarClass{})
+	registerOperator(notLikeOp, "NOT-LIKE", scalarClass{})
+	registerOperator(iLikeOp, "ILIKE", scalarClass{})
+	registerOperator(notILikeOp, "NOT-ILIKE", scalarClass{})
+	registerOperator(similarToOp, "SIMILAR-TO", scalarClass{})
+	registerOperator(notSimilarToOp, "NOT-SIMILAR-TO", scalarClass{})
+	registerOperator(regMatchOp, "regmatch", scalarClass{})
+	registerOperator(notRegMatchOp, "not-regmatch", scalarClass{})
+	registerOperator(regIMatchOp, "regimatch", scalarClass{})
+	registerOperator(notRegIMatchOp, "not-regimatch", scalarClass{})
+	registerOperator(isDistinctFromOp, "IS-DISTINCT-FROM", scalarClass{})
+	registerOperator(isNotDistinctFromOp, "IS-NOT-DISTINCT-FROM", scalarClass{})
+	registerOperator(isOp, "IS", scalarClass{})
+	registerOperator(isNotOp, "IS-NOT", scalarClass{})
+	registerOperator(anyOp, "ANY", scalarClass{})
+	registerOperator(someOp, "SOME", scalarClass{})
+	registerOperator(allOp, "ALL", scalarClass{})
+	registerOperator(bitandOp, "bitand", scalarClass{})
+	registerOperator(bitorOp, "bitor", scalarClass{})
+	registerOperator(bitxorOp, "bitxor", scalarClass{})
+	registerOperator(plusOp, "plus", scalarClass{})
+	registerOperator(minusOp, "minux", scalarClass{})
+	registerOperator(multOp, "mult", scalarClass{})
+	registerOperator(divOp, "div", scalarClass{})
+	registerOperator(floorDivOp, "floor-div", scalarClass{})
+	registerOperator(modOp, "mod", scalarClass{})
+	registerOperator(powOp, "pow", scalarClass{})
+	registerOperator(concatOp, "concat", scalarClass{})
+	registerOperator(lShiftOp, "lshift", scalarClass{})
+	registerOperator(rShiftOp, "rshift", scalarClass{})
+	registerOperator(unaryPlusOp, "unary-plus", scalarClass{})
+	registerOperator(unaryMinusOp, "unary-minus", scalarClass{})
+	registerOperator(unaryComplementOp, "complement", scalarClass{})
+	registerOperator(functionOp, "func", scalarClass{})
 }
 
 func newConstExpr(private interface{}) *expr {
@@ -102,18 +102,20 @@ func newBinaryExpr(op operator, input1, input2 *expr) *expr {
 	return e
 }
 
-type scalar struct{}
+type scalarClass struct{}
 
-func (scalar) kind() operatorKind {
+var _ operatorClass = scalarClass{}
+
+func (scalarClass) kind() operatorKind {
 	// Scalar is both a logical and a physical operator.
 	return logicalKind | physicalKind | scalarKind
 }
 
-func (scalar) layout() exprLayout {
+func (scalarClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scalar) format(e *expr, tp *treePrinter) {
+func (scalarClass) format(e *expr, tp *treePrinter) {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%v", e.op)
 	if e.private != nil {
@@ -128,10 +130,10 @@ func (scalar) format(e *expr, tp *treePrinter) {
 	tp.Exit()
 }
 
-func (scalar) initKeys(e *expr, state *queryState) {
+func (scalarClass) initKeys(e *expr, state *queryState) {
 }
 
-func (scalar) updateProps(e *expr) {
+func (scalarClass) updateProps(e *expr) {
 	if e.scalarProps != nil {
 		// For a scalar operation the required input columns is the union of the
 		// input columns of its inputs.
@@ -142,7 +144,7 @@ func (scalar) updateProps(e *expr) {
 	}
 }
 
-func (scalar) requiredProps(required *physicalProps, child int) *physicalProps {
+func (scalarClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }
 

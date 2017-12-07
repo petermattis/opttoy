@@ -1,33 +1,35 @@
 package v3
 
 func init() {
-	registerOperator(sortOp, "sort", sorter{})
+	registerOperator(sortOp, "sort", sorterClass{})
 }
 
-type sorter struct{}
+type sorterClass struct{}
 
-func (sorter) kind() operatorKind {
+var _ operatorClass = sorterClass{}
+
+func (sorterClass) kind() operatorKind {
 	return physicalKind | relationalKind
 }
 
-func (sorter) layout() exprLayout {
+func (sorterClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (sorter) format(e *expr, tp *treePrinter) {
+func (sorterClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "inputs", e.inputs())
 	tp.Exit()
 }
 
-func (sorter) initKeys(e *expr, state *queryState) {
+func (sorterClass) initKeys(e *expr, state *queryState) {
 }
 
-func (sorter) updateProps(e *expr) {
+func (sorterClass) updateProps(e *expr) {
 }
 
-func (sorter) requiredProps(required *physicalProps, child int) *physicalProps {
+func (sorterClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	// A sort expression enforces ordering and does not require any specific
 	// ordering from its input.
 	return nil

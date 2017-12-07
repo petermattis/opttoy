@@ -1,12 +1,12 @@
 package v3
 
 func init() {
-	registerOperator(innerJoinOp, "inner-join", join{})
-	registerOperator(leftJoinOp, "left-join", join{})
-	registerOperator(rightJoinOp, "right-join", join{})
-	registerOperator(fullJoinOp, "full-join", join{})
-	registerOperator(semiJoinOp, "semi-join", join{})
-	registerOperator(antiJoinOp, "anti-join", join{})
+	registerOperator(innerJoinOp, "inner-join", joinClass{})
+	registerOperator(leftJoinOp, "left-join", joinClass{})
+	registerOperator(rightJoinOp, "right-join", joinClass{})
+	registerOperator(fullJoinOp, "full-join", joinClass{})
+	registerOperator(semiJoinOp, "semi-join", joinClass{})
+	registerOperator(antiJoinOp, "anti-join", joinClass{})
 }
 
 func newJoinExpr(op operator, left, right *expr) *expr {
@@ -16,19 +16,21 @@ func newJoinExpr(op operator, left, right *expr) *expr {
 	}
 }
 
-type join struct{}
+type joinClass struct{}
 
-func (join) kind() operatorKind {
+var _ operatorClass = joinClass{}
+
+func (joinClass) kind() operatorKind {
 	return logicalKind | relationalKind
 }
 
-func (join) layout() exprLayout {
+func (joinClass) layout() exprLayout {
 	return exprLayout{
 		filters: 2,
 	}
 }
 
-func (join) format(e *expr, tp *treePrinter) {
+func (joinClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "filters", e.filters())
@@ -36,10 +38,10 @@ func (join) format(e *expr, tp *treePrinter) {
 	tp.Exit()
 }
 
-func (join) initKeys(e *expr, state *queryState) {
+func (joinClass) initKeys(e *expr, state *queryState) {
 }
 
-func (join) updateProps(e *expr) {
+func (joinClass) updateProps(e *expr) {
 	e.props.notNullCols = bitmap{}
 	for _, input := range e.inputs() {
 		e.props.notNullCols.UnionWith(input.props.notNullCols)
@@ -57,7 +59,7 @@ func (join) updateProps(e *expr) {
 	e.props.applyInputs(e.inputs())
 }
 
-func (join) requiredProps(required *physicalProps, child int) *physicalProps {
+func (joinClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }
 

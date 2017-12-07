@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	registerOperator(orderByOp, "order-by", orderBy{})
+	registerOperator(orderByOp, "order-by", orderByClass{})
 }
 
 func newOrderByExpr(input *expr) *expr {
@@ -16,30 +16,32 @@ func newOrderByExpr(input *expr) *expr {
 	}
 }
 
-type orderBy struct{}
+type orderByClass struct{}
 
-func (orderBy) kind() operatorKind {
+var _ operatorClass = orderByClass{}
+
+func (orderByClass) kind() operatorKind {
 	return logicalKind | relationalKind
 }
 
-func (orderBy) layout() exprLayout {
+func (orderByClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (orderBy) format(e *expr, tp *treePrinter) {
+func (orderByClass) format(e *expr, tp *treePrinter) {
 	formatRelational(e, tp)
 	tp.Enter()
 	formatExprs(tp, "inputs", e.inputs())
 	tp.Exit()
 }
 
-func (orderBy) initKeys(e *expr, state *queryState) {
+func (orderByClass) initKeys(e *expr, state *queryState) {
 }
 
-func (orderBy) updateProps(e *expr) {
+func (orderByClass) updateProps(e *expr) {
 }
 
-func (orderBy) requiredProps(required *physicalProps, child int) *physicalProps {
+func (orderByClass) requiredProps(required *physicalProps, child int) *physicalProps {
 	return nil
 }
 
