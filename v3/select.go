@@ -1,7 +1,5 @@
 package v3
 
-import "bytes"
-
 func init() {
 	registerOperator(selectOp, "select", sel{})
 }
@@ -26,10 +24,12 @@ func (sel) layout() exprLayout {
 	}
 }
 
-func (sel) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "filters", e.filters(), level)
-	formatExprs(buf, "inputs", e.inputs(), level)
+func (sel) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	tp.Enter()
+	formatExprs(tp, "filters", e.filters())
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (sel) initKeys(e *expr, state *queryState) {

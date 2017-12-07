@@ -1,9 +1,5 @@
 package v3
 
-import (
-	"bytes"
-)
-
 func init() {
 	registerOperator(projectOp, "project", project{})
 }
@@ -28,10 +24,12 @@ func (project) layout() exprLayout {
 	}
 }
 
-func (project) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "projections", e.projections(), level)
-	formatExprs(buf, "inputs", e.inputs(), level)
+func (project) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	tp.Enter()
+	formatExprs(tp, "projections", e.projections())
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (project) initKeys(e *expr, state *queryState) {

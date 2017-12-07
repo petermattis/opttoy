@@ -26,9 +26,11 @@ func (orderBy) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (orderBy) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "inputs", e.inputs(), level)
+func (orderBy) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	tp.Enter()
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (orderBy) initKeys(e *expr, state *queryState) {

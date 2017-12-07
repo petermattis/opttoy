@@ -1,7 +1,6 @@
 package v3
 
 import (
-	"bytes"
 	"fmt"
 )
 
@@ -68,9 +67,9 @@ func (indexScan) layout() exprLayout {
 	}
 }
 
-func (indexScan) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "projections", e.projections(), level)
+func (indexScan) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	formatExprs(tp, "projections", e.projections())
 }
 
 func (indexScan) initKeys(e *expr, state *queryState) {

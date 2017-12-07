@@ -9,12 +9,8 @@ type physicalProps struct {
 	providedOrdering ordering
 }
 
-func (p *physicalProps) format(buf *bytes.Buffer, level int) {
-	indent := spaces[:2*level]
-	buf.WriteString(indent)
-	buf.WriteString("ordering: ")
-	p.providedOrdering.format(buf)
-	buf.WriteString("\n")
+func (p *physicalProps) format(tp *treePrinter) {
+	tp.Addf("ordering: %s", p.providedOrdering.String())
 }
 
 func (p *physicalProps) fingerprint() string {

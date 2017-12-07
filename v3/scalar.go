@@ -113,17 +113,19 @@ func (scalar) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scalar) format(e *expr, buf *bytes.Buffer, level int) {
-	indent := spaces[:2*level]
-	fmt.Fprintf(buf, "%s%v", indent, e.op)
+func (scalar) format(e *expr, tp *treePrinter) {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%v", e.op)
 	if e.private != nil {
-		fmt.Fprintf(buf, " (%s)", e.private)
+		fmt.Fprintf(&buf, " (%s)", e.private)
 	}
 	if e.scalarProps != nil && !e.scalarProps.inputCols.Empty() {
-		fmt.Fprintf(buf, " [in=%s]", e.scalarProps.inputCols)
+		fmt.Fprintf(&buf, " [in=%s]", e.scalarProps.inputCols)
 	}
-	buf.WriteString("\n")
-	formatExprs(buf, "inputs", e.inputs(), level)
+	tp.Add(buf.String())
+	tp.Enter()
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (scalar) initKeys(e *expr, state *queryState) {

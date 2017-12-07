@@ -1,9 +1,5 @@
 package v3
 
-import (
-	"bytes"
-)
-
 func init() {
 	registerOperator(scanOp, "scan", scan{})
 }
@@ -25,8 +21,8 @@ func (scan) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scan) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
+func (scan) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
 }
 
 func (scan) initKeys(e *expr, state *queryState) {

@@ -1,9 +1,5 @@
 package v3
 
-import (
-	"bytes"
-)
-
 func init() {
 	registerOperator(sortOp, "sort", sorter{})
 }
@@ -18,9 +14,11 @@ func (sorter) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (sorter) format(e *expr, buf *bytes.Buffer, level int) {
-	formatRelational(e, buf, level)
-	formatExprs(buf, "inputs", e.inputs(), level)
+func (sorter) format(e *expr, tp *treePrinter) {
+	formatRelational(e, tp)
+	tp.Enter()
+	formatExprs(tp, "inputs", e.inputs())
+	tp.Exit()
 }
 
 func (sorter) initKeys(e *expr, state *queryState) {
