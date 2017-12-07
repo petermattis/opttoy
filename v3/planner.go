@@ -51,6 +51,8 @@ func (p *planner) exec(stmt tree.Statement) string {
 			p.catalog, tableName(tname.DatabaseName), columnName(tname.TableName), stmt.Rows,
 		)
 		return h.String()
+	case *tree.Select:
+		return filterHistogram(p.catalog, stmt).String()
 	default:
 		unimplemented("%T", stmt)
 	}
