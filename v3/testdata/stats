@@ -20,6 +20,33 @@ lowerBound: 0
 buckets:    2:3,3 4:5,2 100:976,1
 
 exec
+SELECT * FROM histogram.a.x WHERE x < 0
+----
+rows:       0
+distinct:   0
+nulls:      0
+lowerBound: nil
+buckets:    none
+
+exec
+SELECT * FROM histogram.a.x WHERE x = 0
+----
+rows:       0
+distinct:   0
+nulls:      0
+lowerBound: nil
+buckets:    none
+
+exec
+SELECT * FROM histogram.a.x WHERE x != 0
+----
+rows:       990
+distinct:   99
+nulls:      0
+lowerBound: 0
+buckets:    2:3,3 4:5,2 100:976,1
+
+exec
 SELECT * FROM histogram.a.x WHERE x < 4
 ----
 rows:       11
@@ -56,6 +83,24 @@ lowerBound: 3
 buckets:    4:0,2 100:976,1
 
 exec
+SELECT * FROM histogram.a.x WHERE x = 4
+----
+rows:       2
+distinct:   1
+nulls:      0
+lowerBound: 3
+buckets:    4:0,2
+
+exec
+SELECT * FROM histogram.a.x WHERE x != 4
+----
+rows:       988
+distinct:   98
+nulls:      0
+lowerBound: 0
+buckets:    2:3,3 4:5,0 100:976,1
+
+exec
 SELECT * FROM histogram.a.x WHERE x < 50
 ----
 rows:       475
@@ -90,3 +135,66 @@ distinct:   51
 nulls:      0
 lowerBound: 49
 buckets:    100:513,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x = 50
+----
+rows:       10
+distinct:   1
+nulls:      0
+lowerBound: 49
+buckets:    50:0,10
+
+exec
+SELECT * FROM histogram.a.x WHERE x != 50
+----
+rows:       979
+distinct:   97
+nulls:      0
+lowerBound: 0
+buckets:    2:3,3 4:5,2 50:462,0 100:503,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x > 100
+----
+rows:       0
+distinct:   0
+nulls:      0
+lowerBound: nil
+buckets:    none
+
+exec
+SELECT * FROM histogram.a.x WHERE x = 101
+----
+rows:       0
+distinct:   0
+nulls:      0
+lowerBound: nil
+buckets:    none
+
+exec
+SELECT * FROM histogram.a.x WHERE x != 101
+----
+rows:       990
+distinct:   99
+nulls:      0
+lowerBound: 0
+buckets:    2:3,3 4:5,2 100:976,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x in (0, 4, 50, 75, 101)
+----
+rows:       22
+distinct:   2
+nulls:      0
+lowerBound: 0
+buckets:    4:0,2 50:0,10 75:0,10
+
+exec
+SELECT * FROM histogram.a.x WHERE x not in (0, 4, 50, 75, 101)
+----
+rows:       966
+distinct:   96
+nulls:      0
+lowerBound: 0
+buckets:    2:3,3 4:5,0 50:462,0 75:246,0 100:246,1
