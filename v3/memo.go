@@ -182,7 +182,7 @@ func (e *memoExpr) commonFingerprint(m *memo, physicalProps int32) memoExprFinge
 	return f
 }
 
-func (e *memoExpr) info() operatorInfo {
+func (e *memoExpr) opClass() operatorClass {
 	return operatorTab[e.op]
 }
 

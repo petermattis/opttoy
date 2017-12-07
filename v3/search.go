@@ -232,7 +232,7 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 		t.required = required
 
 		// Optimize children groups.
-		op := e.info()
+		op := e.opClass()
 		for i, c := range e.children(s.memo) {
 			s.optimizeGroupTask(&s.memo.groups[c], op.requiredProps(required, i), t)
 		}
@@ -244,7 +244,7 @@ func (s *search) optimizeGroup(loc memoLoc, required *physicalProps, parent *sea
 func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent *searchTask) {
 	g := &s.memo.groups[loc.group]
 	e := &g.exprs[loc.expr]
-	if (e.info().kind() & physicalKind) == 0 {
+	if (e.opClass().kind() & physicalKind) == 0 {
 		// We can only perform optimization on physical operators.
 		return
 	}
@@ -283,7 +283,7 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 				s.optimizeGroupTask(g, required, parent)
 			}
 		default:
-			if (e.info().kind() & relationalKind) != 0 {
+			if (e.opClass().kind() & relationalKind) != 0 {
 				return
 			}
 			// Allow scalar ops to fall through.
@@ -328,7 +328,7 @@ func (s *search) optimizeGroupExpr(loc memoLoc, required *physicalProps, parent 
 	// per-operator cost calculation. Need to add a method to operator and factor
 	// in the incoming cardinality.
 	var cost float32
-	op := e.info()
+	op := e.opClass()
 	children := e.children(s.memo)
 	optChildren := make([]*memoOptState, len(children))
 

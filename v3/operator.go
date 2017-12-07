@@ -112,7 +112,7 @@ const (
 	scalarKind
 )
 
-type operatorInfo interface {
+type operatorClass interface {
 	kind() operatorKind
 	format(e *expr, tp *treePrinter)
 
@@ -132,7 +132,7 @@ type operatorInfo interface {
 }
 
 var (
-	operatorTab = [numOperators]operatorInfo{}
+	operatorTab = [numOperators]operatorClass{}
 
 	operatorLayout = [numOperators]exprLayout{}
 
@@ -148,14 +148,14 @@ func (op operator) String() string {
 	return operatorNames[op]
 }
 
-func registerOperator(op operator, name string, info operatorInfo) {
+func registerOperator(op operator, name string, class operatorClass) {
 	operatorNames[op] = name
-	operatorTab[op] = info
+	operatorTab[op] = class
 
-	if info != nil {
+	if class != nil {
 		// Normalize the layout so that auxiliary expressions that are not present
 		// are given an invalid index which will cause a panic if they are accessed.
-		l := info.layout()
+		l := class.layout()
 		if l.numAux == 0 {
 			if l.aggregations == 0 {
 				l.aggregations = -1
