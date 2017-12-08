@@ -2,6 +2,8 @@ package v3
 
 import (
 	"fmt"
+
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 func init() {
@@ -69,7 +71,7 @@ func (indexScanClass) layout() exprLayout {
 	}
 }
 
-func (indexScanClass) format(e *expr, tp *treePrinter) {
+func (indexScanClass) format(e *expr, tp treeprinter.Node) {
 	formatRelational(e, tp)
 	formatExprs(tp, "projections", e.projections())
 }

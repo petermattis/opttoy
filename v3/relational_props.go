@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 // queryState holds per-query state
@@ -136,12 +137,12 @@ func (p *relationalProps) init() {
 }
 
 func (p *relationalProps) String() string {
-	tp := makeTreePrinter()
-	p.format(&tp)
+	tp := treeprinter.New()
+	p.format(tp)
 	return tp.String()
 }
 
-func (p *relationalProps) format(tp *treePrinter) {
+func (p *relationalProps) format(tp treeprinter.Node) {
 	var buf bytes.Buffer
 	buf.WriteString("columns:")
 	for _, col := range p.columns {
@@ -161,16 +162,16 @@ func (p *relationalProps) format(tp *treePrinter) {
 			buf.WriteString(")")
 		}
 	}
-	tp.Add(buf.String())
+	tp.Child(buf.String())
 	for _, key := range p.weakKeys {
 		var prefix string
 		if !key.SubsetOf(p.notNullCols) {
 			prefix = "weak "
 		}
-		tp.Addf("%skey: %s", prefix, key)
+		tp.Childf("%skey: %s", prefix, key)
 	}
 	for _, fkey := range p.foreignKeys {
-		tp.Addf("foreign key: %s -> %s", fkey.src, fkey.dest)
+		tp.Childf("foreign key: %s -> %s", fkey.src, fkey.dest)
 	}
 	if len(p.equivCols) > 0 {
 		var buf bytes.Buffer
@@ -178,7 +179,7 @@ func (p *relationalProps) format(tp *treePrinter) {
 		for _, equiv := range p.equivCols {
 			fmt.Fprintf(&buf, " %s", equiv)
 		}
-		tp.Add(buf.String())
+		tp.Child(buf.String())
 	}
 }
 

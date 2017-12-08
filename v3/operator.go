@@ -2,6 +2,8 @@ package v3
 
 import (
 	"fmt"
+
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 type operator uint8
@@ -114,7 +116,7 @@ const (
 
 type operatorClass interface {
 	kind() operatorKind
-	format(e *expr, tp *treePrinter)
+	format(e *expr, tp treeprinter.Node)
 
 	// The layout of auxiliary expressions.
 	layout() exprLayout

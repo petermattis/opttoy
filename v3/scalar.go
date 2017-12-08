@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 const spaces = "                                                                "
@@ -115,7 +116,7 @@ func (scalarClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scalarClass) format(e *expr, tp *treePrinter) {
+func (scalarClass) format(e *expr, tp treeprinter.Node) {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%v", e.op)
 	if e.private != nil {
@@ -124,10 +125,8 @@ func (scalarClass) format(e *expr, tp *treePrinter) {
 	if e.scalarProps != nil && !e.scalarProps.inputCols.Empty() {
 		fmt.Fprintf(&buf, " [in=%s]", e.scalarProps.inputCols)
 	}
-	tp.Add(buf.String())
-	tp.Enter()
-	formatExprs(tp, "inputs", e.inputs())
-	tp.Exit()
+	n := tp.Child(buf.String())
+	formatExprs(n, "inputs", e.inputs())
 }
 
 func (scalarClass) initKeys(e *expr, state *queryState) {

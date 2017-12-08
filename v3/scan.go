@@ -1,5 +1,7 @@
 package v3
 
+import "github.com/cockroachdb/cockroach/pkg/util/treeprinter"
+
 func init() {
 	registerOperator(scanOp, "scan", scanClass{})
 }
@@ -23,7 +25,7 @@ func (scanClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (scanClass) format(e *expr, tp *treePrinter) {
+func (scanClass) format(e *expr, tp treeprinter.Node) {
 	formatRelational(e, tp)
 }
 
