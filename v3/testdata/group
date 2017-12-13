@@ -9,143 +9,143 @@ build
 SELECT y FROM a GROUP BY x
 ----
 project [out=(1)]
- |- columns: a.y:1
- |- projections
- |   |- variable (a.y) [in=(1)]
- |- inputs
-     |- group-by [out=(0,1)]
-         |- columns: a.x:0 a.y:1
-         |- groupings
-         |   |- variable (a.x) [in=(0)]
-         |- inputs
-             |- scan [out=(0,1)]
-                 |- columns: a.x:0 a.y:1
+ ├── columns: a.y:1
+ ├── projections
+ │    └── variable (a.y) [in=(1)]
+ └── inputs
+      └── group-by [out=(0,1)]
+           ├── columns: a.x:0 a.y:1
+           ├── groupings
+           │    └── variable (a.x) [in=(0)]
+           └── inputs
+                └── scan [out=(0,1)]
+                     └── columns: a.x:0 a.y:1
 
 build
 SELECT y FROM a GROUP BY y, x
 ----
 project [out=(1)]
- |- columns: a.y:1
- |- projections
- |   |- variable (a.y) [in=(1)]
- |- inputs
-     |- group-by [out=(0,1)]
-         |- columns: a.x:0 a.y:1
-         |- groupings
-         |   |- variable (a.y) [in=(1)]
-         |   |- variable (a.x) [in=(0)]
-         |- inputs
-             |- scan [out=(0,1)]
-                 |- columns: a.x:0 a.y:1
+ ├── columns: a.y:1
+ ├── projections
+ │    └── variable (a.y) [in=(1)]
+ └── inputs
+      └── group-by [out=(0,1)]
+           ├── columns: a.x:0 a.y:1
+           ├── groupings
+           │    ├── variable (a.y) [in=(1)]
+           │    └── variable (a.x) [in=(0)]
+           └── inputs
+                └── scan [out=(0,1)]
+                     └── columns: a.x:0 a.y:1
 
 build
 SELECT DISTINCT * FROM a
 ----
 group-by [out=(0,1)]
- |- columns: a.x:0 a.y:1
- |- groupings
- |   |- variable (a.x) [in=(0)]
- |   |- variable (a.y) [in=(1)]
- |- inputs
-     |- scan [out=(0,1)]
-         |- columns: a.x:0 a.y:1
+ ├── columns: a.x:0 a.y:1
+ ├── groupings
+ │    ├── variable (a.x) [in=(0)]
+ │    └── variable (a.y) [in=(1)]
+ └── inputs
+      └── scan [out=(0,1)]
+           └── columns: a.x:0 a.y:1
 
 build
 SELECT COUNT(*) FROM a
 ----
 group-by [out=(2)]
- |- columns: .column1:2
- |- aggregations
- |   |- func (count)
- |       |- inputs
- |           |- const (1)
- |- inputs
-     |- scan [out=(0,1)]
-         |- columns: a.x:0 a.y:1
+ ├── columns: .column1:2
+ ├── aggregations
+ │    └── func (count)
+ │         └── inputs
+ │              └── const (1)
+ └── inputs
+      └── scan [out=(0,1)]
+           └── columns: a.x:0 a.y:1
 
 build
 SELECT COUNT(*) FROM a GROUP BY x
 ----
 project [out=(2)]
- |- columns: .column3:2
- |- projections
- |   |- variable (column3) [in=(2)]
- |- inputs
-     |- group-by [out=(0-2)]
-         |- columns: a.x:0 a.y:1 .column3:2
-         |- groupings
-         |   |- variable (a.x) [in=(0)]
-         |- aggregations
-         |   |- func (count)
-         |       |- inputs
-         |           |- const (1)
-         |- inputs
-             |- scan [out=(0,1)]
-                 |- columns: a.x:0 a.y:1
+ ├── columns: .column3:2
+ ├── projections
+ │    └── variable (column3) [in=(2)]
+ └── inputs
+      └── group-by [out=(0-2)]
+           ├── columns: a.x:0 a.y:1 .column3:2
+           ├── groupings
+           │    └── variable (a.x) [in=(0)]
+           ├── aggregations
+           │    └── func (count)
+           │         └── inputs
+           │              └── const (1)
+           └── inputs
+                └── scan [out=(0,1)]
+                     └── columns: a.x:0 a.y:1
 
 build
 SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
 ----
 project [out=(0)]
- |- columns: a.x:0
- |- projections
- |   |- variable (a.x) [in=(0)]
- |- inputs
-     |- select [out=(0-2)]
-         |- columns: a.x:0 a.y:1 .column3:2*
-         |- filters
-         |   |- gt [in=(2)]
-         |       |- inputs
-         |           |- variable (column3) [in=(2)]
-         |           |- const (0)
-         |- inputs
-             |- group-by [out=(0-2)]
-                 |- columns: a.x:0 a.y:1 .column3:2
-                 |- groupings
-                 |   |- variable (a.x) [in=(0)]
-                 |- aggregations
-                 |   |- func (sum) [in=(1)]
-                 |       |- inputs
-                 |           |- variable (a.y) [in=(1)]
-                 |- inputs
-                     |- scan [out=(0,1)]
-                         |- columns: a.x:0 a.y:1
+ ├── columns: a.x:0
+ ├── projections
+ │    └── variable (a.x) [in=(0)]
+ └── inputs
+      └── select [out=(0-2)]
+           ├── columns: a.x:0 a.y:1 .column3:2*
+           ├── filters
+           │    └── gt [in=(2)]
+           │         └── inputs
+           │              ├── variable (column3) [in=(2)]
+           │              └── const (0)
+           └── inputs
+                └── group-by [out=(0-2)]
+                     ├── columns: a.x:0 a.y:1 .column3:2
+                     ├── groupings
+                     │    └── variable (a.x) [in=(0)]
+                     ├── aggregations
+                     │    └── func (sum) [in=(1)]
+                     │         └── inputs
+                     │              └── variable (a.y) [in=(1)]
+                     └── inputs
+                          └── scan [out=(0,1)]
+                               └── columns: a.x:0 a.y:1
 
 build
 SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
 ----
 project [out=(0,3)]
- |- columns: a.x:0 .column1:3
- |- projections
- |   |- variable (a.x) [in=(0)]
- |   |- variable (column1) [in=(3)]
- |- inputs
-     |- group-by [out=(3)]
-         |- columns: .column1:3
-         |- aggregations
-         |   |- func (sum) [in=(1)]
-         |       |- inputs
-         |           |- variable (a.y) [in=(1)]
-         |- inputs
-             |- select [out=(0-2)]
-                 |- columns: a.x:0 a.y:1 .column3:2*
-                 |- filters
-                 |   |- gt [in=(2)]
-                 |       |- inputs
-                 |           |- variable (column3) [in=(2)]
-                 |           |- const (0)
-                 |- inputs
-                     |- group-by [out=(0-2)]
-                         |- columns: a.x:0 a.y:1 .column3:2
-                         |- groupings
-                         |   |- variable (a.x) [in=(0)]
-                         |- aggregations
-                         |   |- func (sum) [in=(1)]
-                         |       |- inputs
-                         |           |- variable (a.y) [in=(1)]
-                         |- inputs
-                             |- scan [out=(0,1)]
-                                 |- columns: a.x:0 a.y:1
+ ├── columns: a.x:0 .column1:3
+ ├── projections
+ │    ├── variable (a.x) [in=(0)]
+ │    └── variable (column1) [in=(3)]
+ └── inputs
+      └── group-by [out=(3)]
+           ├── columns: .column1:3
+           ├── aggregations
+           │    └── func (sum) [in=(1)]
+           │         └── inputs
+           │              └── variable (a.y) [in=(1)]
+           └── inputs
+                └── select [out=(0-2)]
+                     ├── columns: a.x:0 a.y:1 .column3:2*
+                     ├── filters
+                     │    └── gt [in=(2)]
+                     │         └── inputs
+                     │              ├── variable (column3) [in=(2)]
+                     │              └── const (0)
+                     └── inputs
+                          └── group-by [out=(0-2)]
+                               ├── columns: a.x:0 a.y:1 .column3:2
+                               ├── groupings
+                               │    └── variable (a.x) [in=(0)]
+                               ├── aggregations
+                               │    └── func (sum) [in=(1)]
+                               │         └── inputs
+                               │              └── variable (a.y) [in=(1)]
+                               └── inputs
+                                    └── scan [out=(0,1)]
+                                         └── columns: a.x:0 a.y:1
 
 # This query is artificial and is intended only to highlight that the
 # two group-by expressions are placed in different groups in the memo.

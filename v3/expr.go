@@ -3,6 +3,8 @@ package v3
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 // expr is a unified interface for both relational and scalar expressions in a
@@ -91,8 +93,8 @@ type exprLayout struct {
 }
 
 func (e *expr) String() string {
-	tp := makeTreePrinter()
-	e.format(&tp)
+	tp := treeprinter.New()
+	e.format(tp)
 	return tp.String()
 }
 
@@ -112,11 +114,13 @@ func (e *expr) MemoString() string {
 	return buf.String()
 }
 
-func (e *expr) format(tp *treePrinter) {
+func (e *expr) format(tp treeprinter.Node) {
 	e.opClass().format(e, tp)
 }
 
-func formatRelational(e *expr, tp *treePrinter) {
+// formatRelational adds a node for a relational operator and returns a
+// reference to the new treeprinter.Node (for adding more children).
+func formatRelational(e *expr, tp treeprinter.Node) treeprinter.Node {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%v", e.op)
 	if !e.props.outputCols.Empty() {
@@ -125,25 +129,22 @@ func formatRelational(e *expr, tp *treePrinter) {
 	if !e.props.outerCols.Empty() {
 		fmt.Fprintf(&buf, " [outer=%s]", e.props.outerCols)
 	}
-	tp.Add(buf.String())
-	tp.Enter()
-	e.props.format(tp)
+	n := tp.Child(buf.String())
+	e.props.format(n)
 	if e.physicalProps != nil {
-		e.physicalProps.format(tp)
+		e.physicalProps.format(n)
 	}
-	tp.Exit()
+	return n
 }
 
-func formatExprs(tp *treePrinter, title string, exprs []*expr) {
+func formatExprs(tp treeprinter.Node, title string, exprs []*expr) {
 	if len(exprs) > 0 {
-		tp.Add(title)
-		tp.Enter()
+		n := tp.Child(title)
 		for _, e := range exprs {
 			if e != nil {
-				e.format(tp)
+				e.format(n)
 			}
 		}
-		tp.Exit()
 	}
 }
 

@@ -2,6 +2,8 @@ package v3
 
 import (
 	"bytes"
+
+	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
 // Physical properties that can be provided by a relation.
@@ -9,8 +11,8 @@ type physicalProps struct {
 	providedOrdering ordering
 }
 
-func (p *physicalProps) format(tp *treePrinter) {
-	tp.Addf("ordering: %s", p.providedOrdering.String())
+func (p *physicalProps) format(tp treeprinter.Node) {
+	tp.Childf("ordering: %s", p.providedOrdering.String())
 }
 
 func (p *physicalProps) fingerprint() string {

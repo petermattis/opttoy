@@ -1,5 +1,7 @@
 package v3
 
+import "github.com/cockroachdb/cockroach/pkg/util/treeprinter"
+
 func init() {
 	registerOperator(unionOp, "union", unionClass{})
 	registerOperator(intersectOp, "intersect", nil)
@@ -25,11 +27,9 @@ func (unionClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (unionClass) format(e *expr, tp *treePrinter) {
-	formatRelational(e, tp)
-	tp.Enter()
-	formatExprs(tp, "inputs", e.inputs())
-	tp.Exit()
+func (unionClass) format(e *expr, tp treeprinter.Node) {
+	n := formatRelational(e, tp)
+	formatExprs(n, "inputs", e.inputs())
 }
 
 func (unionClass) initKeys(e *expr, state *queryState) {

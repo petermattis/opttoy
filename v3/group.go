@@ -1,5 +1,7 @@
 package v3
 
+import "github.com/cockroachdb/cockroach/pkg/util/treeprinter"
+
 func init() {
 	registerOperator(groupByOp, "group-by", groupByClass{})
 }
@@ -26,13 +28,11 @@ func (groupByClass) layout() exprLayout {
 	}
 }
 
-func (groupByClass) format(e *expr, tp *treePrinter) {
-	formatRelational(e, tp)
-	tp.Enter()
-	formatExprs(tp, "groupings", e.groupings())
-	formatExprs(tp, "aggregations", e.aggregations())
-	formatExprs(tp, "inputs", e.inputs())
-	tp.Exit()
+func (groupByClass) format(e *expr, tp treeprinter.Node) {
+	n := formatRelational(e, tp)
+	formatExprs(n, "groupings", e.groupings())
+	formatExprs(n, "aggregations", e.aggregations())
+	formatExprs(n, "inputs", e.inputs())
 }
 
 func (groupByClass) initKeys(e *expr, state *queryState) {

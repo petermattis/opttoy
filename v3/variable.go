@@ -1,5 +1,7 @@
 package v3
 
+import "github.com/cockroachdb/cockroach/pkg/util/treeprinter"
+
 func init() {
 	registerOperator(variableOp, "variable", variableClass{})
 }
@@ -28,8 +30,8 @@ func (variableClass) layout() exprLayout {
 	return exprLayout{}
 }
 
-func (variableClass) format(e *expr, tp *treePrinter) {
-	tp.Addf("%v (%s) [in=%s]", e.op, e.private, e.scalarProps.inputCols)
+func (variableClass) format(e *expr, tp treeprinter.Node) {
+	tp.Childf("%v (%s) [in=%s]", e.op, e.private, e.scalarProps.inputCols)
 }
 
 func (variableClass) initKeys(e *expr, state *queryState) {
