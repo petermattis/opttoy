@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
@@ -19,14 +20,34 @@ type queryState struct {
 	// lookups need to be scoped. Or the handling of foreign keys needs to be
 	// rethought.
 	tables map[tableName]bitmapIndex
-	// nextVar keeps track of the next index for a column (used during build).
-	nextVar bitmapIndex
+	// The set of all columns used by the query.
+	columns []columnProps
+	semaCtx tree.SemaContext
+}
+
+func (q *queryState) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
+	unimplemented("queryState.IndexedVarEval")
+	return nil, fmt.Errorf("unimplemented")
+}
+
+func (q *queryState) IndexedVarResolvedType(idx int) types.T {
+	return q.columns[idx].typ
+}
+
+func (q *queryState) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
+	unimplemented("queryState.IndexedVarNodeFormatter")
+	return nil
 }
 
 type columnProps struct {
-	name   columnName
-	table  tableName
-	index  bitmapIndex
+	name  columnName
+	table tableName
+	typ   types.T
+	index bitmapIndex
+	// TODO(peter): Pull hidden out into a bitmap in relationalProps. That will
+	// allow changing relationalProps.columns to be a []*columnProps and sharing
+	// the columnProps between different relational expressions which differ in
+	// whether a column is hidden or not.
 	hidden bool
 }
 
@@ -51,7 +72,9 @@ func (c columnProps) newVariableExpr(table tableName) *expr {
 	if table != "" {
 		c.table = table
 	}
-	return newVariableExpr(c, c.index)
+	e := newVariableExpr(c, c.index)
+	e.scalarProps.typ = c.typ
+	return e
 }
 
 type foreignKeyProps struct {

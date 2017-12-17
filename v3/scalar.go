@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
@@ -63,6 +64,12 @@ func init() {
 	registerOperator(unaryComplementOp, "complement", scalarClass{})
 	registerOperator(functionOp, "func", scalarClass{})
 }
+
+var null = func() *expr {
+	e := newConstExpr(tree.DNull)
+	e.scalarProps.typ = types.Null
+	return e
+}()
 
 func newConstExpr(private interface{}) *expr {
 	return &expr{
@@ -122,8 +129,15 @@ func (scalarClass) format(e *expr, tp treeprinter.Node) {
 	if e.private != nil {
 		fmt.Fprintf(&buf, " (%s)", e.private)
 	}
-	if e.scalarProps != nil && !e.scalarProps.inputCols.Empty() {
-		fmt.Fprintf(&buf, " [in=%s]", e.scalarProps.inputCols)
+	if e.scalarProps != nil {
+		buf.WriteString(" [")
+		var sep string
+		if !e.scalarProps.inputCols.Empty() {
+			fmt.Fprintf(&buf, "in=%s", e.scalarProps.inputCols)
+			sep = " "
+		}
+		fmt.Fprintf(&buf, "%stype=%v", sep, e.scalarProps.typ)
+		buf.WriteString("]")
 	}
 	n := tp.Child(buf.String())
 	formatExprs(n, "inputs", e.inputs())
@@ -158,7 +172,9 @@ func substitute(e *expr, columns bitmap, replacement *expr) *expr {
 	result := *e
 	result.children = make([]*expr, len(e.children))
 	copy(result.children, e.children)
-	result.scalarProps = &scalarProps{}
+	result.scalarProps = &scalarProps{
+		typ: e.scalarProps.typ,
+	}
 
 	inputs := result.inputs()
 	for i, input := range inputs {
@@ -212,6 +228,7 @@ func isAggregate(e *expr) bool {
 	}
 	if def, ok := e.private.(*tree.FunctionDefinition); ok {
 		if strings.EqualFold(def.Name, "count") ||
+			strings.EqualFold(def.Name, "count_rows") ||
 			strings.EqualFold(def.Name, "min") ||
 			strings.EqualFold(def.Name, "max") ||
 			strings.EqualFold(def.Name, "sum") ||
