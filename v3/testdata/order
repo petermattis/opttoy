@@ -70,7 +70,7 @@ project [out=(1)]
  ├── columns: a.y:1
  ├── ordering: +1
  ├── projections
- │    └── variable (a.y) [in=(1)]
+ │    └── variable (a.y) [in=(1) type=int]
  └── inputs
       └── index-scan [out=(1)]
            ├── columns: a.x:0* a.y:1 a.z:2
@@ -115,7 +115,7 @@ project [out=(1)]
  ├── columns: a.y:1
  ├── ordering: +1
  ├── projections
- │    └── variable (a.y) [in=(1)]
+ │    └── variable (a.y) [in=(1) type=int]
  └── inputs
       └── select [out=(1)]
            ├── columns: a.x:0 a.y:1* a.z:2
@@ -123,10 +123,10 @@ project [out=(1)]
            ├── key: (1)
            ├── ordering: +1
            ├── filters
-           │    └── gt [in=(1)]
+           │    └── gt [in=(1) type=bool]
            │         └── inputs
-           │              ├── variable (a.y) [in=(1)]
-           │              └── const (1)
+           │              ├── variable (a.y) [in=(1) type=int]
+           │              └── const (1) [type=int]
            └── inputs
                 └── index-scan [out=(1)]
                      ├── columns: a.x:0* a.y:1 a.z:2

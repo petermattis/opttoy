@@ -1,7 +1,7 @@
 package v3
 
 import (
-	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 )
 
 func prep(e *expr) *physicalProps {
@@ -134,8 +134,9 @@ func inferNotNullFilters(e *expr) {
 		newFilter := newBinaryExpr(
 			isNotOp,
 			e.props.findColumnByIndex(i).newVariableExpr(""),
-			newConstExpr(tree.DNull),
+			null,
 		)
+		newFilter.scalarProps.typ = types.Bool
 		newFilter.updateProps()
 		e.addFilter(newFilter)
 	}

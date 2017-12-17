@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/sql/coltypes"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 )
 
 type tableName string
@@ -13,6 +15,7 @@ type columnName string
 type column struct {
 	name    columnName
 	notNull bool
+	typ     types.T
 	hist    *histogram
 }
 
@@ -128,6 +131,7 @@ func createTable(catalog map[tableName]*table, stmt *tree.CreateTable) *table {
 			tab.columns = append(tab.columns, column{
 				name:    colName,
 				notNull: def.PrimaryKey || (def.Nullable.Nullability == tree.NotNull),
+				typ:     coltypes.CastTargetToDatumType(def.Type),
 			})
 
 			if def.Unique || def.PrimaryKey {

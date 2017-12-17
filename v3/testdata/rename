@@ -31,18 +31,18 @@ project [out=(0,1,3)]
  ├── columns: d.z:3 c.x:0 c.y:1
  ├── equiv: (0,2)
  ├── projections
- │    ├── variable (d.z) [in=(3)]
- │    ├── variable (c.x) [in=(0)]
- │    └── variable (c.y) [in=(1)]
+ │    ├── variable (d.z) [in=(3) type=int]
+ │    ├── variable (c.x) [in=(0) type=int]
+ │    └── variable (c.y) [in=(1) type=int]
  └── inputs
       └── inner-join [out=(0-3)]
            ├── columns: c.x:0* c.y:1 (d.x:2*) d.z:3
            ├── equiv: (0,2)
            ├── filters
-           │    └── eq [in=(0,2)]
+           │    └── eq [in=(0,2) type=int]
            │         └── inputs
-           │              ├── variable (c.x) [in=(0)]
-           │              └── variable (d.x) [in=(2)]
+           │              ├── variable (c.x) [in=(0) type=int]
+           │              └── variable (d.x) [in=(2) type=int]
            └── inputs
                 ├── scan [out=(0,1)]
                 │    └── columns: c.x:0 c.y:1
@@ -55,7 +55,7 @@ SELECT x AS e FROM a
 project [out=(0)]
  ├── columns: a.e:0
  ├── projections
- │    └── variable (a.x) [in=(0)]
+ │    └── variable (a.x) [in=(0) type=int]
  └── inputs
       └── scan [out=(0,1)]
            └── columns: a.x:0 a.y:1
@@ -66,7 +66,7 @@ SELECT * FROM (SELECT x AS e FROM a)
 project [out=(0)]
  ├── columns: a.e:0
  ├── projections
- │    └── variable (a.x) [in=(0)]
+ │    └── variable (a.x) [in=(0) type=int]
  └── inputs
       └── scan [out=(0,1)]
            └── columns: a.x:0 a.y:1
