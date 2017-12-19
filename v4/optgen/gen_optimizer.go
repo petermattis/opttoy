@@ -5,18 +5,15 @@ import (
 	"io"
 )
 
-func (g *generator) genFactory(_w io.Writer) {
+func (g *generator) genOptimizer(_w io.Writer) {
 	w := &matchWriter{writer: _w}
 
 	w.writeIndent("package %s\n\n", g.pkg)
 
 	for _, elem := range g.compiled.Root().Defines().All() {
 		define := elem.(*DefineExpr)
-		opName := fmt.Sprintf("%sOp", unTitle(define.Name()))
-		exprName := fmt.Sprintf("%sExpr", unTitle(define.Name()))
-		varName := fmt.Sprintf("_%s", unTitle(define.Name()))
 
-		w.writeIndent("func (_f *factory) construct%s(\n", define.Name())
+		w.writeIndent("func (_o *optimizer) optimize%s(\n", define.Name())
 
 		for _, elem := range define.Fields() {
 			field := elem.(*DefineFieldExpr)
@@ -25,22 +22,6 @@ func (g *generator) genFactory(_w io.Writer) {
 
 		w.nest(") groupID {\n")
 
-		w.writeIndent("%s := %s{op: %s", varName, exprName, opName)
-
-		for _, elem := range define.Fields() {
-			field := elem.(*DefineFieldExpr)
-			fieldName := unTitle(field.Name())
-			w.write(", %s: %s", fieldName, fieldName)
-		}
-
-		w.write("}\n")
-		w.writeIndent("_fingerprint := %s.fingerprint()\n", varName)
-		w.writeIndent("_group := _f.memo.lookupGroupByFingerprint(_fingerprint)\n")
-		w.nest("if _group != 0 {\n")
-		w.writeIndent("return _group\n")
-		w.unnest(1)
-		w.write("\n")
-
 		hasRule := false
 		for _, elem := range g.compiled.Root().Rules().All() {
 			rule := elem.(*RuleExpr)
@@ -48,7 +29,7 @@ func (g *generator) genFactory(_w io.Writer) {
 				continue
 			}
 
-			if !rule.Header().Tags().Contains("Normalize") {
+			if !rule.Header().Tags().Contains("Explore") {
 				continue
 			}
 
@@ -75,11 +56,9 @@ func (g *generator) genFactory(_w io.Writer) {
 				g.generateMatch(w, matchField, fieldName, false)
 			}
 
-			w.writeIndent("_group = ")
+			w.writeIndent("return ")
 			g.generateReplace(w, rule.Replace())
 			w.write("\n")
-			w.writeIndent("_f.memo.addAltFingerprint(_fingerprint, _group)\n")
-			w.writeIndent("return _group\n")
 
 			w.unnest(w.nesting - 1)
 			w.write("\n")
@@ -91,13 +70,24 @@ func (g *generator) genFactory(_w io.Writer) {
 			w.write("\n")
 		}
 
-		w.writeIndent("return _f.memo.memoize%s(&%s)\n", define.Name(), varName)
+		varName := unTitle(define.Name())
+		exprName := fmt.Sprintf("%sExpr", varName)
+		w.writeIndent("_%s := &%s{op: %sOp", varName, exprName, varName)
+
+		for _, elem := range define.Fields() {
+			field := elem.(*DefineFieldExpr)
+			fieldName := unTitle(field.Name())
+			w.write(", %s: %s", fieldName, fieldName)
+		}
+
+		w.write("}\n")
+		w.writeIndent("return _f.memo.memoize%s(_%s)\n", define.Name(), varName)
 		w.unnest(1)
 		w.write("\n")
 	}
 }
 
-func (g *generator) genFactoryVarDefs(w *matchWriter, match ParsedExpr, fieldName string) bool {
+func (g *generator) generateVarDefs(w *matchWriter, match ParsedExpr, fieldName string) bool {
 	if _, ok := match.(*MatchFieldsExpr); ok {
 		fieldName = ""
 	}
@@ -117,7 +107,7 @@ func (g *generator) genFactoryVarDefs(w *matchWriter, match ParsedExpr, fieldNam
 	return hasVarDef
 }
 
-func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName string, negate bool) {
+func (g *generator) generateMatch(w *matchWriter, match ParsedExpr, fieldName string, negate bool) {
 	if matchFields, ok := match.(*MatchFieldsExpr); ok {
 		opName := matchFields.OpName()
 		numFields := len(matchFields.Fields())
@@ -220,7 +210,7 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 	panic(fmt.Sprintf("unrecognized match expression: %v", match))
 }
 
-func (g *generator) genFactoryReplace(w *matchWriter, replace ParsedExpr) {
+func (g *generator) generateReplace(w *matchWriter, replace ParsedExpr) {
 	if construct, ok := replace.(*ConstructExpr); ok {
 		w.write("_f.construct%s(", construct.Name())
 

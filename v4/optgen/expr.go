@@ -10,7 +10,7 @@ type ParsedExpr interface {
 	Op() operator
 	Children() []ParsedExpr
 	ChildName(pos int) string
-	Private() interface{}
+	Value() interface{}
 
 	String() string
 	Format(buf *bytes.Buffer, level int)
@@ -20,7 +20,7 @@ type expr struct {
 	op       operator
 	children []ParsedExpr
 	names    map[int]string
-	private  interface{}
+	value    interface{}
 }
 
 func (e *expr) Op() operator {
@@ -35,8 +35,8 @@ func (e *expr) ChildName(pos int) string {
 	return e.names[pos]
 }
 
-func (e *expr) Private() interface{} {
-	return e.private
+func (e *expr) Value() interface{} {
+	return e.value
 }
 
 func (e *expr) String() string {
@@ -46,13 +46,13 @@ func (e *expr) String() string {
 }
 
 func (e *expr) Format(buf *bytes.Buffer, level int) {
-	if e.private != nil {
-		if s, ok := e.private.(string); ok {
+	if e.value != nil {
+		if s, ok := e.value.(string); ok {
 			buf.WriteByte('"')
 			buf.WriteString(s)
 			buf.WriteByte('"')
 		} else {
-			buf.WriteString(fmt.Sprintf("%v", e.private))
+			buf.WriteString(fmt.Sprintf("%v", e.value))
 		}
 
 		return
@@ -70,7 +70,7 @@ func (e *expr) Format(buf *bytes.Buffer, level int) {
 
 	nested := false
 	for _, child := range e.children {
-		if child.Private() == nil && len(child.Children()) != 0 {
+		if child.Value() == nil && len(child.Children()) != 0 {
 			nested = true
 			break
 		}
@@ -171,7 +171,7 @@ func NewDefineExpr(name string, tags []string) *DefineExpr {
 }
 
 func (e *DefineExpr) Name() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *DefineExpr) Tags() *TagsExpr {
@@ -221,6 +221,17 @@ func (e *DefineExpr) Add(field *DefineFieldExpr) {
 	e.children = append(e.children, field)
 }
 
+func (e *DefineExpr) HasTag(tag string) bool {
+	for _, elem := range e.Tags().All() {
+		s := elem.(*StringExpr)
+		if s.ValueAsString() == tag {
+			return true
+		}
+	}
+
+	return false
+}
+
 type DefineFieldExpr struct {
 	expr
 }
@@ -237,11 +248,15 @@ func NewDefineFieldExpr(name, typ string) *DefineFieldExpr {
 }
 
 func (e *DefineFieldExpr) Name() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *DefineFieldExpr) Type() string {
-	return e.children[1].(*StringExpr).Value()
+	return e.children[1].(*StringExpr).ValueAsString()
+}
+
+func (e *DefineFieldExpr) IsExprType() bool {
+	return e.Type() == "Expr"
 }
 
 func (e *DefineFieldExpr) IsListType() bool {
@@ -313,7 +328,7 @@ func NewRuleHeaderExpr(name string, tags []string) *RuleHeaderExpr {
 }
 
 func (e *RuleHeaderExpr) Name() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *RuleHeaderExpr) Tags() *TagsExpr {
@@ -336,7 +351,7 @@ func NewBindExpr(label string, target ParsedExpr) *BindExpr {
 }
 
 func (e *BindExpr) Label() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *BindExpr) Target() ParsedExpr {
@@ -358,7 +373,7 @@ func NewRefExpr(label string) *RefExpr {
 }
 
 func (e *RefExpr) Label() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 type MatchAndExpr struct {
@@ -392,7 +407,7 @@ func NewMatchInvokeExpr(funcName string) *MatchInvokeExpr {
 }
 
 func (e *MatchInvokeExpr) FuncName() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *MatchInvokeExpr) Args() []ParsedExpr {
@@ -418,7 +433,7 @@ func NewMatchFieldsExpr(opName string) *MatchFieldsExpr {
 }
 
 func (e *MatchFieldsExpr) OpName() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *MatchFieldsExpr) Fields() []ParsedExpr {
@@ -482,7 +497,7 @@ func NewConstructExpr(op string) *ConstructExpr {
 }
 
 func (e *ConstructExpr) Name() string {
-	return e.children[0].(*StringExpr).Value()
+	return e.children[0].(*StringExpr).ValueAsString()
 }
 
 func (e *ConstructExpr) All() []ParsedExpr {
@@ -527,11 +542,11 @@ type StringExpr struct {
 }
 
 func NewStringExpr(s string) *StringExpr {
-	return &StringExpr{expr{op: stringOp, private: s}}
+	return &StringExpr{expr{op: stringOp, value: s}}
 }
 
-func (e *StringExpr) Value() string {
-	return e.private.(string)
+func (e *StringExpr) ValueAsString() string {
+	return e.value.(string)
 }
 
 func writeIndent(buf *bytes.Buffer, level int) {

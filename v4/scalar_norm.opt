@@ -1,4 +1,4 @@
-[NormalizeVar]
+[NormalizeVar, Normalize]
 (Eq
     $left:^(Variable)
     $right:(Variable)
@@ -6,7 +6,7 @@
 =>
 (Eq $right $left)
 
-[NormalizeVarEq]
+[NormalizeVarEq, Normalize]
 (Eq
     $left:(Variable)
     $right:(Variable) && (IsLowerExpr $right $left)

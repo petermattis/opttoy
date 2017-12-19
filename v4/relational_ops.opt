@@ -1,6 +1,94 @@
-[Relational, Logical]
+[Relational]
+define Scan {
+    Table Table
+}
+
+[Relational, ProvidedProps, RequiredProps]
+define Select {
+    Input  Expr
+    Filter Expr
+}
+
+[Relational]
 define InnerJoin {
-   Left   Expr
-   Right  Expr
-   Filter Expr
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define LeftJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define RightJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define FullJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define SemiJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define AntiJoin {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define InnerJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define LeftJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define RightJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define FullJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define SemiJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
+}
+
+[Relational]
+define AntiJoinApply {
+    Left   Expr
+    Right  Expr
+    Filter Expr
 }

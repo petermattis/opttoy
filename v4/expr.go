@@ -1,5 +1,46 @@
 package v4
 
+// expr is 24 bytes on a 64-bit machine, and is immutable after construction,
+// so it can be passed by value.
+type expr struct {
+	memo     *memo
+	group    groupID
+	op       operator
+	offset   exprOffset
+	required physicalPropsID
+}
+
+func (e *expr) operator() operator {
+	return e.op
+}
+
+func (e *expr) logical() *logicalProps {
+	return e.memo.lookupLogicalProps(e.memo.lookupGroup(e.group).logical)
+}
+
+func (e *expr) physical() *physicalProps {
+	return e.memo.lookupPhysicalProps(e.computeProvidedProps())
+}
+
+func (e *expr) childCount() int {
+	return childCountLookup[e.op](e)
+}
+
+func (e *expr) child(nth int) expr {
+	group := e.childGroup(nth)
+	required := e.computeRequiredProps(nth)
+	best := &e.memo.lookupGroup(group).bestExprs[required]
+	return expr{memo: e.memo, group: group, op: best.op, offset: best.costed.offset, required: required}
+}
+
+func (e *expr) childGroup(nth int) groupID {
+	return childGroupLookup[e.op](e, nth)
+}
+
+func (e *expr) private() interface{} {
+	return nil
+}
+
 /*
 // expr is a unified interface for both relational and scalar expressions in a
 // query. Expressions have optional inputs. Specific operators also maintain
@@ -15,7 +56,7 @@ package v4
 //
 // Every unique column and every projection (that is more than just a pass
 // through of a column) is given a column index within the query. The column
-// indexes are global to the query (see queryState.nextVar). For example,
+// indexes are global to the query (see metadata.nextVar). For example,
 // consider the query:
 //
 //   SELECT x FROM a WHERE y > 0
@@ -237,8 +278,8 @@ func (e *expr) addFilter(f *expr) {
 	// filters for an expression are implicitly AND'ed together (i.e. they are in
 	// conjunctive normal form).
 	if f.op == andOp || f.op == listOp {
-		for _, input := range f.inputs() {
-			e.addFilter(input)
+		for _, child := range f.inputs() {
+			e.addFilter(child)
 		}
 		return
 	}
@@ -320,7 +361,7 @@ func (e *expr) info() operatorInfo {
 	return operatorTab[e.op]
 }
 
-func (e *expr) initKeys(state *queryState) {
+func (e *expr) initKeys(state *metadata) {
 	e.info().initKeys(e, state)
 }
 
@@ -335,24 +376,24 @@ func (e *expr) updateProps() {
 	e.info().updateProps(e)
 }
 
-func (e *expr) scalarInputCols() bitmap {
+func (e *expr) scalarInputCols() colset {
 	if e.scalarProps == nil {
-		return bitmap{}
+		return colset{}
 	}
 	return e.scalarProps.inputCols
 }
 
-func (e *expr) requiredFilterCols() bitmap {
-	var v bitmap
+func (e *expr) requiredFilterCols() colset {
+	var v colset
 	for _, f := range e.filters() {
 		v.UnionWith(f.scalarInputCols())
 	}
 	return v
 }
 
-func (e *expr) requiredInputCols() bitmap {
+func (e *expr) requiredInputCols() colset {
 	exprs := e.children[len(e.inputs()):]
-	var v bitmap
+	var v colset
 	for _, e := range exprs {
 		if e == nil {
 			continue
@@ -368,10 +409,10 @@ func (e *expr) requiredInputCols() bitmap {
 	return v
 }
 
-func (e *expr) providedInputCols() bitmap {
-	var v bitmap
-	for _, input := range e.inputs() {
-		v.UnionWith(input.props.outputCols)
+func (e *expr) providedInputCols() colset {
+	var v colset
+	for _, child := range e.inputs() {
+		v.UnionWith(child.props.outputCols)
 	}
 	return v
 }

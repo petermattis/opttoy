@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"io"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -22,15 +23,19 @@ func NewGenerator(pkg string, compiled CompiledExpr) *generator {
 }
 
 func (g *generator) GenerateExprs(w io.Writer) error {
-	return g.generate(w, g.generateExprs)
+	return g.generate(w, g.genExprs)
 }
 
 func (g *generator) GenerateFactory(w io.Writer) error {
-	return g.generate(w, g.generateFactory)
+	return g.generate(w, g.genFactory)
 }
 
 func (g *generator) GenerateOps(w io.Writer) error {
-	return g.generate(w, g.generateOps)
+	return g.generate(w, g.genOps)
+}
+
+func (g *generator) GenerateOptimizer(w io.Writer) error {
+	return g.generate(w, g.genOptimizer)
 }
 
 func (g *generator) generate(w io.Writer, genFunc func(w io.Writer)) error {
@@ -54,6 +59,12 @@ func (g *generator) generate(w io.Writer, genFunc func(w io.Writer)) error {
 	return err
 }
 
+func (g *generator) lookupFieldName(matchFields *MatchFieldsExpr, index int) string {
+	define := g.compiled.LookupDefinition(matchFields.OpName())
+	defineField := define.Fields()[index].(*DefineFieldExpr)
+	return unTitle(defineField.Name())
+}
+
 func (g *generator) makeUnique(s string) string {
 	try := s
 	for i := 2; ; i++ {
@@ -64,6 +75,33 @@ func (g *generator) makeUnique(s string) string {
 		}
 
 		try = fmt.Sprintf("%s%d", s, i)
+	}
+}
+
+type matchWriter struct {
+	writer  io.Writer
+	nesting int
+}
+
+func (w *matchWriter) nest(format string, args ...interface{}) {
+	w.writeIndent(format, args...)
+	w.nesting++
+}
+
+func (w *matchWriter) write(format string, args ...interface{}) {
+	fmt.Fprintf(w.writer, format, args...)
+}
+
+func (w *matchWriter) writeIndent(format string, args ...interface{}) {
+	fmt.Fprintf(w.writer, strings.Repeat("  ", w.nesting))
+	fmt.Fprintf(w.writer, format, args...)
+}
+
+func (w *matchWriter) unnest(n int) {
+	for ; n > 0; n-- {
+		w.nesting--
+		fmt.Fprintf(w.writer, strings.Repeat("  ", w.nesting))
+		fmt.Fprintf(w.writer, "}\n")
 	}
 }
 

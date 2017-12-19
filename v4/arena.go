@@ -69,5 +69,10 @@ func (a *arena) GetPointerOffset(ptr unsafe.Pointer) uint32 {
 		return 0
 	}
 
-	return uint32(uintptr(ptr) - uintptr(unsafe.Pointer(&a.buf[0])))
+	offset := uintptr(ptr) - uintptr(unsafe.Pointer(&a.buf[0]))
+	if offset < 1 || offset >= uintptr(len(a.buf)) {
+		panic("ptr cannot point outside the arena")
+	}
+
+	return uint32(offset)
 }

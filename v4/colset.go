@@ -5,5 +5,5 @@ import (
 )
 
 // Bitmap used for columns.
-type bitmap = util.FastIntSet
-type bitmapIndex = int
+type colset = util.FastIntSet
+type colsetIndex = int

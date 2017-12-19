@@ -1,0 +1,11 @@
+[Relational, Enforcer]
+define Sort {
+    Input     Expr
+    OrderSpec Ordering
+}
+
+[Relational, Enforcer]
+define ProjectSubset {
+    Input       Expr
+    Projections Expr
+}

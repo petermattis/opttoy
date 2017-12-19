@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-func (g *generator) generateOps(w io.Writer) {
+func (g *generator) genOps(w io.Writer) {
 	fmt.Fprintf(w, "package %s\n\n", g.pkg)
 
 	fmt.Fprintf(w, "import (\n")
@@ -21,20 +21,4 @@ func (g *generator) generateOps(w io.Writer) {
 	}
 
 	fmt.Fprintf(w, ")\n\n")
-
-	fmt.Fprintf(w, "type opConvertFunc func(m *memoExpr) expr\n")
-	fmt.Fprintf(w, "var opConvertLookup = []opConvertFunc{\n")
-	fmt.Fprintf(w, "  nil,\n\n")
-
-	for _, elem := range g.compiled.Root().Defines().All() {
-		define := elem.(*DefineExpr)
-		name := unTitle(define.Name())
-		fmt.Fprintf(w, "  func(m *memoExpr) expr { return (*%sExpr)(unsafe.Pointer(m)) },\n", name)
-	}
-
-	fmt.Fprintf(w, "}\n\n")
-
-	fmt.Fprintf(w, "func (m *memoExpr) asExpr() expr {\n")
-	fmt.Fprintf(w, "  return opConvertLookup[m.op](m)\n")
-	fmt.Fprintf(w, "}\n\n")
 }

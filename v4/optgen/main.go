@@ -34,6 +34,8 @@ func main() {
 	case "exprs":
 	case "factory":
 	case "ops":
+	case "optimizer":
+	case "visitor":
 
 	default:
 		flag.Usage()
@@ -84,6 +86,9 @@ func main() {
 
 	case "ops":
 		err = gen.GenerateOps(writer)
+
+	case "optimizer":
+		err = gen.GenerateOptimizer(writer)
 	}
 
 	if err != nil {
@@ -103,10 +108,11 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\toptgen command [flags] sources...\n\n")
 
 	fmt.Fprintf(os.Stderr, "The commands are:\n\n")
-	fmt.Fprintf(os.Stderr, "\tcompile  generates the optgen compiled format\n")
-	fmt.Fprintf(os.Stderr, "\texprs    generates expression definitions and functions\n")
-	fmt.Fprintf(os.Stderr, "\tfactory  generates expression tree creation and normalization functions\n")
-	fmt.Fprintf(os.Stderr, "\tops      generates operator definitions and functions\n")
+	fmt.Fprintf(os.Stderr, "\tcompile    generates the optgen compiled format\n")
+	fmt.Fprintf(os.Stderr, "\texprs      generates expression definitions and functions\n")
+	fmt.Fprintf(os.Stderr, "\tfactory    generates expression tree creation and normalization functions\n")
+	fmt.Fprintf(os.Stderr, "\tops        generates operator definitions and functions\n")
+	fmt.Fprintf(os.Stderr, "\toptimizer  generates exploration and implementation functions\n")
 	fmt.Fprintf(os.Stderr, "\n")
 
 	fmt.Fprintf(os.Stderr, "Flags:\n")

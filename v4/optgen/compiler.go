@@ -75,7 +75,7 @@ func (c *Compiler) compileDefinitions() bool {
 
 		// Determine set of unique tags.
 		for _, elem2 := range define.Tags().All() {
-			tag := elem2.(*StringExpr).Value()
+			tag := elem2.(*StringExpr).ValueAsString()
 			if !tags[tag] {
 				c.compiled.defTags = append(c.compiled.defTags, tag)
 				tags[tag] = true
