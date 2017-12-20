@@ -124,9 +124,8 @@ project [out=(1)]
            ├── ordering: +1
            ├── filters
            │    └── gt [in=(1) type=bool]
-           │         └── inputs
-           │              ├── variable (a.y) [in=(1) type=int]
-           │              └── const (1) [type=int]
+           │         ├── variable (a.y) [in=(1) type=int]
+           │         └── const (1) [type=int]
            └── inputs
                 └── index-scan [out=(1)]
                      ├── columns: a.x:0* a.y:1 a.z:2

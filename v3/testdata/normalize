@@ -19,13 +19,11 @@ project [out=(1)]
            ├── equiv: (0,1)
            ├── filters
            │    ├── eq [in=(0,1) type=bool]
-           │    │    └── inputs
-           │    │         ├── variable (a.x) [in=(0) type=int]
-           │    │         └── variable (a.y) [in=(1) type=int]
+           │    │    ├── variable (a.x) [in=(0) type=int]
+           │    │    └── variable (a.y) [in=(1) type=int]
            │    └── eq [in=(1) type=bool]
-           │         └── inputs
-           │              ├── variable (a.y) [in=(1) type=int]
-           │              └── const (1) [type=int]
+           │         ├── variable (a.y) [in=(1) type=int]
+           │         └── const (1) [type=int]
            └── inputs
                 └── scan [out=(0,1)]
                      └── columns: a.x:0 a.y:1

@@ -35,9 +35,8 @@ project [out=(0)]
            ├── columns: a.x:0 a.y:1*
            ├── filters
            │    └── gt [in=(1) type=bool]
-           │         └── inputs
-           │              ├── variable (a.y) [in=(1) type=int]
-           │              └── const (1) [type=int]
+           │         ├── variable (a.y) [in=(1) type=int]
+           │         └── const (1) [type=int]
            └── inputs
                 └── scan [out=(0,1)]
                      └── columns: a.x:0 a.y:1
@@ -58,21 +57,18 @@ project [out=(0,1,3)]
            ├── equiv: (0,2)
            ├── filters
            │    └── eq [in=(0,2) type=int]
-           │         └── inputs
-           │              ├── variable (a.x) [in=(0) type=int]
-           │              └── variable (b.x) [in=(2) type=int]
+           │         ├── variable (a.x) [in=(0) type=int]
+           │         └── variable (b.x) [in=(2) type=int]
            └── inputs
                 ├── select [out=(0,1)]
                 │    ├── columns: a.x:0* a.y:1
                 │    ├── filters
                 │    │    ├── gt [in=(0) type=bool]
-                │    │    │    └── inputs
-                │    │    │         ├── variable (a.x) [in=(0) type=int]
-                │    │    │         └── const (1) [type=int]
-                │    │    └── IS-NOT [in=(0) type=bool]
-                │    │         └── inputs
-                │    │              ├── variable (a.x) [in=(0) type=int]
-                │    │              └── const (NULL) [type=NULL]
+                │    │    │    ├── variable (a.x) [in=(0) type=int]
+                │    │    │    └── const (1) [type=int]
+                │    │    └── is-not [in=(0) type=bool]
+                │    │         ├── variable (a.x) [in=(0) type=int]
+                │    │         └── const (NULL) [type=NULL]
                 │    └── inputs
                 │         └── scan [out=(0,1)]
                 │              └── columns: a.x:0 a.y:1
@@ -80,13 +76,11 @@ project [out=(0,1,3)]
                      ├── columns: b.x:2* b.z:3
                      ├── filters
                      │    ├── gt [in=(2) type=bool]
-                     │    │    └── inputs
-                     │    │         ├── variable (b.x) [in=(2) type=int]
-                     │    │         └── const (1) [type=int]
-                     │    └── IS-NOT [in=(2) type=bool]
-                     │         └── inputs
-                     │              ├── variable (b.x) [in=(2) type=int]
-                     │              └── const (NULL) [type=NULL]
+                     │    │    ├── variable (b.x) [in=(2) type=int]
+                     │    │    └── const (1) [type=int]
+                     │    └── is-not [in=(2) type=bool]
+                     │         ├── variable (b.x) [in=(2) type=int]
+                     │         └── const (NULL) [type=NULL]
                      └── inputs
                           └── scan [out=(2,3)]
                                └── columns: b.x:2 b.z:3

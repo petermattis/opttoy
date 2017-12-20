@@ -139,10 +139,12 @@ func formatRelational(e *expr, tp treeprinter.Node) treeprinter.Node {
 
 func formatExprs(tp treeprinter.Node, title string, exprs []*expr) {
 	if len(exprs) > 0 {
-		n := tp.Child(title)
+		if title != "" {
+			tp = tp.Child(title)
+		}
 		for _, e := range exprs {
 			if e != nil {
-				e.format(n)
+				e.format(tp)
 			}
 		}
 	}
