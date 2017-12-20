@@ -356,6 +356,11 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		result = newUnaryExpr(existsOp, buildScalar(texpr, scope))
 
 	case *subquery:
+		// TODO(peter): a subquery in a scalar context needs to be wrapped with
+		// some sort of scalar expression. For example, `SELECT (SELECT 1)`. The
+		// `SELECT 1` subquery is being used as a projection. We need to wrap the
+		// relational expression in something like a subqueryOp scalar expression
+		// that is typed according to the subquery.
 		return t.expr
 
 	default:
@@ -394,10 +399,6 @@ func buildSelect(stmt *tree.Select, scope *scope) *expr {
 }
 
 func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope) {
-	if from == nil {
-		return nil, scope
-	}
-
 	var result *expr
 	for _, table := range from.Tables {
 		t := buildTable(table, scope)
@@ -411,6 +412,15 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 		buildUsingJoin(result, nil)
 		result.initProps()
 		scope = scope.push(result.props)
+	}
+
+	if result == nil {
+		// TODO(peter): This should be a table with 1 row and 0 columns to match
+		// current cockroach behavior.
+		result = &expr{
+			op:    valuesOp,
+			props: &relationalProps{},
+		}
 	}
 
 	if where != nil {
