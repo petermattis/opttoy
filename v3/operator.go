@@ -13,6 +13,7 @@ const (
 
 	// Relational operators
 	scanOp
+	valuesOp
 	selectOp
 
 	unionOp
