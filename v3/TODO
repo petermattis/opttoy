@@ -120,6 +120,9 @@ Transformations
 
 - Group-by push-down. Push group-by below a join.
 
+- Semi-join to inner-join if the join condition involves keys of both
+  tables.
+
 - Convert decorrelation to be a regular transformation.
 
 - Convert push-down to be a regular transformation. Is there a
