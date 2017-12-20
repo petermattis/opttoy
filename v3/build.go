@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/cockroachdb/cockroach/pkg/sql/sem/builtins"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 )
 
 var comparisonOpMap = [...]operator{
@@ -55,20 +56,6 @@ var unaryOpMap = [...]operator{
 	tree.UnaryPlus:       unaryPlusOp,
 	tree.UnaryMinus:      unaryMinusOp,
 	tree.UnaryComplement: unaryComplementOp,
-}
-
-type scope struct {
-	parent *scope
-	props  *relationalProps
-	state  *queryState
-}
-
-func (s *scope) push(props *relationalProps) *scope {
-	return &scope{
-		parent: s,
-		props:  props,
-		state:  s.state,
-	}
 }
 
 func build(stmt tree.Statement, scope *scope) *expr {
@@ -167,8 +154,7 @@ func buildScan(tab *table, scope *scope) *expr {
 	// equivalent to `r.y`. In order to achieve this, we need to give these
 	// columns different indexes.
 	state := scope.state
-	base := state.nextVar
-	state.nextVar += bitmapIndex(len(tab.columns))
+	base := bitmapIndex(len(state.columns))
 
 	// TODO(peter): queryState.tables is used for looking up foreign key
 	// references. Currently, this lookup is global, but it likely needs to be
@@ -179,11 +165,14 @@ func buildScan(tab *table, scope *scope) *expr {
 
 	for i, col := range tab.columns {
 		index := base + bitmapIndex(i)
-		props.columns = append(props.columns, columnProps{
+		col := columnProps{
 			index: index,
 			name:  col.name,
 			table: tab.name,
-		})
+			typ:   col.typ,
+		}
+		state.columns = append(state.columns, col)
+		props.columns = append(props.columns, col)
 	}
 
 	// Initialize keys from the table schema.
@@ -214,7 +203,8 @@ func buildOnJoin(result *expr, on tree.Expr, scope *scope) {
 	result.props.columns = make([]columnProps, len(left.columns)+len(right.columns))
 	copy(result.props.columns[:], left.columns)
 	copy(result.props.columns[len(left.columns):], right.columns)
-	result.addFilter(buildScalar(on, scope.push(result.props)))
+	scope = scope.push(result.props)
+	result.addFilter(buildScalar(scope.resolve(on, types.Bool), scope))
 }
 
 func buildNaturalJoin(e *expr) {
@@ -258,7 +248,11 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 		if rightCol == nil {
 			fatalf("unable to resolve name %s", name)
 		}
-		e.addFilter(newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr("")))
+		// TODO(peter): this needs to be type checked which means we should create
+		// a tree.ComparisonExpr and then type check it.
+		f := newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr(""))
+		f.scalarProps.typ = f.children[0].scalarProps.typ
+		e.addFilter(f)
 		e.props.columns = append(e.props.columns, *leftCol)
 		joined[name] = leftCol
 	}
@@ -287,54 +281,48 @@ func buildLeftOuterJoin(e *expr) {
 	copy(e.props.columns[len(left.columns):], right.columns)
 }
 
-func buildScalar(pexpr tree.Expr, scope *scope) *expr {
+func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 	var result *expr
 	switch t := pexpr.(type) {
+	case *tree.Tuple:
+		result = &expr{
+			op:          orderedListOp,
+			children:    make([]*expr, len(t.Exprs)),
+			scalarProps: &scalarProps{},
+		}
+		for i := range t.Exprs {
+			result.children[i] = buildScalar(t.Exprs[i].(tree.TypedExpr), scope)
+		}
+
 	case *tree.ParenExpr:
-		return buildScalar(t.Expr, scope)
+		return buildScalar(t.TypedInnerExpr(), scope)
 
 	case *tree.AndExpr:
-		result = newBinaryExpr(andOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
+		result = newBinaryExpr(andOp,
+			buildScalar(t.TypedLeft(), scope),
+			buildScalar(t.TypedRight(), scope))
 	case *tree.OrExpr:
-		result = newBinaryExpr(orOp, buildScalar(t.Left, scope), buildScalar(t.Right, scope))
+		result = newBinaryExpr(orOp,
+			buildScalar(t.TypedLeft(), scope),
+			buildScalar(t.TypedRight(), scope))
 	case *tree.NotExpr:
-		result = newUnaryExpr(notOp, buildScalar(t.Expr, scope))
+		result = newUnaryExpr(notOp,
+			buildScalar(t.TypedInnerExpr(), scope))
 
 	case *tree.BinaryExpr:
 		result = newBinaryExpr(binaryOpMap[t.Operator],
-			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
+			buildScalar(t.TypedLeft(), scope),
+			buildScalar(t.TypedRight(), scope))
 	case *tree.ComparisonExpr:
 		result = newBinaryExpr(comparisonOpMap[t.Operator],
-			buildScalar(t.Left, scope), buildScalar(t.Right, scope))
+			buildScalar(t.TypedLeft(), scope),
+			buildScalar(t.TypedRight(), scope))
 	case *tree.UnaryExpr:
-		result = newUnaryExpr(unaryOpMap[t.Operator], buildScalar(t.Expr, scope))
+		result = newUnaryExpr(unaryOpMap[t.Operator],
+			buildScalar(t.TypedInnerExpr(), scope))
 
-	case *tree.ColumnItem:
-		tblName := tableName(t.TableName.Table())
-		colName := columnName(t.ColumnName)
-
-		for s := scope; s != nil; s = s.parent {
-			for _, col := range s.props.columns {
-				if col.hasColumn(tblName, colName) {
-					if tblName == "" && col.table != "" {
-						t.TableName.TableName = tree.Name(col.table)
-						t.TableName.DBNameOriginallyOmitted = true
-					}
-					return col.newVariableExpr("")
-				}
-			}
-		}
-		fatalf("unknown column %s", t)
-
-	case tree.UnresolvedName:
-		vn, err := t.NormalizeVarName()
-		if err != nil {
-			panic(err)
-		}
-		return buildScalar(vn, scope)
-
-	case *tree.NumVal:
-		result = newConstExpr(t)
+	case *tree.IndexedVar:
+		return scope.newVariableExpr(t.Idx)
 
 	case *tree.Placeholder:
 		result = &expr{
@@ -343,8 +331,11 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			private:     t,
 		}
 
+	case tree.Datum:
+		result = newConstExpr(t)
+
 	case *tree.FuncExpr:
-		def, err := t.Func.Resolve(tree.SearchPath{})
+		def, err := t.Func.Resolve(scope.state.semaCtx.SearchPath)
 		if err != nil {
 			fatalf("%v", err)
 		}
@@ -354,27 +345,24 @@ func buildScalar(pexpr tree.Expr, scope *scope) *expr {
 			if _, ok := pexpr.(tree.UnqualifiedStar); ok {
 				e = newConstExpr(tree.NewDInt(1))
 			} else {
-				e = buildScalar(pexpr, scope)
+				e = buildScalar(pexpr.(tree.TypedExpr), scope)
 			}
 			children = append(children, e)
 		}
 		result = newFunctionExpr(def, children)
 
 	case *tree.ExistsExpr:
-		result = newUnaryExpr(existsOp, buildScalar(t.Subquery, scope))
+		texpr := scope.resolve(t.Subquery, types.Any)
+		result = newUnaryExpr(existsOp, buildScalar(texpr, scope))
 
-	case *tree.Subquery:
-		return build(t.Select, scope)
+	case *subquery:
+		return t.expr
 
 	default:
-		// NB: we can't type assert on tree.dNull because the type is not
-		// exported.
-		if pexpr == tree.DNull {
-			result = newConstExpr(pexpr)
-		} else {
-			unimplemented("%T", pexpr)
-		}
+		unimplemented("%T", pexpr)
 	}
+
+	result.scalarProps.typ = pexpr.ResolvedType()
 	return result
 }
 
@@ -432,7 +420,8 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 			columns: make([]columnProps, len(input.props.columns)),
 		}
 		copy(result.props.columns, input.props.columns)
-		result.addFilter(buildScalar(where.Expr, scope))
+		texpr := scope.resolve(where.Expr, types.Bool)
+		result.addFilter(buildScalar(texpr, scope))
 		result.initProps()
 		scope = scope.push(result.props)
 	}
@@ -458,13 +447,15 @@ func buildGroupBy(
 
 	exprs := make([]*expr, 0, len(groupBy))
 	for _, expr := range groupBy {
-		exprs = append(exprs, buildScalar(expr, scope))
+		texpr := scope.resolve(expr, types.Any)
+		exprs = append(exprs, buildScalar(texpr, scope))
 	}
 	result.addGroupings(exprs)
 	result.initProps()
 
 	if having != nil {
-		f := buildScalar(having.Expr, scope)
+		texpr := scope.resolve(having.Expr, types.Bool)
+		f := buildScalar(texpr, scope)
 		buildGroupByExtractAggregates(result, f, scope)
 		result.initProps()
 
@@ -496,14 +487,16 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 		t := *e
 		g.addAggregation(&t)
 
-		index := scope.state.nextVar
-		scope.state.nextVar++
+		index := bitmapIndex(len(scope.state.columns))
 		name := columnName(fmt.Sprintf("column%d", len(g.props.columns)+1))
-		g.props.columns = append(g.props.columns, columnProps{
+		col := columnProps{
 			index: index,
 			name:  name,
-		})
-		*e = *g.props.columns[len(g.props.columns)-1].newVariableExpr("")
+			typ:   e.scalarProps.typ,
+		}
+		scope.state.columns = append(scope.state.columns, col)
+		g.props.columns = append(g.props.columns, col)
+		*e = *col.newVariableExpr("")
 		return true
 	}
 
@@ -552,7 +545,8 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		return buildProjection(vn, scope)
 
 	default:
-		return []*expr{buildScalar(pexpr, scope)}
+		texpr := scope.resolve(pexpr, types.Any)
+		return []*expr{buildScalar(texpr, scope)}
 	}
 }
 
@@ -588,15 +582,17 @@ func buildProjections(
 			name := columnName(sexpr.As)
 			if p.op != variableOp {
 				passthru = false
-				index := scope.state.nextVar
-				scope.state.nextVar++
+				index := bitmapIndex(len(scope.state.columns))
 				if name == "" {
 					name = columnName(fmt.Sprintf("column%d", len(result.props.columns)+1))
 				}
-				result.props.columns = append(result.props.columns, columnProps{
+				col := columnProps{
 					index: index,
 					name:  name,
-				})
+					typ:   p.scalarProps.typ,
+				}
+				scope.state.columns = append(scope.state.columns, col)
+				result.props.columns = append(result.props.columns, col)
 			} else {
 				col := p.private.(columnProps)
 				for j := range input.props.columns {
@@ -664,7 +660,8 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 
 	ordering := make(ordering, 0, len(orderBy))
 	for _, o := range orderBy {
-		e := buildScalar(o.Expr, scope)
+		texpr := scope.resolve(o.Expr, types.Any)
+		e := buildScalar(texpr, scope)
 		switch e.op {
 		case variableOp:
 			index := e.private.(columnProps).index

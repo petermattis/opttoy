@@ -31,7 +31,8 @@ func (variableClass) layout() exprLayout {
 }
 
 func (variableClass) format(e *expr, tp treeprinter.Node) {
-	tp.Childf("%v (%s) [in=%s]", e.op, e.private, e.scalarProps.inputCols)
+	tp.Childf("%v (%s) [in=%s type=%v]", e.op, e.private,
+		e.scalarProps.inputCols, e.scalarProps.typ)
 }
 
 func (variableClass) initKeys(e *expr, state *queryState) {
