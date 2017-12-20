@@ -42,10 +42,9 @@ project [out=(2,3)]
            ├── weak key: (0)
            ├── foreign key: (1) -> (4)
            ├── filters
-           │    └── IS-NOT [in=(1) type=bool]
-           │         └── inputs
-           │              ├── variable (e.dept_id) [in=(1) type=int]
-           │              └── const (NULL) [type=NULL]
+           │    └── is-not [in=(1) type=bool]
+           │         ├── variable (e.dept_id) [in=(1) type=int]
+           │         └── const (NULL) [type=NULL]
            └── inputs
                 └── scan [out=(1-3)]
                      ├── columns: e.emp_id:0* e.dept_id:1 e.name:2 e.salary:3
@@ -70,9 +69,8 @@ project [out=(4,5)]
            ├── foreign key: (3) -> (0)
            ├── filters
            │    └── ne [in=(3) type=bool]
-           │         └── inputs
-           │              ├── variable (e.dept_id) [in=(3) type=int]
-           │              └── const (0) [type=int]
+           │         ├── variable (e.dept_id) [in=(3) type=int]
+           │         └── const (0) [type=int]
            └── inputs
                 └── scan [out=(3-5)]
                      ├── columns: e.emp_id:2* e.dept_id:3 e.name:4 e.salary:5
@@ -97,19 +95,17 @@ project [out=(2,3,5)]
            ├── equiv: (1,4)
            ├── filters
            │    └── eq [in=(1,4) type=bool]
-           │         └── inputs
-           │              ├── variable (e.dept_id) [in=(1) type=int]
-           │              └── variable (d.dept_id) [in=(4) type=int]
+           │         ├── variable (e.dept_id) [in=(1) type=int]
+           │         └── variable (d.dept_id) [in=(4) type=int]
            └── inputs
                 ├── select [out=(1-3)]
                 │    ├── columns: e.emp_id:0 e.dept_id:1* e.name:2 e.salary:3
                 │    ├── weak key: (0)
                 │    ├── foreign key: (1) -> (4)
                 │    ├── filters
-                │    │    └── IS-NOT [in=(1) type=bool]
-                │    │         └── inputs
-                │    │              ├── variable (e.dept_id) [in=(1) type=int]
-                │    │              └── const (NULL) [type=NULL]
+                │    │    └── is-not [in=(1) type=bool]
+                │    │         ├── variable (e.dept_id) [in=(1) type=int]
+                │    │         └── const (NULL) [type=NULL]
                 │    └── inputs
                 │         └── scan [out=(1-3)]
                 │              ├── columns: e.emp_id:0* e.dept_id:1 e.name:2 e.salary:3

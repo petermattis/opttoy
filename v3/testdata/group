@@ -91,9 +91,8 @@ project [out=(0)]
            ├── columns: a.x:0 a.y:1 .column3:2*
            ├── filters
            │    └── gt [in=(2) type=bool]
-           │         └── inputs
-           │              ├── variable (column3) [in=(2) type=decimal]
-           │              └── const (0) [type=decimal]
+           │         ├── variable (column3) [in=(2) type=decimal]
+           │         └── const (0) [type=decimal]
            └── inputs
                 └── group-by [out=(0-2)]
                      ├── columns: a.x:0 a.y:1 .column3:2
@@ -101,8 +100,7 @@ project [out=(0)]
                      │    └── variable (a.x) [in=(0) type=int]
                      ├── aggregations
                      │    └── func (sum) [in=(1) type=decimal]
-                     │         └── inputs
-                     │              └── variable (a.y) [in=(1) type=int]
+                     │         └── variable (a.y) [in=(1) type=int]
                      └── inputs
                           └── scan [out=(0,1)]
                                └── columns: a.x:0 a.y:1
@@ -120,16 +118,14 @@ project [out=(0,3)]
            ├── columns: .column1:3
            ├── aggregations
            │    └── func (sum) [in=(1) type=decimal]
-           │         └── inputs
-           │              └── variable (a.y) [in=(1) type=int]
+           │         └── variable (a.y) [in=(1) type=int]
            └── inputs
                 └── select [out=(0-2)]
                      ├── columns: a.x:0 a.y:1 .column3:2*
                      ├── filters
                      │    └── gt [in=(2) type=bool]
-                     │         └── inputs
-                     │              ├── variable (column3) [in=(2) type=decimal]
-                     │              └── const (0) [type=decimal]
+                     │         ├── variable (column3) [in=(2) type=decimal]
+                     │         └── const (0) [type=decimal]
                      └── inputs
                           └── group-by [out=(0-2)]
                                ├── columns: a.x:0 a.y:1 .column3:2
@@ -137,8 +133,7 @@ project [out=(0,3)]
                                │    └── variable (a.x) [in=(0) type=int]
                                ├── aggregations
                                │    └── func (sum) [in=(1) type=decimal]
-                               │         └── inputs
-                               │              └── variable (a.y) [in=(1) type=int]
+                               │         └── variable (a.y) [in=(1) type=int]
                                └── inputs
                                     └── scan [out=(0,1)]
                                          └── columns: a.x:0 a.y:1
