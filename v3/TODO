@@ -123,6 +123,9 @@ Transformations
 - Semi-join to inner-join if the join condition involves keys of both
   tables.
 
+- Full-join to left or right-join and left or right-join to inner-join
+  transformations.
+
 - Convert decorrelation to be a regular transformation.
 
 - Convert push-down to be a regular transformation. Is there a
