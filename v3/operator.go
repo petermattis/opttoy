@@ -47,6 +47,7 @@ const (
 	orderedListOp
 
 	existsOp
+	subqueryOp
 
 	andOp
 	orOp

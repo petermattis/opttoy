@@ -186,7 +186,13 @@ func TestLogic(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			p := newPlanner()
-			runTest(t, path, func(d *testdata) string {
+			runTest(t, path, func(d *testdata) (result string) {
+				defer func() {
+					if r := recover(); r != nil {
+						result = fmt.Sprintln(r)
+					}
+				}()
+
 				switch d.cmd {
 				case "exec":
 					return p.exec(d.stmt)

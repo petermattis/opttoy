@@ -352,16 +352,13 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		result = newFunctionExpr(def, children)
 
 	case *tree.ExistsExpr:
-		texpr := scope.resolve(t.Subquery, types.Any)
-		result = newUnaryExpr(existsOp, buildScalar(texpr, scope))
+		// TODO(peter): the decorrelation code currently expects the subquery to be
+		// unwrapped for EXISTS expressions.
+		subquery := t.Subquery.(*subquery)
+		result = newUnaryExpr(existsOp, subquery.expr)
 
 	case *subquery:
-		// TODO(peter): a subquery in a scalar context needs to be wrapped with
-		// some sort of scalar expression. For example, `SELECT (SELECT 1)`. The
-		// `SELECT 1` subquery is being used as a projection. We need to wrap the
-		// relational expression in something like a subqueryOp scalar expression
-		// that is typed according to the subquery.
-		return t.expr
+		result = newUnaryExpr(subqueryOp, t.expr)
 
 	default:
 		unimplemented("%T", pexpr)
