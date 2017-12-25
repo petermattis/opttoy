@@ -45,6 +45,7 @@ const (
 	placeholderOp
 	listOp
 	orderedListOp
+	tupleOp
 
 	existsOp
 	subqueryOp

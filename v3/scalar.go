@@ -17,6 +17,7 @@ func init() {
 	registerOperator(placeholderOp, "placeholder", scalarClass{})
 	registerOperator(listOp, "list", scalarClass{})
 	registerOperator(orderedListOp, "ordered-list", scalarClass{})
+	registerOperator(tupleOp, "tuple", scalarClass{})
 	registerOperator(existsOp, "exists", scalarClass{})
 	registerOperator(subqueryOp, "subquery", scalarClass{})
 	registerOperator(andOp, "and", scalarClass{})

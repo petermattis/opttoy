@@ -286,7 +286,7 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 	switch t := pexpr.(type) {
 	case *tree.Tuple:
 		result = &expr{
-			op:          orderedListOp,
+			op:          tupleOp,
 			children:    make([]*expr, len(t.Exprs)),
 			scalarProps: &scalarProps{},
 		}
