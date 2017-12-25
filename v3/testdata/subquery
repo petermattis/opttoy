@@ -37,22 +37,24 @@ project [out=(1)]
  └── inputs
       └── values
 
-# TODO(peter): this should be an error as the projection can only
-# expand to a single column while the subquery is returning 2.
-#
-#   subquery must return only one column
 build
 SELECT (SELECT 1, 2)
 ----
-project [out=(2)]
- ├── columns: .column1:2
+subquery must return one column, found 2
+
+build
+SELECT (SELECT (1, 2))
+----
+project [out=(1)]
+ ├── columns: .column1:1
  ├── projections
  │    └── subquery [type=tuple{int, int}]
- │         └── project [out=(0,1)]
- │              ├── columns: .column1:0 .column2:1
+ │         └── project [out=(0)]
+ │              ├── columns: .column1:0
  │              ├── projections
- │              │    ├── const (1) [type=int]
- │              │    └── const (2) [type=int]
+ │              │    └── tuple [type=tuple{int, int}]
+ │              │         ├── const (1) [type=int]
+ │              │         └── const (2) [type=int]
  │              └── inputs
  │                   └── values
  └── inputs

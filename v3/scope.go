@@ -2,6 +2,7 @@ package v3
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -27,6 +28,18 @@ func (s *scope) resolve(expr tree.Expr, desired types.T) tree.TypedExpr {
 	texpr, err := tree.TypeCheck(expr, &s.state.semaCtx, desired)
 	if err != nil {
 		panic(err)
+	}
+
+	// A subquery is only allowed to return a single column in top-level scalar
+	// contexts such as projections. Note the type of the subquery may be a tuple
+	// (e.g. `SELECT (1, 2)`) even though the subquery itself returns only a
+	// single column.
+	//
+	// TODO(peter): this seems hacky.
+	if sub, ok := texpr.(*subquery); ok {
+		if n := len(sub.expr.props.columns); n != 1 {
+			panic(fmt.Errorf("subquery must return one column, found %d", n))
+		}
 	}
 	return texpr
 }
