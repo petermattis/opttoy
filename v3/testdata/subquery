@@ -8,7 +8,6 @@ project [out=(0,1)]
  │    └── const (2) [type=int]
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT (SELECT 1)
@@ -23,10 +22,8 @@ project [out=(1)]
  │              │    └── const (1) [type=int]
  │              └── inputs
  │                   └── values
- │                        └── columns:
  └── inputs
       └── values
-           └── columns:
 
 # TODO(peter): this should be an error as the projection can only
 # expand to a single column while the subquery is returning 2.
@@ -46,10 +43,8 @@ project [out=(2)]
  │              │    └── const (2) [type=int]
  │              └── inputs
  │                   └── values
- │                        └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT (1, 2) = (SELECT 1, 2)
@@ -69,10 +64,8 @@ project [out=(2)]
  │                   │    └── const (2) [type=int]
  │                   └── inputs
  │                        └── values
- │                             └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT (SELECT 1, 2) = (SELECT 1, 2)
@@ -89,7 +82,6 @@ project [out=(4)]
  │         │         │    └── const (2) [type=int]
  │         │         └── inputs
  │         │              └── values
- │         │                   └── columns:
  │         └── subquery [type=tuple{int, int}]
  │              └── project [out=(2,3)]
  │                   ├── columns: .column1:2 .column2:3
@@ -98,10 +90,8 @@ project [out=(4)]
  │                   │    └── const (2) [type=int]
  │                   └── inputs
  │                        └── values
- │                             └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT 1 IN (SELECT 1)
@@ -118,10 +108,8 @@ project [out=(1)]
  │                   │    └── const (1) [type=int]
  │                   └── inputs
  │                        └── values
- │                             └── columns:
  └── inputs
       └── values
-           └── columns:
 
 # TODO(peter): the subquery should have type TTable, not TTuple
 build
@@ -142,10 +130,8 @@ project [out=(2)]
  │                   │    └── const (2) [type=int]
  │                   └── inputs
  │                        └── values
- │                             └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT (1, 2) IN (SELECT 1, 2, 3)
@@ -170,10 +156,8 @@ project [out=(1)]
  │              │    └── const (1) [type=int]
  │              └── inputs
  │                   └── values
- │                        └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT 1 < (SELECT 1)
@@ -190,10 +174,8 @@ project [out=(1)]
  │                   │    └── const (1) [type=int]
  │                   └── inputs
  │                        └── values
- │                             └── columns:
  └── inputs
       └── values
-           └── columns:
 
 build
 SELECT 1 < (SELECT 1, 2)

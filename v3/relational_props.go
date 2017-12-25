@@ -167,25 +167,27 @@ func (p *relationalProps) String() string {
 
 func (p *relationalProps) format(tp treeprinter.Node) {
 	var buf bytes.Buffer
-	buf.WriteString("columns:")
-	for _, col := range p.columns {
-		buf.WriteString(" ")
-		if col.hidden {
-			buf.WriteString("(")
+	if len(p.columns) > 0 {
+		buf.WriteString("columns:")
+		for _, col := range p.columns {
+			buf.WriteString(" ")
+			if col.hidden {
+				buf.WriteString("(")
+			}
+			buf.WriteString(string(col.table))
+			buf.WriteString(".")
+			buf.WriteString(string(col.name))
+			buf.WriteString(":")
+			fmt.Fprintf(&buf, "%d", col.index)
+			if p.notNullCols.Contains(col.index) {
+				buf.WriteString("*")
+			}
+			if col.hidden {
+				buf.WriteString(")")
+			}
 		}
-		buf.WriteString(string(col.table))
-		buf.WriteString(".")
-		buf.WriteString(string(col.name))
-		buf.WriteString(":")
-		fmt.Fprintf(&buf, "%d", col.index)
-		if p.notNullCols.Contains(col.index) {
-			buf.WriteString("*")
-		}
-		if col.hidden {
-			buf.WriteString(")")
-		}
+		tp.Child(buf.String())
 	}
-	tp.Child(buf.String())
 	for _, key := range p.weakKeys {
 		var prefix string
 		if !key.SubsetOf(p.notNullCols) {
