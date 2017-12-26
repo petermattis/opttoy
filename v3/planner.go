@@ -62,7 +62,7 @@ func (p *planner) exec(stmt tree.Statement) string {
 func (p *planner) build(stmt tree.Statement) *expr {
 	state := &queryState{
 		catalog: p.catalog,
-		tables:  make(map[tableName]bitmapIndex),
+		tables:  make(map[tableName][]bitmapIndex),
 	}
 	ivarHelper := tree.MakeIndexedVarHelper(state, 0)
 	state.semaCtx.IVarHelper = &ivarHelper
