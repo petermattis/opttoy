@@ -39,7 +39,7 @@ project [out=(0,1,3)]
            ├── columns: c.x:0* c.y:1 (d.x:2*) d.z:3
            ├── equiv: (0,2)
            ├── filters
-           │    └── eq [in=(0,2) type=int]
+           │    └── eq [in=(0,2) type=bool]
            │         ├── variable (c.x) [in=(0) type=int]
            │         └── variable (d.x) [in=(2) type=int]
            └── inputs

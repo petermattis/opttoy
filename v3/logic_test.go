@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -189,6 +190,9 @@ func TestLogic(t *testing.T) {
 			runTest(t, path, func(d *testdata) (result string) {
 				defer func() {
 					if r := recover(); r != nil {
+						if _, ok := r.(runtime.Error); ok {
+							panic(r)
+						}
 						result = fmt.Sprintln(r)
 					}
 				}()
