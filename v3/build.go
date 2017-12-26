@@ -108,7 +108,9 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 
 	case *tree.JoinTableExpr:
 		left := buildTable(source.Left, scope)
-		right := buildTable(source.Right, scope.push(left.props))
+		scope = scope.push(left.props)
+		right := buildTable(source.Right, scope)
+		scope = scope.push(right.props)
 		result := newJoinExpr(joinOp(source.Join), left, right)
 		result.props = &relationalProps{}
 
@@ -117,10 +119,10 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 			buildOnJoin(result, cond.Expr, scope)
 
 		case tree.NaturalJoinCond:
-			buildNaturalJoin(result)
+			buildNaturalJoin(result, scope)
 
 		case *tree.UsingJoinCond:
-			buildUsingJoin(result, cond.Cols)
+			buildUsingJoin(result, cond.Cols, scope)
 
 		default:
 			unimplemented("%T", source.Cond)
@@ -207,7 +209,7 @@ func buildOnJoin(result *expr, on tree.Expr, scope *scope) {
 	result.addFilter(buildScalar(scope.resolve(on, types.Bool), scope))
 }
 
-func buildNaturalJoin(e *expr) {
+func buildNaturalJoin(e *expr, scope *scope) {
 	inputs := e.inputs()
 	names := make(tree.NameList, 0, len(inputs[0].props.columns))
 	for _, col := range inputs[0].props.columns {
@@ -227,10 +229,10 @@ func buildNaturalJoin(e *expr) {
 		}
 		names = common
 	}
-	buildUsingJoin(e, names)
+	buildUsingJoin(e, names, scope)
 }
 
-func buildUsingJoin(e *expr, names tree.NameList) {
+func buildUsingJoin(e *expr, names tree.NameList, scope *scope) {
 	inputs := e.inputs()
 	left := inputs[0].props
 	right := inputs[1].props
@@ -248,11 +250,14 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 		if rightCol == nil {
 			fatalf("unable to resolve name %s", name)
 		}
-		// TODO(peter): this needs to be type checked which means we should create
-		// a tree.ComparisonExpr and then type check it.
-		f := newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr(""))
-		f.scalarProps.typ = f.children[0].scalarProps.typ
-		e.addFilter(f)
+		// Build a tree.ComparisonExpr in order to use the normal type checking
+		// machinery.
+		cmp := &tree.ComparisonExpr{
+			Operator: tree.EQ,
+			Left:     tree.NewIndexedVar(leftCol.index),
+			Right:    tree.NewIndexedVar(rightCol.index),
+		}
+		e.addFilter(buildScalar(scope.resolve(cmp, types.Bool), scope))
 		e.props.columns = append(e.props.columns, *leftCol)
 		joined[name] = leftCol
 	}
@@ -322,7 +327,11 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 			buildScalar(t.TypedInnerExpr(), scope))
 
 	case *tree.IndexedVar:
-		return scope.newVariableExpr(t.Idx)
+		result = scope.newVariableExpr(t.Idx)
+		if result == nil {
+			panic(fmt.Errorf("unable to find indexed var @%d", t.Idx))
+		}
+		return result
 
 	case *tree.Placeholder:
 		result = &expr{
@@ -406,7 +415,7 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 		}
 		result = newJoinExpr(innerJoinOp, result, t)
 		result.props = &relationalProps{}
-		buildUsingJoin(result, nil)
+		buildUsingJoin(result, nil, scope)
 		result.initProps()
 		scope = scope.push(result.props)
 	}
