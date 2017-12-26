@@ -38,14 +38,10 @@ func (q *queryState) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 }
 
 type columnProps struct {
-	name  columnName
-	table tableName
-	typ   types.T
-	index bitmapIndex
-	// TODO(peter): Pull hidden out into a bitmap in relationalProps. That will
-	// allow changing relationalProps.columns to be a []*columnProps and sharing
-	// the columnProps between different relational expressions which differ in
-	// whether a column is hidden or not.
+	name   columnName
+	table  tableName
+	typ    types.T
+	index  bitmapIndex
 	hidden bool
 }
 
