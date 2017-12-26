@@ -11,15 +11,16 @@ import (
 
 // queryState holds per-query state
 type queryState struct {
-	// map from table name to table
+	// Map from table name to table.
 	catalog map[tableName]*table
-	// map from table name to the column index for the table's columns within the
+	// Map from table name to the column index for the table's columns within the
 	// query (they form a contiguous group starting at this index). Note that a
 	// table can occur multiple times in a query and each occurrence is given its
 	// own column indexes so the map is from table name to slice of base indexes.
 	tables map[tableName][]bitmapIndex
 	// The set of all columns used by the query.
 	columns []columnProps
+	// Semantic context used for name resolution and type checking.
 	semaCtx tree.SemaContext
 }
 
