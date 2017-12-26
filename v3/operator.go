@@ -72,8 +72,6 @@ const (
 	notRegMatchOp
 	regIMatchOp
 	notRegIMatchOp
-	isDistinctFromOp
-	isNotDistinctFromOp
 	isOp
 	isNotOp
 	anyOp

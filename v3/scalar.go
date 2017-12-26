@@ -41,8 +41,6 @@ func init() {
 	registerOperator(notRegMatchOp, "not-regmatch", scalarClass{})
 	registerOperator(regIMatchOp, "regimatch", scalarClass{})
 	registerOperator(notRegIMatchOp, "not-regimatch", scalarClass{})
-	registerOperator(isDistinctFromOp, "is-distinct-from", scalarClass{})
-	registerOperator(isNotDistinctFromOp, "is-not-distinct-from", scalarClass{})
 	registerOperator(isOp, "is", scalarClass{})
 	registerOperator(isNotOp, "is-not", scalarClass{})
 	registerOperator(anyOp, "any", scalarClass{})
