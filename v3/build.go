@@ -56,6 +56,12 @@ var unaryOpMap = [...]operator{
 	tree.UnaryComplement: unaryComplementOp,
 }
 
+var setOpMap = [...]operator{
+	tree.UnionOp:     unionOp,
+	tree.IntersectOp: intersectOp,
+	tree.ExceptOp:    exceptOp,
+}
+
 func build(stmt tree.Statement, scope *scope) *expr {
 	// NB: The case statements are sorted lexicographically.
 	switch stmt := stmt.(type) {
@@ -930,17 +936,9 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 }
 
 func buildUnion(clause *tree.UnionClause, scope *scope) *expr {
-	op := unionOp
-	switch clause.Type {
-	case tree.UnionOp:
-	case tree.IntersectOp:
-		op = intersectOp
-	case tree.ExceptOp:
-		op = exceptOp
-	}
 	left := buildSelect(clause.Left, scope)
 	right := buildSelect(clause.Right, scope)
-	result := newSetExpr(op, left, right)
+	result := newSetExpr(setOpMap[clause.Type], left, right)
 	result.props = &relationalProps{
 		columns: make([]columnProps, len(left.props.columns)),
 	}
