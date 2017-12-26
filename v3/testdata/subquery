@@ -2,7 +2,7 @@ build
 SELECT 1, 2
 ----
 project [out=(0,1)]
- ├── columns: .column1:0 .column2:1
+ ├── columns: .column1:int:0 .column2:int:1
  ├── projections
  │    ├── const (1) [type=int]
  │    └── const (2) [type=int]
@@ -13,7 +13,7 @@ build
 SELECT (1, 2)
 ----
 project [out=(0)]
- ├── columns: .column1:0
+ ├── columns: .column1:tuple{int, int}:0
  ├── projections
  │    └── tuple [type=tuple{int, int}]
  │         ├── const (1) [type=int]
@@ -25,11 +25,11 @@ build
 SELECT (SELECT 1)
 ----
 project [out=(1)]
- ├── columns: .column1:1
+ ├── columns: .column1:int:1
  ├── projections
  │    └── subquery [type=int]
  │         └── project [out=(0)]
- │              ├── columns: .column1:0
+ │              ├── columns: .column1:int:0
  │              ├── projections
  │              │    └── const (1) [type=int]
  │              └── inputs
@@ -46,11 +46,11 @@ build
 SELECT (SELECT (1, 2))
 ----
 project [out=(1)]
- ├── columns: .column1:1
+ ├── columns: .column1:tuple{int, int}:1
  ├── projections
  │    └── subquery [type=tuple{int, int}]
  │         └── project [out=(0)]
- │              ├── columns: .column1:0
+ │              ├── columns: .column1:tuple{int, int}:0
  │              ├── projections
  │              │    └── tuple [type=tuple{int, int}]
  │              │         ├── const (1) [type=int]
@@ -64,7 +64,7 @@ build
 SELECT (1, 2) = (SELECT 1, 2)
 ----
 project [out=(2)]
- ├── columns: .column1:2
+ ├── columns: .column1:bool:2
  ├── projections
  │    └── eq [type=bool]
  │         ├── tuple [type=tuple{int, int}]
@@ -72,7 +72,7 @@ project [out=(2)]
  │         │    └── const (2) [type=int]
  │         └── subquery [type=tuple{int, int}]
  │              └── project [out=(0,1)]
- │                   ├── columns: .column1:0 .column2:1
+ │                   ├── columns: .column1:int:0 .column2:int:1
  │                   ├── projections
  │                   │    ├── const (1) [type=int]
  │                   │    └── const (2) [type=int]
@@ -85,12 +85,12 @@ build
 SELECT (SELECT 1, 2) = (SELECT 1, 2)
 ----
 project [out=(4)]
- ├── columns: .column1:4
+ ├── columns: .column1:bool:4
  ├── projections
  │    └── eq [type=bool]
  │         ├── subquery [type=tuple{int, int}]
  │         │    └── project [out=(0,1)]
- │         │         ├── columns: .column1:0 .column2:1
+ │         │         ├── columns: .column1:int:0 .column2:int:1
  │         │         ├── projections
  │         │         │    ├── const (1) [type=int]
  │         │         │    └── const (2) [type=int]
@@ -98,7 +98,7 @@ project [out=(4)]
  │         │              └── values
  │         └── subquery [type=tuple{int, int}]
  │              └── project [out=(2,3)]
- │                   ├── columns: .column1:2 .column2:3
+ │                   ├── columns: .column1:int:2 .column2:int:3
  │                   ├── projections
  │                   │    ├── const (1) [type=int]
  │                   │    └── const (2) [type=int]
@@ -111,13 +111,13 @@ build
 SELECT 1 IN (SELECT 1)
 ----
 project [out=(1)]
- ├── columns: .column1:1
+ ├── columns: .column1:bool:1
  ├── projections
  │    └── in [type=bool]
  │         ├── const (1) [type=int]
  │         └── subquery [type=tuple{int}]
  │              └── project [out=(0)]
- │                   ├── columns: .column1:0
+ │                   ├── columns: .column1:int:0
  │                   ├── projections
  │                   │    └── const (1) [type=int]
  │                   └── inputs
@@ -130,7 +130,7 @@ build
 SELECT (1, 2) IN (SELECT 1, 2)
 ----
 project [out=(2)]
- ├── columns: .column1:2
+ ├── columns: .column1:bool:2
  ├── projections
  │    └── in [type=bool]
  │         ├── tuple [type=tuple{int, int}]
@@ -138,7 +138,7 @@ project [out=(2)]
  │         │    └── const (2) [type=int]
  │         └── subquery [type=tuple{int, int}]
  │              └── project [out=(0,1)]
- │                   ├── columns: .column1:0 .column2:1
+ │                   ├── columns: .column1:int:0 .column2:int:1
  │                   ├── projections
  │                   │    ├── const (1) [type=int]
  │                   │    └── const (2) [type=int]
@@ -161,11 +161,11 @@ build
 SELECT EXISTS (SELECT 1)
 ----
 project [out=(1)]
- ├── columns: .column1:1
+ ├── columns: .column1:bool:1
  ├── projections
  │    └── exists [type=bool]
  │         └── project [out=(0)]
- │              ├── columns: .column1:0
+ │              ├── columns: .column1:int:0
  │              ├── projections
  │              │    └── const (1) [type=int]
  │              └── inputs
@@ -177,13 +177,13 @@ build
 SELECT 1 < (SELECT 1)
 ----
 project [out=(1)]
- ├── columns: .column1:1
+ ├── columns: .column1:bool:1
  ├── projections
  │    └── lt [type=bool]
  │         ├── const (1) [type=int]
  │         └── subquery [type=int]
  │              └── project [out=(0)]
- │                   ├── columns: .column1:0
+ │                   ├── columns: .column1:int:0
  │                   ├── projections
  │                   │    └── const (1) [type=int]
  │                   └── inputs

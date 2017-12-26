@@ -2,7 +2,7 @@ build
 VALUES (1, 2, 3)
 ----
 values
- ├── columns: .column1:0 .column2:0 .column3:0
+ ├── columns: .column1:int:0 .column2:int:0 .column3:int:0
  └── ordered-list [type=<nil>]
       └── tuple [type=tuple{int, int, int}]
            ├── const (1) [type=int]
@@ -18,12 +18,12 @@ build
 VALUES ((SELECT 1)), ((SELECT 2))
 ----
 values
- ├── columns: .column1:0
+ ├── columns: .column1:int:0
  └── ordered-list [type=<nil>]
       ├── tuple [type=tuple{int}]
       │    └── subquery [type=int]
       │         └── project [out=(0)]
-      │              ├── columns: .column1:0
+      │              ├── columns: .column1:int:0
       │              ├── projections
       │              │    └── const (1) [type=int]
       │              └── inputs
@@ -31,7 +31,7 @@ values
       └── tuple [type=tuple{int}]
            └── subquery [type=int]
                 └── project [out=(1)]
-                     ├── columns: .column1:1
+                     ├── columns: .column1:int:1
                      ├── projections
                      │    └── const (2) [type=int]
                      └── inputs
@@ -41,7 +41,7 @@ build
 VALUES (NULL), ('a')
 ----
 values
- ├── columns: .column1:0
+ ├── columns: .column1:string:0
  └── ordered-list [type=<nil>]
       ├── tuple [type=tuple{string}]
       │    └── const (NULL) [type=NULL]

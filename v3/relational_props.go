@@ -173,6 +173,8 @@ func (p *relationalProps) format(tp treeprinter.Node) {
 			buf.WriteString(".")
 			buf.WriteString(string(col.name))
 			buf.WriteString(":")
+			buf.WriteString(col.typ.String())
+			buf.WriteString(":")
 			fmt.Fprintf(&buf, "%d", col.index)
 			if p.notNullCols.Contains(col.index) {
 				buf.WriteString("*")

@@ -9,13 +9,13 @@ build,normalize
 SELECT a.y FROM a WHERE a.y = a.x AND 1 = a.y
 ----
 project [out=(1)]
- ├── columns: a.y:1
+ ├── columns: a.y:int:1
  ├── equiv: (0,1)
  ├── projections
  │    └── variable (a.y) [in=(1) type=int]
  └── inputs
       └── select [out=(0,1)]
-           ├── columns: a.x:0* a.y:1*
+           ├── columns: a.x:int:0* a.y:int:1*
            ├── equiv: (0,1)
            ├── filters
            │    ├── eq [in=(0,1) type=bool]
@@ -26,4 +26,4 @@ project [out=(1)]
            │         └── const (1) [type=int]
            └── inputs
                 └── scan [out=(0,1)]
-                     └── columns: a.x:0 a.y:1
+                     └── columns: a.x:int:0 a.y:int:1
