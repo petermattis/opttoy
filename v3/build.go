@@ -393,7 +393,69 @@ func buildSelect(stmt *tree.Select, scope *scope) *expr {
 	case *tree.ParenSelect:
 		result = buildSelect(t.Select, scope)
 
-	// TODO(peter): case *tree.ValuesClause:
+	case *tree.ValuesClause:
+		var numCols int
+		if len(t.Tuples) > 0 {
+			numCols = len(t.Tuples[0].Exprs)
+		}
+
+		result = &expr{
+			op: valuesOp,
+			props: &relationalProps{
+				columns: make([]columnProps, numCols),
+			},
+		}
+		for i := range result.props.columns {
+			result.props.columns[i].name = columnName(fmt.Sprintf("column%d", i+1))
+		}
+
+		buf := make([]*expr, len(t.Tuples)*(numCols+1))
+		rows := buf[:0:len(t.Tuples)]
+		buf = buf[len(t.Tuples):]
+
+		for _, tuple := range t.Tuples {
+			if numCols != len(tuple.Exprs) {
+				panic(fmt.Errorf(
+					"VALUES lists must all be the same length, expected %d columns, found %d",
+					numCols, len(tuple.Exprs)))
+			}
+
+			row := buf[:numCols:numCols]
+			buf = buf[numCols:]
+
+			for i, expr := range tuple.Exprs {
+				row[i] = buildScalar(scope.resolve(expr, types.Any), scope)
+				typ := row[i].scalarProps.typ
+				if result.props.columns[i].typ == nil || result.props.columns[i].typ == types.Null {
+					result.props.columns[i].typ = typ
+				} else if typ != types.Null && !typ.Equivalent(result.props.columns[i].typ) {
+					panic(fmt.Errorf("VALUES list type mismatch, %s for %s", typ, result.props.columns[i].typ))
+				}
+			}
+
+			rows = append(rows, &expr{
+				op:          tupleOp,
+				children:    row,
+				scalarProps: &scalarProps{},
+			})
+		}
+
+		typ := make(types.TTuple, len(result.props.columns))
+		for i := range result.props.columns {
+			typ[i] = result.props.columns[i].typ
+		}
+		for i := range rows {
+			rows[i].scalarProps.typ = typ
+		}
+
+		// TODO(peter): A VALUES clause can contain subqueries and other
+		// non-trivial expressions. We probably need to store the tuples in an
+		// explicit child of the values node, rather than in private data.
+		result.private = &expr{
+			op:          orderedListOp,
+			children:    rows,
+			scalarProps: &scalarProps{},
+		}
 
 	default:
 		unimplemented("%T", stmt.Select)
