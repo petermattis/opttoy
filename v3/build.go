@@ -157,13 +157,7 @@ func buildScan(tab *table, scope *scope) *expr {
 	// columns different indexes.
 	state := scope.state
 	base := bitmapIndex(len(state.columns))
-
-	// TODO(peter): queryState.tables is used for looking up foreign key
-	// references. Currently, this lookup is global, but it likely needs to be
-	// scoped.
-	if _, ok := state.tables[tab.name]; !ok {
-		state.tables[tab.name] = base
-	}
+	state.tables[tab.name] = append(state.tables[tab.name], base)
 
 	for i, col := range tab.columns {
 		index := base + bitmapIndex(i)

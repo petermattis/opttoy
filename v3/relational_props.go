@@ -14,12 +14,10 @@ type queryState struct {
 	// map from table name to table
 	catalog map[tableName]*table
 	// map from table name to the column index for the table's columns within the
-	// query (they form a contiguous group starting at this index).
-	//
-	// TODO(peter): This is used to lookup tables for foreign keys, but such
-	// lookups need to be scoped. Or the handling of foreign keys needs to be
-	// rethought.
-	tables map[tableName]bitmapIndex
+	// query (they form a contiguous group starting at this index). Note that a
+	// table can occur multiple times in a query and each occurrence is given its
+	// own column indexes so the map is from table name to slice of base indexes.
+	tables map[tableName][]bitmapIndex
 	// The set of all columns used by the query.
 	columns []columnProps
 	semaCtx tree.SemaContext
