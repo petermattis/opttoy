@@ -32,6 +32,67 @@ order-by [out=(0-2)]
            ├── key: (0)
            └── weak key: (1)
 
+build
+SELECT x FROM a ORDER BY y
+----
+order-by [out=(0)]
+ ├── columns: a.x:int:0
+ ├── ordering: +1
+ └── inputs
+      └── project [out=(0)]
+           ├── columns: a.x:int:0
+           ├── projections
+           │    └── variable (a.x) [in=(0) type=int]
+           └── inputs
+                └── scan [out=(0-2)]
+                     ├── columns: a.x:int:0* a.y:int:1 a.z:int:2
+                     ├── key: (0)
+                     └── weak key: (1)
+
+build
+SELECT x AS w FROM a ORDER BY w
+----
+order-by [out=(0)]
+ ├── columns: a.w:int:0
+ ├── ordering: +0
+ └── inputs
+      └── project [out=(0)]
+           ├── columns: a.w:int:0
+           ├── projections
+           │    └── variable (a.x) [in=(0) type=int]
+           └── inputs
+                └── scan [out=(0-2)]
+                     ├── columns: a.x:int:0* a.y:int:1 a.z:int:2
+                     ├── key: (0)
+                     └── weak key: (1)
+
+build
+SELECT x AS w FROM a ORDER BY x
+----
+order-by [out=(0)]
+ ├── columns: a.w:int:0
+ ├── ordering: +0
+ └── inputs
+      └── project [out=(0)]
+           ├── columns: a.w:int:0
+           ├── projections
+           │    └── variable (a.x) [in=(0) type=int]
+           └── inputs
+                └── scan [out=(0-2)]
+                     ├── columns: a.x:int:0* a.y:int:1 a.z:int:2
+                     ├── key: (0)
+                     └── weak key: (1)
+
+build
+SELECT * FROM a ORDER BY x+y
+----
+unimplemented: unsupported order-by: x + y
+
+build
+SELECT x, y FROM a ORDER BY 1
+----
+unimplemented: unsupported order-by: 1
+
 # Note that order-by is extracted by prep and thus doesn't appear in
 # the memo.
 

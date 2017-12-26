@@ -907,8 +907,11 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 
 	ordering := make(ordering, 0, len(orderBy))
 	for _, o := range orderBy {
-		texpr := scope.resolve(o.Expr, types.Any)
-		e := buildScalar(texpr, scope)
+		e := buildScalar(scope.resolve(o.Expr, types.Any), scope)
+		// TODO(peter): Handle additional cases:
+		//
+		//   ... ORDER BY a+b
+		//   ... ORDER BY 1
 		switch e.op {
 		case variableOp:
 			index := e.private.(columnProps).index
