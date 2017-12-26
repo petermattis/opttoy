@@ -41,7 +41,12 @@ func (s *scope) resolve(expr tree.Expr, desired types.T) tree.TypedExpr {
 			panic(fmt.Errorf("subquery must return one column, found %d", n))
 		}
 	}
-	return texpr
+
+	nexpr, err := s.state.evalCtx.NormalizeExpr(texpr)
+	if err != nil {
+		panic(err)
+	}
+	return nexpr
 }
 
 func (s *scope) newVariableExpr(idx int) *expr {
@@ -228,7 +233,11 @@ func (s *subquery) ResolvedType() types.T {
 	return s.typ
 }
 
+// Variable implements the tree.VariableExpr interface. This prevents the
+// subquery from being evaluated during normalization.
+func (*subquery) Variable() {}
+
 // Eval implements the tree.TypedExpr interface.
 func (s *subquery) Eval(_ *tree.EvalContext) (tree.Datum, error) {
-	panic("subquery must be replaced before evaluation")
+	panic(fmt.Errorf("subquery must be replaced before evaluation"))
 }

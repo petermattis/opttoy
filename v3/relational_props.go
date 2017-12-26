@@ -22,17 +22,22 @@ type queryState struct {
 	columns []columnProps
 	// Semantic context used for name resolution and type checking.
 	semaCtx tree.SemaContext
+	// Evaluation context used for normalization.
+	evalCtx tree.EvalContext
 }
 
+// IndexedVarEval implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
 	unimplemented("queryState.IndexedVarEval")
 	return nil, fmt.Errorf("unimplemented")
 }
 
+// IndexedVarResolvedType implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarResolvedType(idx int) types.T {
 	return q.columns[idx].typ
 }
 
+// IndexedVarNodeFormatter implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 	unimplemented("queryState.IndexedVarNodeFormatter")
 	return nil
