@@ -19,7 +19,10 @@ func (valuesClass) layout() exprLayout {
 }
 
 func (valuesClass) format(e *expr, tp treeprinter.Node) {
-	formatRelational(e, tp)
+	n := formatRelational(e, tp)
+	if rows, ok := e.private.(*expr); ok {
+		rows.format(n)
+	}
 }
 
 func (valuesClass) initKeys(e *expr, state *queryState) {
