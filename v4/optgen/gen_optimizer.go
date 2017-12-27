@@ -20,7 +20,7 @@ func (g *generator) genOptimizer(_w io.Writer) {
 			w.writeIndent("  %s %s,\n", unTitle(field.Name()), mapType(field.Type()))
 		}
 
-		w.nest(") groupID {\n")
+		w.nest(") GroupID {\n")
 
 		hasRule := false
 		for _, elem := range g.compiled.Root().Rules().All() {
@@ -81,7 +81,7 @@ func (g *generator) genOptimizer(_w io.Writer) {
 		}
 
 		w.write("}\n")
-		w.writeIndent("return _f.memo.memoize%s(_%s)\n", define.Name(), varName)
+		w.writeIndent("return _f.memo.Memoize%s(_%s)\n", define.Name(), varName)
 		w.unnest(1)
 		w.write("\n")
 	}
@@ -94,7 +94,7 @@ func (g *generator) generateVarDefs(w *matchWriter, match ParsedExpr, fieldName 
 
 	if bind, ok := match.(*BindExpr); ok {
 		if bind.Label() != fieldName {
-			w.writeIndent("var %s groupID\n", bind.Label())
+			w.writeIndent("var %s GroupID\n", bind.Label())
 			return true
 		}
 	}
@@ -119,7 +119,7 @@ func (g *generator) generateMatch(w *matchWriter, match ParsedExpr, fieldName st
 
 		nesting := w.nesting
 
-		w.writeIndent("%s := _f.memo.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
+		w.writeIndent("%s := _f.mem.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
 
 		if negate && numFields == 0 {
 			w.nest("if %s == nil {\n", varName)

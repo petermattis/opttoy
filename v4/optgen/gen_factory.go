@@ -12,20 +12,27 @@ func (g *generator) genFactory(_w io.Writer) {
 
 	for _, elem := range g.compiled.Root().Defines().All() {
 		define := elem.(*DefineExpr)
-		opName := fmt.Sprintf("%sOp", unTitle(define.Name()))
-		exprName := fmt.Sprintf("%sExpr", unTitle(define.Name()))
-		varName := fmt.Sprintf("_%s", unTitle(define.Name()))
 
-		w.writeIndent("func (_f *factory) construct%s(\n", define.Name())
+		if define.HasTag("Enforcer") {
+			// Don't create factory methods for enforcers, since they're only
+			// created by the optimizer.
+			continue
+		}
+
+		exprType := fmt.Sprintf("%sExpr", unTitle(define.Name()))
+		opType := fmt.Sprintf("%sOp", define.Name())
+		varName := fmt.Sprintf("_%s", exprType)
+
+		w.writeIndent("func (_f *Factory) Construct%s(\n", define.Name())
 
 		for _, elem := range define.Fields() {
 			field := elem.(*DefineFieldExpr)
 			w.writeIndent("  %s %s,\n", unTitle(field.Name()), mapType(field.Type()))
 		}
 
-		w.nest(") groupID {\n")
+		w.nest(") GroupID {\n")
 
-		w.writeIndent("%s := %s{op: %s", varName, exprName, opName)
+		w.writeIndent("%s := %s{memoExpr: memoExpr{op: %s}", varName, exprType, opType)
 
 		for _, elem := range define.Fields() {
 			field := elem.(*DefineFieldExpr)
@@ -35,7 +42,7 @@ func (g *generator) genFactory(_w io.Writer) {
 
 		w.write("}\n")
 		w.writeIndent("_fingerprint := %s.fingerprint()\n", varName)
-		w.writeIndent("_group := _f.memo.lookupGroupByFingerprint(_fingerprint)\n")
+		w.writeIndent("_group := _f.mem.lookupGroupByFingerprint(_fingerprint)\n")
 		w.nest("if _group != 0 {\n")
 		w.writeIndent("return _group\n")
 		w.unnest(1)
@@ -63,7 +70,7 @@ func (g *generator) genFactory(_w io.Writer) {
 			hasVarDef := false
 			for index, matchField := range rule.Match().Fields() {
 				fieldName := g.lookupFieldName(rule.Match(), index)
-				hasVarDef = hasVarDef || g.generateVarDefs(w, matchField, fieldName)
+				hasVarDef = hasVarDef || g.genFactoryVarDefs(w, matchField, fieldName)
 			}
 
 			if hasVarDef {
@@ -72,13 +79,13 @@ func (g *generator) genFactory(_w io.Writer) {
 
 			for index, matchField := range rule.Match().Fields() {
 				fieldName := g.lookupFieldName(rule.Match(), index)
-				g.generateMatch(w, matchField, fieldName, false)
+				g.genFactoryMatch(w, matchField, fieldName, false)
 			}
 
 			w.writeIndent("_group = ")
-			g.generateReplace(w, rule.Replace())
+			g.genFactoryReplace(w, rule.Replace())
 			w.write("\n")
-			w.writeIndent("_f.memo.addAltFingerprint(_fingerprint, _group)\n")
+			w.writeIndent("_f.mem.addAltFingerprint(_fingerprint, _group)\n")
 			w.writeIndent("return _group\n")
 
 			w.unnest(w.nesting - 1)
@@ -91,7 +98,7 @@ func (g *generator) genFactory(_w io.Writer) {
 			w.write("\n")
 		}
 
-		w.writeIndent("return _f.memo.memoize%s(&%s)\n", define.Name(), varName)
+		w.writeIndent("return _f.mem.memoize%s(&%s)\n", define.Name(), varName)
 		w.unnest(1)
 		w.write("\n")
 	}
@@ -104,14 +111,14 @@ func (g *generator) genFactoryVarDefs(w *matchWriter, match ParsedExpr, fieldNam
 
 	if bind, ok := match.(*BindExpr); ok {
 		if bind.Label() != fieldName {
-			w.writeIndent("var %s groupID\n", bind.Label())
+			w.writeIndent("var %s GroupID\n", bind.Label())
 			return true
 		}
 	}
 
 	hasVarDef := false
 	for _, child := range match.Children() {
-		hasVarDef = hasVarDef || g.generateVarDefs(w, child, fieldName)
+		hasVarDef = hasVarDef || g.genFactoryVarDefs(w, child, fieldName)
 	}
 
 	return hasVarDef
@@ -129,7 +136,7 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 
 		nesting := w.nesting
 
-		w.writeIndent("%s := _f.memo.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
+		w.writeIndent("%s := _f.mem.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
 
 		if negate && numFields == 0 {
 			w.nest("if %s == nil {\n", varName)
@@ -139,7 +146,7 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 
 		for index, matchField := range matchFields.Fields() {
 			fieldName := g.lookupFieldName(matchFields, index)
-			g.generateMatch(w, matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
+			g.genFactoryMatch(w, matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
 		}
 
 		if negate && numFields != 0 {
@@ -180,13 +187,13 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 			panic("negate is not yet supported by the and match op")
 		}
 
-		g.generateMatch(w, matchAnd.Left(), fieldName, negate)
-		g.generateMatch(w, matchAnd.Right(), fieldName, negate)
+		g.genFactoryMatch(w, matchAnd.Left(), fieldName, negate)
+		g.genFactoryMatch(w, matchAnd.Right(), fieldName, negate)
 		return
 	}
 
 	if not, ok := match.(*MatchNotExpr); ok {
-		g.generateMatch(w, not.Input(), fieldName, !negate)
+		g.genFactoryMatch(w, not.Input(), fieldName, !negate)
 		return
 	}
 
@@ -195,15 +202,15 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 			w.writeIndent("%s = %s\n", bind.Label(), fieldName)
 		}
 
-		g.generateMatch(w, bind.Target(), fieldName, negate)
+		g.genFactoryMatch(w, bind.Target(), fieldName, negate)
 		return
 	}
 
 	if str, ok := match.(*StringExpr); ok {
 		if negate {
-			w.nest("if %s != m.memo.storePrivate(\"%s\") {\n", fieldName, str.Value())
+			w.nest("if %s != m.mem.internPrivate(\"%s\") {\n", fieldName, str.Value())
 		} else {
-			w.nest("if %s == m.memo.storePrivate(\"%s\") {\n", fieldName, str.Value())
+			w.nest("if %s == m.mem.internPrivate(\"%s\") {\n", fieldName, str.Value())
 		}
 
 		return
@@ -222,14 +229,14 @@ func (g *generator) genFactoryMatch(w *matchWriter, match ParsedExpr, fieldName 
 
 func (g *generator) genFactoryReplace(w *matchWriter, replace ParsedExpr) {
 	if construct, ok := replace.(*ConstructExpr); ok {
-		w.write("_f.construct%s(", construct.Name())
+		w.write("_f.Construct%s(", construct.Name())
 
 		for index, elem := range construct.All() {
 			if index != 0 {
 				w.write(", ")
 			}
 
-			g.generateReplace(w, elem)
+			g.genFactoryReplace(w, elem)
 		}
 
 		w.write(")")
@@ -242,7 +249,7 @@ func (g *generator) genFactoryReplace(w *matchWriter, replace ParsedExpr) {
 	}
 
 	if str, ok := replace.(*StringExpr); ok {
-		w.write("m.memo.storePrivate(\"%s\")", str.Value())
+		w.write("m.mem.internPrivate(\"%s\")", str.Value())
 		return
 	}
 
