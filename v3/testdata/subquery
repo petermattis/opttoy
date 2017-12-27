@@ -109,7 +109,7 @@ project [out=(1)]
  ├── projections
  │    └── in [type=bool]
  │         ├── const (1) [type=int]
- │         └── subquery [type=tuple{int}]
+ │         └── subquery [type=vtuple{int}]
  │              └── project [out=(0)]
  │                   ├── columns: .column1:int:0
  │                   ├── projections
@@ -119,7 +119,6 @@ project [out=(1)]
  └── inputs
       └── values
 
-# TODO(peter): the subquery should have type TTable, not TTuple
 build
 SELECT (1, 2) IN (SELECT 1, 2)
 ----
@@ -128,7 +127,7 @@ project [out=(2)]
  ├── projections
  │    └── in [type=bool]
  │         ├── const ((1, 2)) [type=tuple{int, int}]
- │         └── subquery [type=tuple{int, int}]
+ │         └── subquery [type=vtuple{tuple{int, int}}]
  │              └── project [out=(0,1)]
  │                   ├── columns: .column1:int:0 .column2:int:1
  │                   ├── projections
@@ -142,12 +141,12 @@ project [out=(2)]
 build
 SELECT (1, 2) IN (SELECT 1, 2, 3)
 ----
-unsupported comparison operator: <tuple{int, int}> IN <tuple{int, int, int}>
+unsupported comparison operator: <tuple{int, int}> IN <vtuple{tuple{int, int, int}}>
 
 build
 SELECT (1, 2) IN (SELECT (1, 2))
 ----
-unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{int, int}}>
+unsupported comparison operator: <tuple{int, int}> IN <vtuple{tuple{tuple{int, int}}}>
 
 build
 SELECT EXISTS (SELECT 1)

@@ -190,33 +190,43 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 		return s, nil
 	}
 
-	if s.table {
-		// The subquery is in a "table" context. For example:
-		//
-		//   SELECT 1 IN (SELECT * FROM t)
-		t := &types.TTable{
-			Cols:   make(types.TTuple, len(s.expr.props.columns)),
-			Labels: make([]string, len(s.expr.props.columns)),
+	wrap := true
+	if len(s.expr.props.columns) == 1 {
+		if !s.table {
+			// The subquery has only a single column and is in a scalar context, we
+			// don't want to wrap the type in a tuple. For example:
+			//
+			//   SELECT (SELECT 1)
+			//
+			// and
+			//
+			//   SELECT (SELECT (1, 2))
+			//
+			// This will result in the types "int" and "tuple{int,int}" respectively.
+			wrap = false
+		} else if !types.FamTuple.FamilyEqual(s.expr.props.columns[0].typ) {
+			// The subquery has only a single column and is in a table context. We
+			// only wrap if the type of the result column is not a tuple. For
+			// example:
+			//
+			//   SELECT 1 IN (SELECT 1)
+			//
+			// The type of the subquery will be "vtuple{int}". Now consider:
+			//
+			//   SELECT (1, 2) IN (SELECT (1, 2))
+			//
+			// We want the type of subquery to be "vtuple{tuple{tuple{int,int}}}" in
+			// order to distinguish it from:
+			//
+			//   SELECT (1, 2) IN (SELECT 1, 2)
+			//
+			// Note that this query is semantically valid (the subquery has type
+			// "vtuple{tuple{int,int}}"), while the previous query was not.
+			wrap = false
 		}
-		for i := range s.expr.props.columns {
-			t.Cols[i] = s.expr.props.columns[i].typ
-			t.Labels[i] = string(s.expr.props.columns[i].name)
-		}
-		// TODO(peter): This should be `s.typ = t`, but doing that causes the query
-		// `SELECT 1 IN (SELECT 1)` to fail with:
-		//
-		//   unsupported comparison operator: <int> IN <setof tuple{int}>
-		s.typ = t.Cols
-		return s, nil
 	}
 
-	// The subquery is in a scalar context. For example:
-	//
-	//   SELECT (1, 2) = (SELECT 1, 2)
-	//
-	// If the subquery has a single column
-	// we use that as our column type. Otherwise, create a tuple type.
-	if len(s.expr.props.columns) == 1 {
+	if !wrap {
 		s.typ = s.expr.props.columns[0].typ
 	} else {
 		t := make(types.TTuple, len(s.expr.props.columns))
@@ -225,6 +235,24 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 		}
 		s.typ = t
 	}
+
+	if s.table {
+		// The subquery is in a "table" context. For example:
+		//
+		//   SELECT 1 IN (SELECT * FROM t)
+		//
+		// Wrap the type in a vtuple.
+		s.typ = &types.TVarTuple{
+			Typ: s.typ,
+		}
+	} else {
+		// The subquery is in a scalar context. For example:
+		//
+		//   SELECT (1, 2) = (SELECT 1, 2)
+		//
+		// Nothing more to do here, the type computed above is sufficient.
+	}
+
 	return s, nil
 }
 
