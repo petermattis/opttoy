@@ -102,6 +102,48 @@ project [out=(4)]
       └── values
 
 build
+SELECT (SELECT (1, 2)) = (SELECT (1, 2))
+----
+project [out=(2)]
+ ├── columns: .column1:bool:2
+ ├── projections
+ │    └── eq [type=bool]
+ │         ├── subquery [type=tuple{int, int}]
+ │         │    └── project [out=(0)]
+ │         │         ├── columns: .column1:tuple{int, int}:0
+ │         │         ├── projections
+ │         │         │    └── const ((1, 2)) [type=tuple{int, int}]
+ │         │         └── inputs
+ │         │              └── values
+ │         └── subquery [type=tuple{int, int}]
+ │              └── project [out=(1)]
+ │                   ├── columns: .column1:tuple{int, int}:1
+ │                   ├── projections
+ │                   │    └── const ((1, 2)) [type=tuple{int, int}]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (1, 2) = (SELECT (1, 2))
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── eq [type=bool]
+ │         ├── subquery [type=tuple{int, int}]
+ │         │    └── project [out=(0)]
+ │         │         ├── columns: .column1:tuple{int, int}:0
+ │         │         ├── projections
+ │         │         │    └── const ((1, 2)) [type=tuple{int, int}]
+ │         │         └── inputs
+ │         │              └── values
+ │         └── const ((1, 2)) [type=tuple{int, int}]
+ └── inputs
+      └── values
+
+build
 SELECT 1 IN (SELECT 1)
 ----
 project [out=(1)]
@@ -119,7 +161,68 @@ project [out=(1)]
  └── inputs
       └── values
 
-# TODO(peter): the subquery should have type TTable, not TTuple
+build
+SELECT 1 IN ((((SELECT 1))))
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── in [type=bool]
+ │         ├── const (1) [type=int]
+ │         └── subquery [type=tuple{int}]
+ │              └── project [out=(0)]
+ │                   ├── columns: .column1:int:0
+ │                   ├── projections
+ │                   │    └── const (1) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT 1 + (SELECT 1, 2)
+----
+unsupported binary operator: <int> + <tuple{int, int}>
+
+build
+SELECT 1 IN (VALUES (1), (2), (3))
+----
+project [out=(0)]
+ ├── columns: .column1:bool:0
+ ├── projections
+ │    └── in [type=bool]
+ │         ├── const (1) [type=int]
+ │         └── subquery [type=tuple{int}]
+ │              └── values
+ │                   ├── columns: .column1:int:0
+ │                   └── ordered-list [type=<nil>]
+ │                        ├── tuple [type=tuple{int}]
+ │                        │    └── const (1) [type=int]
+ │                        ├── tuple [type=tuple{int}]
+ │                        │    └── const (2) [type=int]
+ │                        └── tuple [type=tuple{int}]
+ │                             └── const (3) [type=int]
+ └── inputs
+      └── values
+
+build
+SELECT (SELECT 1) IN (1)
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── in [type=bool]
+ │         ├── subquery [type=int]
+ │         │    └── project [out=(0)]
+ │         │         ├── columns: .column1:int:0
+ │         │         ├── projections
+ │         │         │    └── const (1) [type=int]
+ │         │         └── inputs
+ │         │              └── values
+ │         └── const ((1)) [type=tuple{int}]
+ └── inputs
+      └── values
+
 build
 SELECT (1, 2) IN (SELECT 1, 2)
 ----
@@ -128,7 +231,7 @@ project [out=(2)]
  ├── projections
  │    └── in [type=bool]
  │         ├── const ((1, 2)) [type=tuple{int, int}]
- │         └── subquery [type=tuple{int, int}]
+ │         └── subquery [type=tuple{tuple{int, int}}]
  │              └── project [out=(0,1)]
  │                   ├── columns: .column1:int:0 .column2:int:1
  │                   ├── projections
@@ -142,12 +245,72 @@ project [out=(2)]
 build
 SELECT (1, 2) IN (SELECT 1, 2, 3)
 ----
-unsupported comparison operator: <tuple{int, int}> IN <tuple{int, int, int}>
+unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{int, int, int}}>
 
 build
 SELECT (1, 2) IN (SELECT (1, 2))
 ----
-unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{int, int}}>
+unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{tuple{int, int}}}>
+
+build
+SELECT (SELECT 1) IN (SELECT 1)
+----
+project [out=(2)]
+ ├── columns: .column1:bool:2
+ ├── projections
+ │    └── in [type=bool]
+ │         ├── subquery [type=int]
+ │         │    └── project [out=(1)]
+ │         │         ├── columns: .column1:int:1
+ │         │         ├── projections
+ │         │         │    └── const (1) [type=int]
+ │         │         └── inputs
+ │         │              └── values
+ │         └── subquery [type=tuple{int}]
+ │              └── project [out=(0)]
+ │                   ├── columns: .column1:int:0
+ │                   ├── projections
+ │                   │    └── const (1) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (SELECT 1, 2) IN (SELECT 1, 2)
+----
+project [out=(4)]
+ ├── columns: .column1:bool:4
+ ├── projections
+ │    └── in [type=bool]
+ │         ├── subquery [type=tuple{int, int}]
+ │         │    └── project [out=(2,3)]
+ │         │         ├── columns: .column1:int:2 .column2:int:3
+ │         │         ├── projections
+ │         │         │    ├── const (1) [type=int]
+ │         │         │    └── const (2) [type=int]
+ │         │         └── inputs
+ │         │              └── values
+ │         └── subquery [type=tuple{tuple{int, int}}]
+ │              └── project [out=(0,1)]
+ │                   ├── columns: .column1:int:0 .column2:int:1
+ │                   ├── projections
+ │                   │    ├── const (1) [type=int]
+ │                   │    └── const (2) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (SELECT 1, 2) IN (SELECT (1, 2))
+----
+unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{tuple{int, int}}}>
+
+build
+SELECT (SELECT (1, 2)) IN (SELECT (1, 2))
+----
+unsupported comparison operator: <tuple{int, int}> IN <tuple{tuple{tuple{int, int}}}>
 
 build
 SELECT EXISTS (SELECT 1)
@@ -187,3 +350,114 @@ build
 SELECT 1 < (SELECT 1, 2)
 ----
 unsupported comparison operator: <int> < <tuple{int, int}>
+
+build
+SELECT 1 = ANY(SELECT 1)
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── any [type=bool]
+ │         ├── const (1) [type=int]
+ │         └── subquery [type=tuple{int}]
+ │              └── project [out=(0)]
+ │                   ├── columns: .column1:int:0
+ │                   ├── projections
+ │                   │    └── const (1) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (1, 2) = ANY(SELECT 1, 2)
+----
+project [out=(2)]
+ ├── columns: .column1:bool:2
+ ├── projections
+ │    └── any [type=bool]
+ │         ├── const ((1, 2)) [type=tuple{int, int}]
+ │         └── subquery [type=tuple{tuple{int, int}}]
+ │              └── project [out=(0,1)]
+ │                   ├── columns: .column1:int:0 .column2:int:1
+ │                   ├── projections
+ │                   │    ├── const (1) [type=int]
+ │                   │    └── const (2) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT 1 = SOME(SELECT 1)
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── some [type=bool]
+ │         ├── const (1) [type=int]
+ │         └── subquery [type=tuple{int}]
+ │              └── project [out=(0)]
+ │                   ├── columns: .column1:int:0
+ │                   ├── projections
+ │                   │    └── const (1) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (1, 2) = SOME(SELECT 1, 2)
+----
+project [out=(2)]
+ ├── columns: .column1:bool:2
+ ├── projections
+ │    └── some [type=bool]
+ │         ├── const ((1, 2)) [type=tuple{int, int}]
+ │         └── subquery [type=tuple{tuple{int, int}}]
+ │              └── project [out=(0,1)]
+ │                   ├── columns: .column1:int:0 .column2:int:1
+ │                   ├── projections
+ │                   │    ├── const (1) [type=int]
+ │                   │    └── const (2) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT 1 = ALL(SELECT 1)
+----
+project [out=(1)]
+ ├── columns: .column1:bool:1
+ ├── projections
+ │    └── all [type=bool]
+ │         ├── const (1) [type=int]
+ │         └── subquery [type=tuple{int}]
+ │              └── project [out=(0)]
+ │                   ├── columns: .column1:int:0
+ │                   ├── projections
+ │                   │    └── const (1) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
+
+build
+SELECT (1, 2) = ALL(SELECT 1, 2)
+----
+project [out=(2)]
+ ├── columns: .column1:bool:2
+ ├── projections
+ │    └── all [type=bool]
+ │         ├── const ((1, 2)) [type=tuple{int, int}]
+ │         └── subquery [type=tuple{tuple{int, int}}]
+ │              └── project [out=(0,1)]
+ │                   ├── columns: .column1:int:0 .column2:int:1
+ │                   ├── projections
+ │                   │    ├── const (1) [type=int]
+ │                   │    └── const (2) [type=int]
+ │                   └── inputs
+ │                        └── values
+ └── inputs
+      └── values
