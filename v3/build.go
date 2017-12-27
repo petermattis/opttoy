@@ -27,10 +27,8 @@ var comparisonOpMap = [...]operator{
 	tree.NotRegMatch:       notRegMatchOp,
 	tree.RegIMatch:         regIMatchOp,
 	tree.NotRegIMatch:      notRegIMatchOp,
-	tree.IsDistinctFrom:    isDistinctFromOp,
-	tree.IsNotDistinctFrom: isNotDistinctFromOp,
-	tree.Is:                isOp,
-	tree.IsNot:             isNotOp,
+	tree.IsDistinctFrom:    isNotOp,
+	tree.IsNotDistinctFrom: isOp,
 	tree.Any:               anyOp,
 	tree.Some:              someOp,
 	tree.All:               allOp,
@@ -58,33 +56,111 @@ var unaryOpMap = [...]operator{
 	tree.UnaryComplement: unaryComplementOp,
 }
 
+var setOpMap = [...]operator{
+	tree.UnionOp:     unionOp,
+	tree.IntersectOp: intersectOp,
+	tree.ExceptOp:    exceptOp,
+}
+
 func build(stmt tree.Statement, scope *scope) *expr {
+	// NB: The case statements are sorted lexicographically.
 	switch stmt := stmt.(type) {
-	case *tree.Select:
-		return buildSelect(stmt, scope)
 	case *tree.ParenSelect:
 		return buildSelect(stmt.Select, scope)
+
+	case *tree.Select:
+		return buildSelect(stmt, scope)
+
+		// *tree.AlterSequence
+		// *tree.AlterTable
+		// *tree.AlterUserSetPassword
+		// *tree.Backup
+		// *tree.BeginTransaction
+		// *tree.CancelJob
+		// *tree.CancelQuery
+		// *tree.CommitTransaction
+		// *tree.CopyFrom
+		// *tree.CreateDatabase
+		// *tree.CreateIndex
+		// *tree.CreateSequence
+		// *tree.CreateStats
+		// *tree.CreateTable
+		// *tree.CreateUser
+		// *tree.CreateView
+		// *tree.Deallocate
+		// *tree.Delete
+		// *tree.Discard
+		// *tree.DropDatabase
+		// *tree.DropIndex
+		// *tree.DropSequence
+		// *tree.DropTable
+		// *tree.DropUser
+		// *tree.DropView
+		// *tree.Execute
+		// *tree.Explain
+		// *tree.Grant
+		// *tree.Import
+		// *tree.Insert
+		// *tree.PauseJob
+		// *tree.Prepare
+		// *tree.ReleaseSavepoint
+		// *tree.RenameColumn
+		// *tree.RenameDatabase
+		// *tree.RenameIndex
+		// *tree.RenameTable
+		// *tree.Restore
+		// *tree.ResumeJob
+		// *tree.Revoke
+		// *tree.RollbackToSavepoint
+		// *tree.RollbackTransaction
+		// *tree.Savepoint
+		// *tree.Scatter
+		// *tree.Scrub
+		// *tree.SelectClause
+		// *tree.SetClusterSetting
+		// *tree.SetSessionCharacteristics
+		// *tree.SetTransaction
+		// *tree.SetVar
+		// *tree.SetZoneConfig
+		// *tree.ShowBackup
+		// *tree.ShowClusterSetting
+		// *tree.ShowColumns
+		// *tree.ShowConstraints
+		// *tree.ShowCreateTable
+		// *tree.ShowCreateView
+		// *tree.ShowDatabases
+		// *tree.ShowFingerprints
+		// *tree.ShowGrants
+		// *tree.ShowHistogram
+		// *tree.ShowIndex
+		// *tree.ShowJobs
+		// *tree.ShowQueries
+		// *tree.ShowRanges
+		// *tree.ShowSessions
+		// *tree.ShowTableStats
+		// *tree.ShowTables
+		// *tree.ShowTrace
+		// *tree.ShowTransactionStatus
+		// *tree.ShowUsers
+		// *tree.ShowVar
+		// *tree.ShowZoneConfig
+		// *tree.Split
+		// *tree.TestingRelocate
+		// *tree.Truncate
+		// *tree.UnionClause
+		// *tree.Update
+		// *tree.ValuesClause
+		// tree.SelectStatement
+
 	default:
-		unimplemented("%T", stmt)
+		fatalf("unexpected statement: %T", stmt)
 		return nil
 	}
 }
 
 func buildTable(texpr tree.TableExpr, scope *scope) *expr {
+	// NB: The case statements are sorted lexicographically.
 	switch source := texpr.(type) {
-	case *tree.NormalizableTableName:
-		tn, err := source.Normalize()
-		if err != nil {
-			fatalf("%s", err)
-		}
-		name := tableName(tn.Table())
-		tab, ok := scope.state.catalog[name]
-		if !ok {
-			fatalf("unknown table %s", name)
-		}
-
-		return buildScan(tab, scope)
-
 	case *tree.AliasedTableExpr:
 		result := buildTable(source.Expr, scope)
 		if source.As.Alias != "" {
@@ -103,39 +179,64 @@ func buildTable(texpr tree.TableExpr, scope *scope) *expr {
 		}
 		return result
 
-	case *tree.ParenTableExpr:
-		return buildTable(source.Expr, scope)
+	case *tree.FuncExpr:
+		unimplemented("%T", texpr)
 
 	case *tree.JoinTableExpr:
 		left := buildTable(source.Left, scope)
-		right := buildTable(source.Right, scope.push(left.props))
+		scope = scope.push(left.props)
+		right := buildTable(source.Right, scope)
+		scope = scope.push(right.props)
 		result := newJoinExpr(joinOp(source.Join), left, right)
 		result.props = &relationalProps{}
 
+		// NB: The case statements are sorted lexicographically.
 		switch cond := source.Cond.(type) {
+		case tree.NaturalJoinCond:
+			buildNaturalJoin(result, scope)
+
 		case *tree.OnJoinCond:
 			buildOnJoin(result, cond.Expr, scope)
 
-		case tree.NaturalJoinCond:
-			buildNaturalJoin(result)
-
 		case *tree.UsingJoinCond:
-			buildUsingJoin(result, cond.Cols)
+			buildUsingJoin(result, cond.Cols, scope)
 
 		default:
-			unimplemented("%T", source.Cond)
+			fatalf("unexpected join condition: %T", source.Cond)
 		}
 
 		result.initProps()
 		return result
 
+	case *tree.NormalizableTableName:
+		tn, err := source.Normalize()
+		if err != nil {
+			fatalf("%s", err)
+		}
+		name := tableName(tn.Table())
+		tab, ok := scope.state.catalog[name]
+		if !ok {
+			fatalf("unknown table %s", name)
+		}
+
+		return buildScan(tab, scope)
+
+	case *tree.ParenTableExpr:
+		return buildTable(source.Expr, scope)
+
+	case *tree.StatementSource:
+		unimplemented("%T", texpr)
+
 	case *tree.Subquery:
 		return build(source.Select, scope)
 
-	default:
+	case *tree.TableRef:
 		unimplemented("%T", texpr)
-		return nil
+
+	default:
+		fatalf("unexpected table expr: %T", texpr)
 	}
+	return nil
 }
 
 func buildScan(tab *table, scope *scope) *expr {
@@ -155,13 +256,7 @@ func buildScan(tab *table, scope *scope) *expr {
 	// columns different indexes.
 	state := scope.state
 	base := bitmapIndex(len(state.columns))
-
-	// TODO(peter): queryState.tables is used for looking up foreign key
-	// references. Currently, this lookup is global, but it likely needs to be
-	// scoped.
-	if _, ok := state.tables[tab.name]; !ok {
-		state.tables[tab.name] = base
-	}
+	state.tables[tab.name] = append(state.tables[tab.name], base)
 
 	for i, col := range tab.columns {
 		index := base + bitmapIndex(i)
@@ -207,7 +302,7 @@ func buildOnJoin(result *expr, on tree.Expr, scope *scope) {
 	result.addFilter(buildScalar(scope.resolve(on, types.Bool), scope))
 }
 
-func buildNaturalJoin(e *expr) {
+func buildNaturalJoin(e *expr, scope *scope) {
 	inputs := e.inputs()
 	names := make(tree.NameList, 0, len(inputs[0].props.columns))
 	for _, col := range inputs[0].props.columns {
@@ -227,10 +322,10 @@ func buildNaturalJoin(e *expr) {
 		}
 		names = common
 	}
-	buildUsingJoin(e, names)
+	buildUsingJoin(e, names, scope)
 }
 
-func buildUsingJoin(e *expr, names tree.NameList) {
+func buildUsingJoin(e *expr, names tree.NameList, scope *scope) {
 	inputs := e.inputs()
 	left := inputs[0].props
 	right := inputs[1].props
@@ -248,11 +343,14 @@ func buildUsingJoin(e *expr, names tree.NameList) {
 		if rightCol == nil {
 			fatalf("unable to resolve name %s", name)
 		}
-		// TODO(peter): this needs to be type checked which means we should create
-		// a tree.ComparisonExpr and then type check it.
-		f := newBinaryExpr(eqOp, leftCol.newVariableExpr(""), rightCol.newVariableExpr(""))
-		f.scalarProps.typ = f.children[0].scalarProps.typ
-		e.addFilter(f)
+		// Build a tree.ComparisonExpr in order to use the normal type checking
+		// machinery.
+		cmp := &tree.ComparisonExpr{
+			Operator: tree.EQ,
+			Left:     tree.NewIndexedVar(leftCol.index),
+			Right:    tree.NewIndexedVar(rightCol.index),
+		}
+		e.addFilter(buildScalar(scope.resolve(cmp, types.Bool), scope))
 		e.props.columns = append(e.props.columns, *leftCol)
 		joined[name] = leftCol
 	}
@@ -282,57 +380,57 @@ func buildLeftOuterJoin(e *expr) {
 }
 
 func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
+	// NB: The case statements are sorted lexicographically (except tree.Datum,
+	// see below).
 	var result *expr
 	switch t := pexpr.(type) {
-	case *tree.Tuple:
-		result = &expr{
-			op:          orderedListOp,
-			children:    make([]*expr, len(t.Exprs)),
-			scalarProps: &scalarProps{},
-		}
-		for i := range t.Exprs {
-			result.children[i] = buildScalar(t.Exprs[i].(tree.TypedExpr), scope)
-		}
-
-	case *tree.ParenExpr:
-		return buildScalar(t.TypedInnerExpr(), scope)
+	case *tree.AllColumnsSelector:
+		fatalf("unexpected unresolved scalar expr: %T", pexpr)
 
 	case *tree.AndExpr:
 		result = newBinaryExpr(andOp,
 			buildScalar(t.TypedLeft(), scope),
 			buildScalar(t.TypedRight(), scope))
-	case *tree.OrExpr:
-		result = newBinaryExpr(orOp,
-			buildScalar(t.TypedLeft(), scope),
-			buildScalar(t.TypedRight(), scope))
-	case *tree.NotExpr:
-		result = newUnaryExpr(notOp,
-			buildScalar(t.TypedInnerExpr(), scope))
+
+	case *tree.Array:
+		unimplemented("%T", pexpr)
+
+	case *tree.ArrayFlatten:
+		unimplemented("%T", pexpr)
 
 	case *tree.BinaryExpr:
 		result = newBinaryExpr(binaryOpMap[t.Operator],
 			buildScalar(t.TypedLeft(), scope),
 			buildScalar(t.TypedRight(), scope))
+
+	case *tree.CaseExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.CastExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.CoalesceExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.CollateExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.ColumnItem:
+		fatalf("unexpected unresolved scalar expr: %T", pexpr)
+
 	case *tree.ComparisonExpr:
 		result = newBinaryExpr(comparisonOpMap[t.Operator],
 			buildScalar(t.TypedLeft(), scope),
 			buildScalar(t.TypedRight(), scope))
-	case *tree.UnaryExpr:
-		result = newUnaryExpr(unaryOpMap[t.Operator],
-			buildScalar(t.TypedInnerExpr(), scope))
 
-	case *tree.IndexedVar:
-		return scope.newVariableExpr(t.Idx)
+	case tree.DefaultVal:
+		unimplemented("%T", pexpr)
 
-	case *tree.Placeholder:
-		result = &expr{
-			op:          placeholderOp,
-			scalarProps: &scalarProps{},
-			private:     t,
-		}
-
-	case tree.Datum:
-		result = newConstExpr(t)
+	case *tree.ExistsExpr:
+		// TODO(peter): the decorrelation code currently expects the subquery to be
+		// unwrapped for EXISTS expressions.
+		subquery := t.Subquery.(*subquery)
+		result = newUnaryExpr(existsOp, subquery.expr)
 
 	case *tree.FuncExpr:
 		def, err := t.Func.Resolve(scope.state.semaCtx.SearchPath)
@@ -351,20 +449,99 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		}
 		result = newFunctionExpr(def, children)
 
-	case *tree.ExistsExpr:
-		texpr := scope.resolve(t.Subquery, types.Any)
-		result = newUnaryExpr(existsOp, buildScalar(texpr, scope))
+	case *tree.IfExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.IndexedVar:
+		result = scope.newVariableExpr(t.Idx)
+		if result == nil {
+			panic(fmt.Errorf("unable to find indexed var @%d", t.Idx))
+		}
+		return result
+
+	case *tree.IndirectionExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.IsOfTypeExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.NotExpr:
+		result = newUnaryExpr(notOp,
+			buildScalar(t.TypedInnerExpr(), scope))
+
+	case *tree.NullIfExpr:
+		unimplemented("%T", pexpr)
+
+	case *tree.OrExpr:
+		result = newBinaryExpr(orOp,
+			buildScalar(t.TypedLeft(), scope),
+			buildScalar(t.TypedRight(), scope))
+
+	case *tree.ParenExpr:
+		return buildScalar(t.TypedInnerExpr(), scope)
+
+	case *tree.Placeholder:
+		result = &expr{
+			op:          placeholderOp,
+			scalarProps: &scalarProps{},
+			private:     t,
+		}
+
+	case *tree.RangeCond:
+		unimplemented("%T", pexpr)
 
 	case *subquery:
-		// TODO(peter): a subquery in a scalar context needs to be wrapped with
-		// some sort of scalar expression. For example, `SELECT (SELECT 1)`. The
-		// `SELECT 1` subquery is being used as a projection. We need to wrap the
-		// relational expression in something like a subqueryOp scalar expression
-		// that is typed according to the subquery.
-		return t.expr
+		result = newUnaryExpr(subqueryOp, t.expr)
+
+	case *tree.Tuple:
+		result = &expr{
+			op:          tupleOp,
+			children:    make([]*expr, len(t.Exprs)),
+			scalarProps: &scalarProps{},
+		}
+		for i := range t.Exprs {
+			result.children[i] = buildScalar(t.Exprs[i].(tree.TypedExpr), scope)
+		}
+
+	case *tree.UnaryExpr:
+		result = newUnaryExpr(unaryOpMap[t.Operator],
+			buildScalar(t.TypedInnerExpr(), scope))
+
+	case tree.UnqualifiedStar:
+		fatalf("unexpected unresolved scalar expr: %T", pexpr)
+
+	case tree.UnresolvedName:
+		fatalf("unexpected unresolved scalar expr: %T", pexpr)
+
+		// NB: this is the exception to the sorting of the case statements. The
+		// tree.Datum case needs to occur after *tree.Placeholder which implements
+		// Datum.
+	case tree.Datum:
+		// *DArray
+		// *DBool
+		// *DBytes
+		// *DCollatedString
+		// *DDate
+		// *DDecimal
+		// *DFloat
+		// *DIPAddr
+		// *DInt
+		// *DInterval
+		// *DJSON
+		// *DOid
+		// *DOidWrapper
+		// *DString
+		// *DTable
+		// *DTime
+		// *DTimestamp
+		// *DTimestampTZ
+		// *DTuple
+		// *DUuid
+		// dNull
+		result = newConstExpr(t)
 
 	default:
-		unimplemented("%T", pexpr)
+		fatalf("unexpected scalar expr: %T", pexpr)
 	}
 
 	result.scalarProps.typ = pexpr.ResolvedType()
@@ -372,9 +549,12 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 }
 
 func buildSelect(stmt *tree.Select, scope *scope) *expr {
+	// NB: The case statements are sorted lexicographically.
 	var result *expr
-
 	switch t := stmt.Select.(type) {
+	case *tree.ParenSelect:
+		result = buildSelect(t.Select, scope)
+
 	case *tree.SelectClause:
 		result, scope = buildFrom(t.From, t.Where, scope)
 		result, scope = buildGroupBy(result, t.GroupBy, t.Having, scope)
@@ -384,13 +564,72 @@ func buildSelect(stmt *tree.Select, scope *scope) *expr {
 	case *tree.UnionClause:
 		result = buildUnion(t, scope)
 
-	case *tree.ParenSelect:
-		result = buildSelect(t.Select, scope)
+	case *tree.ValuesClause:
+		var numCols int
+		if len(t.Tuples) > 0 {
+			numCols = len(t.Tuples[0].Exprs)
+		}
 
-	// TODO(peter): case *tree.ValuesClause:
+		result = &expr{
+			op: valuesOp,
+			props: &relationalProps{
+				columns: make([]columnProps, numCols),
+			},
+		}
+		for i := range result.props.columns {
+			result.props.columns[i].name = columnName(fmt.Sprintf("column%d", i+1))
+		}
+
+		buf := make([]*expr, len(t.Tuples)*(numCols+1))
+		rows := buf[:0:len(t.Tuples)]
+		buf = buf[len(t.Tuples):]
+
+		for _, tuple := range t.Tuples {
+			if numCols != len(tuple.Exprs) {
+				panic(fmt.Errorf(
+					"VALUES lists must all be the same length, expected %d columns, found %d",
+					numCols, len(tuple.Exprs)))
+			}
+
+			row := buf[:numCols:numCols]
+			buf = buf[numCols:]
+
+			for i, expr := range tuple.Exprs {
+				row[i] = buildScalar(scope.resolve(expr, types.Any), scope)
+				typ := row[i].scalarProps.typ
+				if result.props.columns[i].typ == nil || result.props.columns[i].typ == types.Null {
+					result.props.columns[i].typ = typ
+				} else if typ != types.Null && !typ.Equivalent(result.props.columns[i].typ) {
+					panic(fmt.Errorf("VALUES list type mismatch, %s for %s", typ, result.props.columns[i].typ))
+				}
+			}
+
+			rows = append(rows, &expr{
+				op:          tupleOp,
+				children:    row,
+				scalarProps: &scalarProps{},
+			})
+		}
+
+		typ := make(types.TTuple, len(result.props.columns))
+		for i := range result.props.columns {
+			typ[i] = result.props.columns[i].typ
+		}
+		for i := range rows {
+			rows[i].scalarProps.typ = typ
+		}
+
+		// TODO(peter): A VALUES clause can contain subqueries and other
+		// non-trivial expressions. We probably need to store the tuples in an
+		// explicit child of the values node, rather than in private data.
+		result.private = &expr{
+			op:          orderedListOp,
+			children:    rows,
+			scalarProps: &scalarProps{},
+		}
 
 	default:
-		unimplemented("%T", stmt.Select)
+		fatalf("unexpected select statement: %T", stmt.Select)
 	}
 
 	result = buildOrderBy(result, stmt.OrderBy, scope)
@@ -409,7 +648,7 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 		}
 		result = newJoinExpr(innerJoinOp, result, t)
 		result.props = &relationalProps{}
-		buildUsingJoin(result, nil)
+		buildUsingJoin(result, nil, scope)
 		result.initProps()
 		scope = scope.push(result.props)
 	}
@@ -521,19 +760,11 @@ func buildGroupByExtractAggregates(g *expr, e *expr, scope *scope) bool {
 }
 
 func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
+	// We only have to handle "*" and "<name>.*" in the switch below. Other names
+	// will be handled by scope.resolve().
+	//
+	// NB: The case statements are sorted lexicographically.
 	switch t := pexpr.(type) {
-	case tree.UnqualifiedStar:
-		var projections []*expr
-		for _, col := range scope.props.columns {
-			if !col.hidden {
-				projections = append(projections, col.newVariableExpr(""))
-			}
-		}
-		if len(projections) == 0 {
-			fatalf("failed to expand *")
-		}
-		return projections
-
 	case *tree.AllColumnsSelector:
 		tableName := tableName(t.TableName.Table())
 		var projections []*expr
@@ -544,6 +775,18 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		}
 		if len(projections) == 0 {
 			fatalf("unknown table %s", t)
+		}
+		return projections
+
+	case tree.UnqualifiedStar:
+		var projections []*expr
+		for _, col := range scope.props.columns {
+			if !col.hidden {
+				projections = append(projections, col.newVariableExpr(""))
+			}
+		}
+		if len(projections) == 0 {
+			fatalf("failed to expand *")
 		}
 		return projections
 
@@ -670,8 +913,11 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 
 	ordering := make(ordering, 0, len(orderBy))
 	for _, o := range orderBy {
-		texpr := scope.resolve(o.Expr, types.Any)
-		e := buildScalar(texpr, scope)
+		e := buildScalar(scope.resolve(o.Expr, types.Any), scope)
+		// TODO(peter): Handle additional cases:
+		//
+		//   ... ORDER BY a+b
+		//   ... ORDER BY 1
 		switch e.op {
 		case variableOp:
 			index := e.private.(columnProps).index
@@ -690,17 +936,9 @@ func buildOrderBy(input *expr, orderBy tree.OrderBy, scope *scope) *expr {
 }
 
 func buildUnion(clause *tree.UnionClause, scope *scope) *expr {
-	op := unionOp
-	switch clause.Type {
-	case tree.UnionOp:
-	case tree.IntersectOp:
-		op = intersectOp
-	case tree.ExceptOp:
-		op = exceptOp
-	}
 	left := buildSelect(clause.Left, scope)
 	right := buildSelect(clause.Right, scope)
-	result := newSetExpr(op, left, right)
+	result := newSetExpr(setOpMap[clause.Type], left, right)
 	result.props = &relationalProps{
 		columns: make([]columnProps, len(left.props.columns)),
 	}

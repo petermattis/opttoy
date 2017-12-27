@@ -2,6 +2,7 @@ package v3
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
@@ -28,7 +29,24 @@ func (s *scope) resolve(expr tree.Expr, desired types.T) tree.TypedExpr {
 	if err != nil {
 		panic(err)
 	}
-	return texpr
+
+	// A subquery is only allowed to return a single column in top-level scalar
+	// contexts such as projections. Note that the type of the subquery may be a
+	// tuple (e.g. `SELECT (1, 2)`) even though the subquery itself returns only
+	// a single column.
+	//
+	// TODO(peter): this seems hacky.
+	if sub, ok := texpr.(*subquery); ok {
+		if n := len(sub.expr.props.columns); n != 1 {
+			panic(fmt.Errorf("subquery must return one column, found %d", n))
+		}
+	}
+
+	nexpr, err := s.state.evalCtx.NormalizeExpr(texpr)
+	if err != nil {
+		panic(err)
+	}
+	return nexpr
 }
 
 func (s *scope) newVariableExpr(idx int) *expr {
@@ -44,19 +62,6 @@ func (s *scope) newVariableExpr(idx int) *expr {
 // NB: This code is adapted from sql/select_name_resolution.go.
 func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 	switch t := expr.(type) {
-	case *tree.AllColumnsSelector:
-		tableName := tableName(t.TableName.Table())
-		var projections []tree.Expr
-		for _, col := range s.props.columns {
-			if !col.hidden && col.table == tableName {
-				projections = append(projections, tree.NewIndexedVar(col.index))
-			}
-		}
-		if len(projections) == 0 {
-			fatalf("unknown table %s", t)
-		}
-		return false, &tree.Tuple{Exprs: projections}
-
 	case *tree.IndexedVar:
 		return false, t
 
@@ -116,7 +121,7 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 				}
 				// We call TypeCheck to fill in FuncExpr internals. This is a fixed
 				// expression; we should not hit an error here.
-				if _, err := e.TypeCheck(&tree.SemaContext{}, types.Any); err != nil {
+				if _, err := e.TypeCheck(&s.state.semaCtx, types.Any); err != nil {
 					panic(err)
 				}
 				e.Filter = t.Filter
@@ -127,7 +132,27 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 
 	case *tree.Subquery:
 		return false, &subquery{
-			expr: build(t.Select, s),
+			table: false,
+			expr:  build(t.Select, s),
+		}
+
+	case *tree.ArrayFlatten:
+		if sub, ok := t.Subquery.(*tree.Subquery); ok {
+			t.Subquery = &subquery{
+				table: true,
+				expr:  build(sub.Select, s),
+			}
+		}
+
+	case *tree.ComparisonExpr:
+		switch t.Operator {
+		case tree.In, tree.NotIn, tree.Any, tree.Some, tree.All:
+			if sub, ok := t.Right.(*tree.Subquery); ok {
+				t.Right = &subquery{
+					table: true,
+					expr:  build(sub.Select, s),
+				}
+			}
 		}
 	}
 
@@ -139,8 +164,10 @@ func (*scope) VisitPost(expr tree.Expr) tree.Expr {
 }
 
 type subquery struct {
-	typ  types.T
-	expr *expr
+	typ types.T
+	// Is the subquery in a table context or a scalar context.
+	table bool
+	expr  *expr
 }
 
 // String implements the tree.Expr interface.
@@ -159,9 +186,45 @@ func (s *subquery) Walk(v tree.Visitor) tree.Expr {
 
 // TypeCheck implements the tree.Expr interface.
 func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedExpr, error) {
-	// TODO(peter): We're assuming the type of the subquery is the type of the
-	// first column. This is all sorts of wrong.
-	s.typ = s.expr.props.columns[0].typ
+	if s.typ != nil {
+		return s, nil
+	}
+
+	if s.table {
+		// The subquery is in a "table" context. For example:
+		//
+		//   SELECT 1 IN (SELECT * FROM t)
+		t := &types.TTable{
+			Cols:   make(types.TTuple, len(s.expr.props.columns)),
+			Labels: make([]string, len(s.expr.props.columns)),
+		}
+		for i := range s.expr.props.columns {
+			t.Cols[i] = s.expr.props.columns[i].typ
+			t.Labels[i] = string(s.expr.props.columns[i].name)
+		}
+		// TODO(peter): This should be `s.typ = t`, but doing that causes the query
+		// `SELECT 1 IN (SELECT 1)` to fail with:
+		//
+		//   unsupported comparison operator: <int> IN <setof tuple{int}>
+		s.typ = t.Cols
+		return s, nil
+	}
+
+	// The subquery is in a scalar context. For example:
+	//
+	//   SELECT (1, 2) = (SELECT 1, 2)
+	//
+	// If the subquery has a single column
+	// we use that as our column type. Otherwise, create a tuple type.
+	if len(s.expr.props.columns) == 1 {
+		s.typ = s.expr.props.columns[0].typ
+	} else {
+		t := make(types.TTuple, len(s.expr.props.columns))
+		for i := range s.expr.props.columns {
+			t[i] = s.expr.props.columns[i].typ
+		}
+		s.typ = t
+	}
 	return s, nil
 }
 
@@ -170,7 +233,11 @@ func (s *subquery) ResolvedType() types.T {
 	return s.typ
 }
 
+// Variable implements the tree.VariableExpr interface. This prevents the
+// subquery from being evaluated during normalization.
+func (*subquery) Variable() {}
+
 // Eval implements the tree.TypedExpr interface.
 func (s *subquery) Eval(_ *tree.EvalContext) (tree.Datum, error) {
-	panic("subquery must be replaced before evaluation")
+	panic(fmt.Errorf("subquery must be replaced before evaluation"))
 }

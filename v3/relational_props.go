@@ -11,43 +11,43 @@ import (
 
 // queryState holds per-query state
 type queryState struct {
-	// map from table name to table
+	// Map from table name to table.
 	catalog map[tableName]*table
-	// map from table name to the column index for the table's columns within the
-	// query (they form a contiguous group starting at this index).
-	//
-	// TODO(peter): This is used to lookup tables for foreign keys, but such
-	// lookups need to be scoped. Or the handling of foreign keys needs to be
-	// rethought.
-	tables map[tableName]bitmapIndex
+	// Map from table name to the column index for the table's columns within the
+	// query (they form a contiguous group starting at this index). Note that a
+	// table can occur multiple times in a query and each occurrence is given its
+	// own column indexes so the map is from table name to slice of base indexes.
+	tables map[tableName][]bitmapIndex
 	// The set of all columns used by the query.
 	columns []columnProps
+	// Semantic context used for name resolution and type checking.
 	semaCtx tree.SemaContext
+	// Evaluation context used for normalization.
+	evalCtx tree.EvalContext
 }
 
+// IndexedVarEval implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
 	unimplemented("queryState.IndexedVarEval")
 	return nil, fmt.Errorf("unimplemented")
 }
 
+// IndexedVarResolvedType implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarResolvedType(idx int) types.T {
 	return q.columns[idx].typ
 }
 
+// IndexedVarNodeFormatter implements the tree.IndexedVarContainer interface.
 func (q *queryState) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 	unimplemented("queryState.IndexedVarNodeFormatter")
 	return nil
 }
 
 type columnProps struct {
-	name  columnName
-	table tableName
-	typ   types.T
-	index bitmapIndex
-	// TODO(peter): Pull hidden out into a bitmap in relationalProps. That will
-	// allow changing relationalProps.columns to be a []*columnProps and sharing
-	// the columnProps between different relational expressions which differ in
-	// whether a column is hidden or not.
+	name   columnName
+	table  tableName
+	typ    types.T
+	index  bitmapIndex
 	hidden bool
 }
 
@@ -167,25 +167,29 @@ func (p *relationalProps) String() string {
 
 func (p *relationalProps) format(tp treeprinter.Node) {
 	var buf bytes.Buffer
-	buf.WriteString("columns:")
-	for _, col := range p.columns {
-		buf.WriteString(" ")
-		if col.hidden {
-			buf.WriteString("(")
+	if len(p.columns) > 0 {
+		buf.WriteString("columns:")
+		for _, col := range p.columns {
+			buf.WriteString(" ")
+			if col.hidden {
+				buf.WriteString("(")
+			}
+			buf.WriteString(string(col.table))
+			buf.WriteString(".")
+			buf.WriteString(string(col.name))
+			buf.WriteString(":")
+			buf.WriteString(col.typ.String())
+			buf.WriteString(":")
+			fmt.Fprintf(&buf, "%d", col.index)
+			if p.notNullCols.Contains(col.index) {
+				buf.WriteString("*")
+			}
+			if col.hidden {
+				buf.WriteString(")")
+			}
 		}
-		buf.WriteString(string(col.table))
-		buf.WriteString(".")
-		buf.WriteString(string(col.name))
-		buf.WriteString(":")
-		fmt.Fprintf(&buf, "%d", col.index)
-		if p.notNullCols.Contains(col.index) {
-			buf.WriteString("*")
-		}
-		if col.hidden {
-			buf.WriteString(")")
-		}
+		tp.Child(buf.String())
 	}
-	tp.Child(buf.String())
 	for _, key := range p.weakKeys {
 		var prefix string
 		if !key.SubsetOf(p.notNullCols) {

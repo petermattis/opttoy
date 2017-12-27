@@ -9,13 +9,13 @@ build,normalize
 SELECT a.y FROM a WHERE a.y = a.x AND 1 = a.y
 ----
 project [out=(1)]
- ├── columns: a.y:1
+ ├── columns: a.y:int:1
  ├── equiv: (0,1)
  ├── projections
  │    └── variable (a.y) [in=(1) type=int]
  └── inputs
       └── select [out=(0,1)]
-           ├── columns: a.x:0* a.y:1*
+           ├── columns: a.x:int:0* a.y:int:1*
            ├── equiv: (0,1)
            ├── filters
            │    ├── eq [in=(0,1) type=bool]
@@ -26,4 +26,2141 @@ project [out=(1)]
            │         └── const (1) [type=int]
            └── inputs
                 └── scan [out=(0,1)]
-                     └── columns: a.x:0 a.y:1
+                     └── columns: a.x:int:0 a.y:int:1
+
+# NB: The test cases below were adapted from sql/sem/tree.TestNormalizeExpr.
+
+exec
+CREATE TABLE t (a INT, b INT, c INT, d BOOL, s STRING)
+----
+table t
+  a NULL
+  b NULL
+  c NULL
+  d NULL
+  s NULL
+
+build,normalize
+SELECT (a) FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT ((((a)))) FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT CAST(NULL AS INTEGER) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT +a FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -(-a) FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -+-a FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -(a-b) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── minux [in=(0,1) type=int]
+ │         ├── variable (t.b) [in=(1) type=int]
+ │         └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -0 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── const (0) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── const (-1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a+0 FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 0+a FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a+(2-2) FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a-0 FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a*1 FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1*a FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a+NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a/1 FROM t
+----
+unimplemented: *tree.CastExpr
+
+build,normalize
+SELECT 0/a FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:decimal:5
+ ├── projections
+ │    └── div [in=(0) type=decimal]
+ │         ├── const (0) [type=int]
+ │         └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 0/1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:decimal:5
+ ├── projections
+ │    └── const (0) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 12 BETWEEN 24 AND 36 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 12 BETWEEN 10 AND 20 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 10 BETWEEN a AND 20 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (10) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN b AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(0-2) type=bool]
+ │         ├── ge [in=(0,1) type=bool]
+ │         │    ├── variable (t.a) [in=(0) type=int]
+ │         │    └── variable (t.b) [in=(1) type=int]
+ │         └── le [in=(0,2) type=bool]
+ │              ├── variable (t.a) [in=(0) type=int]
+ │              └── variable (t.c) [in=(2) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN SYMMETRIC b AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(0-2) type=bool]
+ │         ├── and [in=(0-2) type=bool]
+ │         │    ├── ge [in=(0,1) type=bool]
+ │         │    │    ├── variable (t.a) [in=(0) type=int]
+ │         │    │    └── variable (t.b) [in=(1) type=int]
+ │         │    └── le [in=(0,2) type=bool]
+ │         │         ├── variable (t.a) [in=(0) type=int]
+ │         │         └── variable (t.c) [in=(2) type=int]
+ │         └── and [in=(0-2) type=bool]
+ │              ├── ge [in=(0,2) type=bool]
+ │              │    ├── variable (t.a) [in=(0) type=int]
+ │              │    └── variable (t.c) [in=(2) type=int]
+ │              └── le [in=(0,1) type=bool]
+ │                   ├── variable (t.a) [in=(0) type=int]
+ │                   └── variable (t.b) [in=(1) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a NOT BETWEEN b AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(0-2) type=bool]
+ │         ├── lt [in=(0,1) type=bool]
+ │         │    ├── variable (t.a) [in=(0) type=int]
+ │         │    └── variable (t.b) [in=(1) type=int]
+ │         └── gt [in=(0,2) type=bool]
+ │              ├── variable (t.a) [in=(0) type=int]
+ │              └── variable (t.c) [in=(2) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a NOT BETWEEN SYMMETRIC b AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(0-2) type=bool]
+ │         ├── or [in=(0-2) type=bool]
+ │         │    ├── lt [in=(0,1) type=bool]
+ │         │    │    ├── variable (t.a) [in=(0) type=int]
+ │         │    │    └── variable (t.b) [in=(1) type=int]
+ │         │    └── gt [in=(0,2) type=bool]
+ │         │         ├── variable (t.a) [in=(0) type=int]
+ │         │         └── variable (t.c) [in=(2) type=int]
+ │         └── or [in=(0-2) type=bool]
+ │              ├── lt [in=(0,2) type=bool]
+ │              │    ├── variable (t.a) [in=(0) type=int]
+ │              │    └── variable (t.c) [in=(2) type=int]
+ │              └── gt [in=(0,1) type=bool]
+ │                   ├── variable (t.a) [in=(0) type=int]
+ │                   └── variable (t.b) [in=(1) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN NULL AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(0,2) type=bool]
+ │         ├── const (NULL) [type=NULL]
+ │         └── le [in=(0,2) type=bool]
+ │              ├── variable (t.a) [in=(0) type=int]
+ │              └── variable (t.c) [in=(2) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN SYMMETRIC NULL AND c FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(0,2) type=bool]
+ │         ├── and [in=(0,2) type=bool]
+ │         │    ├── const (NULL) [type=NULL]
+ │         │    └── le [in=(0,2) type=bool]
+ │         │         ├── variable (t.a) [in=(0) type=int]
+ │         │         └── variable (t.c) [in=(2) type=int]
+ │         └── and [in=(0,2) type=bool]
+ │              ├── ge [in=(0,2) type=bool]
+ │              │    ├── variable (t.a) [in=(0) type=int]
+ │              │    └── variable (t.c) [in=(2) type=int]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN b AND NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(0,1) type=bool]
+ │         ├── ge [in=(0,1) type=bool]
+ │         │    ├── variable (t.a) [in=(0) type=int]
+ │         │    └── variable (t.b) [in=(1) type=int]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN SYMMETRIC b AND NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(0,1) type=bool]
+ │         ├── and [in=(0,1) type=bool]
+ │         │    ├── ge [in=(0,1) type=bool]
+ │         │    │    ├── variable (t.a) [in=(0) type=int]
+ │         │    │    └── variable (t.b) [in=(1) type=int]
+ │         │    └── const (NULL) [type=NULL]
+ │         └── and [in=(0,1) type=bool]
+ │              ├── const (NULL) [type=NULL]
+ │              └── le [in=(0,1) type=bool]
+ │                   ├── variable (t.a) [in=(0) type=int]
+ │                   └── variable (t.b) [in=(1) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a BETWEEN NULL AND NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL BETWEEN 1 AND 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1+1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── const (2) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1+1,2+2,3+3) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:tuple{int, int, int}:5
+ ├── projections
+ │    └── const ((2, 4, 6)) [type=tuple{int, int, int}]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a+(1+1) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── plus [in=(0) type=int]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1+1+a FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── plus [in=(0) type=int]
+ │         ├── const (2) [type=int]
+ │         └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1+NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1+(1+NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a=1+1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a=1+(2*3)-4 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (3) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT true OR d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false OR d FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL OR d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── const (NULL) [type=NULL]
+ │         └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d OR true FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d OR false FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d OR NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT true AND d FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false AND d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL AND d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── const (NULL) [type=NULL]
+ │         └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d AND true FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d AND false FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d AND NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IN (1, 2, 3) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IN (3, 2, 1) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a IN (3, 2, 1) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── in [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const ((1, 2, 3)) [type=tuple{int, int, int}]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IN (1, 2, a) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── in [in=(0) type=bool]
+ │         ├── const (1) [type=int]
+ │         └── tuple [in=(0) type=tuple{int, int, int}]
+ │              ├── const (1) [type=int]
+ │              ├── const (2) [type=int]
+ │              └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IN (1, 2, 3) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a IN (NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a IN (NULL, NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IN (1, NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IN (2, NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 = ANY ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 < SOME ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 > SOME (ARRAY[3, 2, 1]) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 > SOME (NULL) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 > SOME (((NULL))) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL > SOME ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL > ALL ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 4 > ALL ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a > ALL ARRAY[3, 2, 1] FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── all [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (ARRAY[3,2,1]) [type=int[]]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 3 > ALL ARRAY[3, 2, a] FROM t
+----
+unimplemented: *tree.Array
+
+build,normalize
+SELECT 3 > ANY (ARRAY[3, 2, a]) FROM t
+----
+unimplemented: *tree.Array
+
+build,normalize
+SELECT 3 > SOME (((ARRAY[3, 2, a]))) FROM t
+----
+unimplemented: *tree.Array
+
+build,normalize
+SELECT NULL LIKE 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL NOT LIKE 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL ILIKE 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL NOT ILIKE 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL SIMILAR TO 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL NOT SIMILAR TO 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL ~ 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL !~ 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL ~* 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL !~* 'a' FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a<1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1>a FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a<NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (a+1)=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (a-1)>=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── ge [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (3) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1+a)<=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1-a)>2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 2<(a+1) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── gt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 2>(a-1) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (3) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 2<(1+a) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── gt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 2>(1-a) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── gt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-1) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (a+(1+1))=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (0) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT ((a+1)+1)=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (0) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a+1+1=2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (0) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1+1>=(b+c) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(1,2) type=bool]
+ │         ├── plus [in=(1,2) type=int]
+ │         │    ├── variable (t.b) [in=(1) type=int]
+ │         │    └── variable (t.c) [in=(2) type=int]
+ │         └── const (2) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT b+c<=1+1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(1,2) type=bool]
+ │         ├── plus [in=(1,2) type=int]
+ │         │    ├── variable (t.b) [in=(1) type=int]
+ │         │    └── variable (t.c) [in=(2) type=int]
+ │         └── const (2) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a/2=1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1=a/2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+# TODO(peter): hook up memory accounting
+# build,normalize
+# SELECT s=lower('FOO') FROM t
+# ----
+
+# TODO(peter): hook up memory accounting
+# build,normalize
+# SELECT lower(s)='foo' FROM t
+# ----
+
+build,normalize
+SELECT random() FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:float:5
+ ├── projections
+ │    └── func (random) [type=float]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a=count('FOO') OVER () FROM t
+----
+project [out=(6)] [outer=(0)]
+ ├── columns: .column1:bool:6
+ ├── projections
+ │    └── eq [in=(0,5) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── variable (column1) [in=(5) type=int]
+ └── inputs
+      └── group-by [out=(5)]
+           ├── columns: .column1:int:5
+           ├── aggregations
+           │    └── func (count) [type=int]
+           │         └── const ('FOO') [type=string]
+           └── inputs
+                └── scan [out=(0-4)]
+                     └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 9223372036854775808 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:decimal:5
+ ├── projections
+ │    └── const (9223372036854775808) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -9223372036854775808 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:int:5
+ ├── projections
+ │    └── const (-9223372036854775808) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1, 2, 3) = (1, 2, 3) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1, 2, 3) IN ((1, 2, 3), (4, 5, 6)) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (1, 'one') FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:tuple{int, string}:5
+ ├── projections
+ │    └── const ((1, 'one')) [type=tuple{int, string}]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT ANNOTATE_TYPE(1, float) FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:float:5
+ ├── projections
+ │    └── const (1.0) [type=float]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1:::float FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:float:5
+ ├── projections
+ │    └── const (1.0) [type=float]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT IF((true AND a < 0), (0 + a)::decimal, 2 / (1 - 1)) FROM t
+----
+unimplemented: *tree.IfExpr
+
+build,normalize
+SELECT IF((true OR a < 0), (0 + a)::decimal, 2 / (1 - 1)) FROM t
+----
+unimplemented: *tree.CastExpr
+
+build,normalize
+SELECT COALESCE(NULL, (NULL < 3), a = 2 - 1, d) FROM t
+----
+unimplemented: *tree.CoalesceExpr
+
+build,normalize
+SELECT COALESCE(NULL, a) FROM t
+----
+project [out=(0)]
+ ├── columns: t.a:int:0
+ ├── projections
+ │    └── variable (t.a) [in=(0) type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NOT NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:NULL:5
+ ├── projections
+ │    └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NOT d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── not [in=(3) type=bool]
+ │         └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NOT NOT d FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NOT NOT NOT d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── not [in=(3) type=bool]
+ │         └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NOT NOT NOT NOT d FROM t
+----
+project [out=(3)]
+ ├── columns: t.d:bool:3
+ ├── projections
+ │    └── variable (t.d) [in=(3) type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IS NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IS NOT NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is-not [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS NOT TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── eq [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (true) [type=bool]
+ │         └── is-not [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── ne [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (true) [type=bool]
+ │         └── is [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS NOT FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── eq [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (false) [type=bool]
+ │         └── is-not [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── ne [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (false) [type=bool]
+ │         └── is [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS DISTINCT FROM NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IS NOT DISTINCT FROM NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 IS DISTINCT FROM NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT DISTINCT FROM NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS DISTINCT FROM NULL FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is-not [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS NOT DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── eq [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (true) [type=bool]
+ │         └── is-not [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS DISTINCT FROM TRUE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── ne [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (true) [type=bool]
+ │         └── is [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS NOT DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT false IS DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS NOT DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── and [in=(3) type=bool]
+ │         ├── eq [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (false) [type=bool]
+ │         └── is-not [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT d IS DISTINCT FROM FALSE FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── or [in=(3) type=bool]
+ │         ├── ne [in=(3) type=bool]
+ │         │    ├── variable (t.d) [in=(3) type=bool]
+ │         │    └── const (false) [type=bool]
+ │         └── is [in=(3) type=bool]
+ │              ├── variable (t.d) [in=(3) type=bool]
+ │              └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT DISTINCT FROM 1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (false) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS DISTINCT FROM 1 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── const (true) [type=bool]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS NOT DISTINCT FROM d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT NULL IS DISTINCT FROM d FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── is-not [in=(3) type=bool]
+ │         ├── variable (t.d) [in=(3) type=bool]
+ │         └── const (NULL) [type=NULL]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT (random() + 1.0)::INT FROM t
+----
+unimplemented: *tree.CastExpr
+
+build,normalize
+SELECT ('a' || left('b', random()::INT)) COLLATE en FROM t
+----
+unimplemented: *tree.CollateExpr
+
+build,normalize
+SELECT (1.0 + random()) IS OF (INT) FROM t
+----
+unimplemented: *tree.IsOfTypeExpr
+
+build,normalize
+SELECT 1 < a / -2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 <= a / -2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 > a / -2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── gt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 >= a / -2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── ge [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 = a / -2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (-2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 < a / 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── gt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 <= a / 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── ge [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 > a / 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 >= a / 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── le [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT 1 = a / 2 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── eq [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (2) [type=decimal]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a - 1 < 9223372036854775807 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── minux [in=(0) type=int]
+ │         │    ├── variable (t.a) [in=(0) type=int]
+ │         │    └── const (1) [type=int]
+ │         └── const (9223372036854775807) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT a - 1 < 9223372036854775806 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (9223372036854775807) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -1 + a < 9223372036854775807 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── plus [in=(0) type=int]
+ │         │    ├── const (-1) [type=int]
+ │         │    └── variable (t.a) [in=(0) type=int]
+ │         └── const (9223372036854775807) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4
+
+build,normalize
+SELECT -1 + a < 9223372036854775806 FROM t
+----
+project [out=(5)]
+ ├── columns: .column1:bool:5
+ ├── projections
+ │    └── lt [in=(0) type=bool]
+ │         ├── variable (t.a) [in=(0) type=int]
+ │         └── const (9223372036854775807) [type=int]
+ └── inputs
+      └── scan [out=(0-4)]
+           └── columns: t.a:int:0 t.b:int:1 t.c:int:2 t.d:bool:3 t.s:string:4

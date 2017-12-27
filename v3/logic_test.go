@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -186,7 +187,16 @@ func TestLogic(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			p := newPlanner()
-			runTest(t, path, func(d *testdata) string {
+			runTest(t, path, func(d *testdata) (result string) {
+				defer func() {
+					if r := recover(); r != nil {
+						if _, ok := r.(runtime.Error); ok {
+							panic(r)
+						}
+						result = fmt.Sprintln(r)
+					}
+				}()
+
 				switch d.cmd {
 				case "exec":
 					return p.exec(d.stmt)

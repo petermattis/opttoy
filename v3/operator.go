@@ -45,8 +45,10 @@ const (
 	placeholderOp
 	listOp
 	orderedListOp
+	tupleOp
 
 	existsOp
+	subqueryOp
 
 	andOp
 	orOp
@@ -70,8 +72,6 @@ const (
 	notRegMatchOp
 	regIMatchOp
 	notRegIMatchOp
-	isDistinctFromOp
-	isNotDistinctFromOp
 	isOp
 	isNotOp
 	anyOp

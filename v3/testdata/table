@@ -69,12 +69,12 @@ build
 SELECT * FROM b
 ----
 scan [out=(0-2)]
- ├── columns: b.x:0* b.y:1 b.z:2*
+ ├── columns: b.x:int:0* b.y:int:1 b.z:int:2*
  └── key: (0,2)
 
 build
 SELECT b.* FROM b
 ----
 scan [out=(0-2)]
- ├── columns: b.x:0* b.y:1 b.z:2*
+ ├── columns: b.x:int:0* b.y:int:1 b.z:int:2*
  └── key: (0,2)

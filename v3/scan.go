@@ -35,13 +35,11 @@ func (scanClass) initKeys(e *expr, state *queryState) {
 	props.foreignKeys = nil
 
 	for _, k := range tab.keys {
-		if k.fkey != nil {
-			base, ok := state.tables[k.fkey.referenced.name]
-			if !ok {
-				// The referenced table is not part of the query.
-				continue
-			}
+		if k.fkey == nil {
+			continue
+		}
 
+		for _, base := range state.tables[k.fkey.referenced.name] {
 			var src bitmap
 			for _, i := range k.columns {
 				src.Add(props.columns[i].index)
