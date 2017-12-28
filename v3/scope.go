@@ -45,23 +45,10 @@ func (s *scope) resolve(expr tree.Expr, desired types.T) tree.TypedExpr {
 	return nexpr
 }
 
-func (s *scope) newVariableExpr(idx int) *expr {
-	for ; s != nil; s = s.parent {
-		col := s.props.findColumnByIndex(idx)
-		if col != nil {
-			return col.newVariableExpr("")
-		}
-	}
-	return nil
-}
-
 // NB: This code is adapted from sql/select_name_resolution.go and
 // sql/subquery.go.
 func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 	switch t := expr.(type) {
-	case *tree.IndexedVar:
-		return false, t
-
 	case tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
@@ -74,13 +61,14 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 		colName := columnName(t.ColumnName)
 
 		for ; s != nil; s = s.parent {
-			for _, col := range s.props.columns {
+			for i := range s.props.columns {
+				col := &s.props.columns[i]
 				if col.hasColumn(tblName, colName) {
 					if tblName == "" && col.table != "" {
 						t.TableName.TableName = tree.Name(col.table)
 						t.TableName.DBNameOriginallyOmitted = true
 					}
-					return false, tree.NewIndexedVar(col.index)
+					return false, col
 				}
 			}
 		}
@@ -231,6 +219,7 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 			wrap = false
 		} else if !types.FamTuple.FamilyEqual(s.expr.props.columns[0].typ) {
 			// The subquery has only a single column and is in a multi-row
+
 			// context. We only wrap if the type of the result column is not a
 			// tuple. For example:
 			//
@@ -299,4 +288,32 @@ func (*subquery) Variable() {}
 // Eval implements the tree.TypedExpr interface.
 func (s *subquery) Eval(_ *tree.EvalContext) (tree.Datum, error) {
 	panic(fmt.Errorf("subquery must be replaced before evaluation"))
+}
+
+// Format implements the tree.Expr interface.
+func (c *columnProps) Format(buf *bytes.Buffer, f tree.FmtFlags) {
+	fmt.Fprintf(buf, "@%d", c.index+1)
+}
+
+// Walk implements the tree.Expr interface.
+func (c *columnProps) Walk(v tree.Visitor) tree.Expr {
+	return c
+}
+
+func (c *columnProps) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedExpr, error) {
+	return c, nil
+}
+
+// ResolvedType implements the tree.TypedExpr interface.
+func (c *columnProps) ResolvedType() types.T {
+	return c.typ
+}
+
+// Variable implements the tree.VariableExpr interface. This prevents the
+// column from being evaluated during normalization.
+func (*columnProps) Variable() {}
+
+// Eval implements the tree.TypedExpr interface.
+func (*columnProps) Eval(_ *tree.EvalContext) (tree.Datum, error) {
+	panic(fmt.Errorf("columnProps must be replaced before evaluation"))
 }

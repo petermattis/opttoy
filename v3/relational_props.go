@@ -26,23 +26,10 @@ type queryState struct {
 	evalCtx tree.EvalContext
 }
 
-// IndexedVarEval implements the tree.IndexedVarContainer interface.
-func (q *queryState) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
-	unimplemented("queryState.IndexedVarEval")
-	return nil, fmt.Errorf("unimplemented")
-}
-
-// IndexedVarResolvedType implements the tree.IndexedVarContainer interface.
-func (q *queryState) IndexedVarResolvedType(idx int) types.T {
-	return q.columns[idx].typ
-}
-
-// IndexedVarNodeFormatter implements the tree.IndexedVarContainer interface.
-func (q *queryState) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
-	unimplemented("queryState.IndexedVarNodeFormatter")
-	return nil
-}
-
+// columnProps holds per-column information that is scoped to a particular
+// relational expression. Note that columnProps implements the tree.TypedExpr
+// interface. During name resolution, unresolved column names in the AST are
+// replaced with a columnProps.
 type columnProps struct {
 	name   columnName
 	table  tableName
@@ -50,6 +37,9 @@ type columnProps struct {
 	index  bitmapIndex
 	hidden bool
 }
+
+var _ tree.TypedExpr = &columnProps{}
+var _ tree.VariableExpr = &columnProps{}
 
 func (c columnProps) String() string {
 	if c.table == "" {

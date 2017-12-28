@@ -64,8 +64,6 @@ func (p *planner) build(stmt tree.Statement) *expr {
 		catalog: p.catalog,
 		tables:  make(map[tableName][]bitmapIndex),
 	}
-	ivarHelper := tree.MakeIndexedVarHelper(state, 0)
-	state.semaCtx.IVarHelper = &ivarHelper
 	state.semaCtx.Placeholders = tree.MakePlaceholderInfo()
 
 	e := build(stmt, &scope{
