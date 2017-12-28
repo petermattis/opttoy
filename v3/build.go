@@ -347,8 +347,8 @@ func buildUsingJoin(e *expr, names tree.NameList, scope *scope) {
 		// machinery.
 		cmp := &tree.ComparisonExpr{
 			Operator: tree.EQ,
-			Left:     tree.NewIndexedVar(leftCol.index),
-			Right:    tree.NewIndexedVar(rightCol.index),
+			Left:     leftCol,
+			Right:    rightCol,
 		}
 		e.addFilter(buildScalar(scope.resolve(cmp, types.Bool), scope))
 		e.props.columns = append(e.props.columns, *leftCol)
@@ -384,6 +384,9 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 	// see below).
 	var result *expr
 	switch t := pexpr.(type) {
+	case *columnProps:
+		return t.newVariableExpr("")
+
 	case *tree.AllColumnsSelector:
 		fatalf("unexpected unresolved scalar expr: %T", pexpr)
 
@@ -453,11 +456,7 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		unimplemented("%T", pexpr)
 
 	case *tree.IndexedVar:
-		result = scope.newVariableExpr(t.Idx)
-		if result == nil {
-			panic(fmt.Errorf("unable to find indexed var @%d", t.Idx))
-		}
-		return result
+		fatalf("unexpected indexed var: %T", pexpr)
 
 	case *tree.IndirectionExpr:
 		unimplemented("%T", pexpr)
