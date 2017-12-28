@@ -2,6 +2,13 @@ package v3
 
 import "github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 
+// TODO(peter): This should be a table with 1 row and 0 columns to match
+// current cockroach behavior.
+var emptyRow = &expr{
+	op:    valuesOp,
+	props: &relationalProps{},
+}
+
 func init() {
 	registerOperator(valuesOp, "values", valuesClass{})
 }
@@ -19,6 +26,11 @@ func (valuesClass) layout() exprLayout {
 }
 
 func (valuesClass) format(e *expr, tp treeprinter.Node) {
+	if e == emptyRow {
+		tp.Childf("emptyrow")
+		return
+	}
+
 	n := formatRelational(e, tp)
 	if rows, ok := e.private.(*expr); ok {
 		rows.format(n)

@@ -27,7 +27,7 @@ values
       │              ├── projections
       │              │    └── const (1) [type=int]
       │              └── inputs
-      │                   └── values
+      │                   └── emptyrow
       └── tuple [type=tuple{int}]
            └── subquery [type=int]
                 └── project [out=(1)]
@@ -35,7 +35,7 @@ values
                      ├── projections
                      │    └── const (2) [type=int]
                      └── inputs
-                          └── values
+                          └── emptyrow
 
 build
 VALUES (NULL), ('a')
