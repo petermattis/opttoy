@@ -653,12 +653,7 @@ func buildFrom(from *tree.From, where *tree.Where, scope *scope) (*expr, *scope)
 	}
 
 	if result == nil {
-		// TODO(peter): This should be a table with 1 row and 0 columns to match
-		// current cockroach behavior.
-		result = &expr{
-			op:    valuesOp,
-			props: &relationalProps{},
-		}
+		result = emptyRow
 	}
 
 	if where != nil {
