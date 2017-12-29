@@ -203,52 +203,59 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 		return s, nil
 	}
 
-	wrap := true
+	// The typing for subqueries is complex, but regular.
+	//
+	// * If the subquery is used in a single-row context:
+	//
+	//   - If the subquery returns a single column with type "U", the type of the
+	//     subquery is the type of the column "U". For example:
+	//
+	//       SELECT 1 = (SELECT 1)
+	//
+	//     The type of the subquery is "int".
+	//
+	//   - If the subquery returns multiple columns, the type of the subquery is
+	//     "tuple{C}" where "C" expands to all of the types of the columns of the
+	//     subquery. For example:
+	//
+	//       SELECT (1, 'a') = (SELECT 1, 'a')
+	//
+	//     The type of the subquery is "tuple{int,string}"
+	//
+	// * If the subquery is used in a multi-row context:
+	//
+	//   - If the subquery returns a single column with type "U", the type of the
+	//     subquery is the singleton tuple of type "U": "tuple{U}". For example:
+	//
+	//       SELECT 1 IN (SELECT 1)
+	//
+	//     The type of the subquery's columns is "int" and the type of the
+	//     subquery is "tuple{int}".
+	//
+	//   - If the subquery returns multiple columns, the type of the subquery is
+	//     "tuple{tuple{C}}" where "C expands to all of the types of the columns
+	//     of the subquery. For example:
+	//
+	//       SELECT (1, 'a') IN (SELECT 1, 'a')
+	//
+	//     The types of the subquery's columns are "int" and "string". These are
+	//     wrapped into "tuple{int,string}" to form the row type. And these are
+	//     wrapped again to form the subquery type "tuple{tuple{int,string}}".
+	//
+	// Note that these rules produce a somewhat surprising equivalence:
+	//
+	//   SELECT (SELECT 1, 2) = (SELECT (1, 2))
+	//
+	// A subquery which returns a single column tuple is equivalent to a subquery
+	// which returns the elements of the tuple as individual columns. While
+	// surprising, this is necessary for regularity and in order to handle:
+	//
+	//   SELECT 1 IN (SELECT 1)
+	//
+	// Without that auto-unwrapping of single-column subqueries, this query would
+	// type check as "<int> IN <tuple{tuple{int}}>" which would fail.
+
 	if len(s.expr.props.columns) == 1 {
-		if !s.multiRow {
-			// The subquery has only a single column and is in a single-row context,
-			// we don't want to wrap the type in a tuple. For example:
-			//
-			//   SELECT (SELECT 1)
-			//
-			// and
-			//
-			//   SELECT (SELECT (1, 2))
-			//
-			// This will result in the types "int" and "tuple{int,int}" respectively.
-			wrap = false
-		} else if !types.FamTuple.FamilyEqual(s.expr.props.columns[0].typ) {
-			// The subquery has only a single column and is in a multi-row
-
-			// context. We only wrap if the type of the result column is not a
-			// tuple. For example:
-			//
-			//   SELECT 1 IN (SELECT 1)
-			//
-			// The type of the subquery will be "tuple{int}". Now consider the
-			// semantically invalid query:
-			//
-			//   SELECT (1, 2) IN (SELECT (1, 2))
-			//
-			// We want the type of subquery to be "tuple{tuple{tuple{int,int}}}" in
-			// order to distinguish it from the semantically valid:
-			//
-			//   SELECT (1, 2) IN (SELECT 1, 2)
-			//
-			// In this query, the subquery has the type "tuple{tuple{int,int}}"
-			// making the IN expression valid.
-			//
-			// Lastly, note that for the multi-row case, there may be multiple
-			// rows. For example:
-			//
-			//   SELECT 1 IN (VALUES (1), (2), (3))
-			//
-			// The subquery returns 3 rows and the type is "tuple{int}".
-			wrap = false
-		}
-	}
-
-	if !wrap {
 		s.typ = s.expr.props.columns[0].typ
 	} else {
 		t := make(types.TTuple, len(s.expr.props.columns))
@@ -266,7 +273,7 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 		// Wrap the type in a tuple.
 		s.typ = types.TTuple{s.typ}
 	} else {
-		// The subquery is in a scalar context. For example:
+		// The subquery is in a single-row context. For example:
 		//
 		//   SELECT (1, 2) = (SELECT 1, 2)
 		//
