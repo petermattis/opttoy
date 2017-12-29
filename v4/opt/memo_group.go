@@ -33,14 +33,6 @@ type memoGroup struct {
 	bestExprsMap map[physicalPropsID]int
 	bestExprs []bestExpr
 
-	// optimizeCtx is used by the optimizer to store intermediate state so that
-	// redundant work is minimized. Other classes should not access this state.
-	optimizeCtx struct {
-		pass  optimizePass
-		exprs bitmap
-		start uint32
-	}
-
 	// exploreCtx is used by the explorer to store intermediate state so that
 	// redundant work is minimized. Other classes should not access this state.
 	exploreCtx struct {
@@ -57,21 +49,14 @@ func (g *memoGroup) addExpr(offset exprOffset) {
 }
 
 func (g *memoGroup) ratchetBestExpr(required physicalPropsID, best *bestExpr) bool {
-	index, ok := g.bestExprsMap[required]
-	if ok {
-		// Overwrite existing best expression if the new cost is lower.
-		if best.cost.Less(g.bestExprs[index].cost) {
-			g.bestExprs[index] = *best
-			return true
-		}
+	existing := g.ensureBestExpr(required)
 
-		return false
+	// Overwrite existing best expression if the new cost is lower.
+	if best.cost.Less(existing.cost) {
+		*existing = *best
+		return true
 	}
 
-	// Add new best expression.
-	index = len(g.bestExprs)
-	g.bestExprs = append(g.bestExprs, *best)
-	g.bestExprsMap[required] = index
 	return false
 }
 
@@ -84,26 +69,15 @@ func (g *memoGroup) lookupBestExpr(required physicalPropsID) *bestExpr {
 	return &g.bestExprs[index]
 }
 
-type bestExpr struct {
-	// op is the operator type of this expression.
-	op Operator
+func (g *memoGroup) ensureBestExpr(required physicalPropsID) *bestExpr {
+	best := g.lookupBestExpr(required)
+	if best == nil {
+		// Add new best expression.
+		index := len(g.bestExprs)
+		g.bestExprs = append(g.bestExprs, bestExpr{cost: maxCost})
+		g.bestExprsMap[required] = index
+		best = &g.bestExprs[index]
+	}
 
-	// pass is the optimization pass in which this lowest cost expression was
-	// found and entered into the bestExprs map.
-	pass optimizePass
-
-	// offset is the offset of the lowest cost expression in the memo's arena.
-	offset exprOffset
-
-	// provided are the physical properties that this expression supplies
-	// either directly or indirectly (e.g. pass-through properties). These may
-	// be a superset of the required properties in the bestExprs map.
-	provided physicalPropsID
-
-	// cost estimates how expensive this expression will be to execute.
-	cost physicalCost
-}
-
-func (be *bestExpr) isEnforcer() bool {
-	return be.offset == 0
+	return best
 }

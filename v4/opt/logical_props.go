@@ -39,7 +39,7 @@ type LogicalProps struct {
 		// values are equal after projection onto that set. A UNIQUE index on a table
 		// is a weak key and possibly a key if all of the columns are NOT NULL. A
 		// weak key is a key if "(WeakKeys[i] & NotNullColumns) == WeakKeys[i]".
-		WeakKeys []ColSet
+		WeakKeys ColSets
 
 		// ForeignKeys are the pairs of column sets which associate foreign key
 		// columns in the expression to corresponding unique key columns in the
@@ -88,13 +88,13 @@ type LogicalProps struct {
 		// set contains at least 2 columns that will always have the same value
 		// in the result set. No column may appear in more than one entry.
 		// EquivCols returns the empty slice for non-relational expressions.
-		EquivCols []ColSet
+		EquivCols ColSets
 	}
 }
 
 func (p *LogicalProps) addEquivColumns(cols ColSet) {
 	for i, equiv := range p.Relational.EquivCols {
-		if cols.Intersects(equiv) {
+		if equiv.Intersects(cols) {
 			p.Relational.EquivCols[i].UnionWith(cols)
 			return
 		}

@@ -10,10 +10,11 @@ import (
 )
 
 type columnProps struct {
-	name  cat.ColumnName
-	table cat.TableName
-	typ   types.T
-	index opt.ColumnIndex
+	name   cat.ColumnName
+	table  cat.TableName
+	hidden bool
+	typ    types.T
+	index  opt.ColumnIndex
 }
 
 func (c columnProps) String() string {

@@ -189,9 +189,9 @@ func TestLogic(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			runTest(t, path, func(d *testdata) string {
-				catalog := cat.NewCatalog()
+			catalog := cat.NewCatalog()
 
+			runTest(t, path, func(d *testdata) string {
 				switch d.cmd {
 				case "exec":
 					e := exec.NewEngine(catalog)

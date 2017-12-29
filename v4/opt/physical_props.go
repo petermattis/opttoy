@@ -10,7 +10,7 @@ type physicalPropsID uint32
 const (
 	// defaultPhysPropsID is the id of the set of default properties:
 	//   - No ordering
-	//   - No columns projected
+	//   - No special ordering or naming of columns
 	defaultPhysPropsID physicalPropsID = 1
 )
 
@@ -19,6 +19,10 @@ const (
 type PhysicalProps struct {
 	Ordering   Ordering
 	Projection Projection
+}
+
+func (p *PhysicalProps) Defined() bool {
+	return p.Ordering.Defined() || p.Projection.Defined()
 }
 
 func (p *PhysicalProps) fingerprint() string {
@@ -49,54 +53,14 @@ func (p *PhysicalProps) fingerprint() string {
 	return buf.String()
 }
 
-func (p *PhysicalProps) Provides(required *PhysicalProps) bool {
-	if !p.Projection.Provides(required.Projection) {
-		return false
-	}
-
-	return p.Ordering.Provides(required.Ordering)
-}
-
-// Projection defines the membership and ordering of columns provided or
-// required by a relation. If duplicates or ordering is not applicable, then
-// the projection can be stored in a more efficient format. The column's
-// label can be looked up using the column index.
+// Projection defines the ordering and naming of columns provided or required
+// by a relation.
 type Projection struct {
-	ordered   []ColumnIndex
-	unordered ColSet
+	Columns []LabeledColumn
 }
 
-func NewOrderedProjection(ordered []ColumnIndex) Projection {
-	p := Projection{ordered: ordered}
-
-	// Insert the column ids into the unordered set.
-	for _, col := range ordered {
-		p.unordered.Add(int(col))
-	}
-
-	return p
-}
-
-func NewUnorderedProjection(unordered ColSet) Projection {
-	return Projection{unordered: unordered}
-}
-
-// Defined returns true if a subset of the columns provided by the expression
-// should be projected. If false, then all columns should be projected.
 func (p Projection) Defined() bool {
-	return !p.unordered.Empty()
-}
-
-func (p Projection) Ordered() bool {
-	return p.ordered != nil
-}
-
-func (p Projection) OrderedColumns() []ColumnIndex {
-	return p.ordered
-}
-
-func (p Projection) UnorderedColumns() ColSet {
-	return p.unordered
+	return p.Columns != nil
 }
 
 func (p Projection) String() string {
@@ -106,32 +70,18 @@ func (p Projection) String() string {
 }
 
 func (p Projection) format(buf *bytes.Buffer) {
-	if p.ordered != nil {
-		for i, col := range p.ordered {
-			if i > 0 {
-				buf.WriteString(",")
-			}
-
-			fmt.Fprintf(buf, "%d", col)
+	for i, col := range p.Columns {
+		if i > 0 {
+			buf.WriteString(",")
 		}
-		fmt.Fprint(buf, "*")
-	} else {
-		first := true
-		p.unordered.ForEach(func(i int) {
-			if first {
-				first = false
-			} else {
-				buf.WriteString(",")
-			}
 
-			fmt.Fprintf(buf, "%d", i)
-		})
+		fmt.Fprintf(buf, "%s:%d", col.Label, col.Index)
 	}
 }
 
-// Provides returns true iff a superset of the required columns are projected.
-func (p Projection) Provides(required Projection) bool {
-	return required.unordered.SubsetOf(p.unordered)
+type LabeledColumn struct {
+	Label string
+	Index ColumnIndex
 }
 
 // Ordering defines the order of columns provided or required by a relation.

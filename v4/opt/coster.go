@@ -33,7 +33,7 @@ func (c *coster) computeChildrenCost(e *Expr) physicalCost {
 
 	for i := 0; i < e.ChildCount(); i++ {
 		mgrp := c.mem.lookupGroup(e.ChildGroup(i))
-		required := c.mem.physPropsFactory.constructRequiredProps(e, i)
+		required := c.mem.physPropsFactory.constructChildProps(e, i)
 		cost += mgrp.lookupBestExpr(required).cost
 	}
 

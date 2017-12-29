@@ -117,8 +117,21 @@ func newMemo(catalog *cat.Catalog) *memo {
 func (m *memo) newGroup(op Operator, offset exprOffset) *memoGroup {
 	id := GroupID(len(m.groups))
 	exprs := make([]exprOffset, 0, 1)
+
+	// Always create a "best" entry for the normalized expression. This allows
+	// the normalized tree to be traversed before optimization.
 	bestExprsMap := make(map[physicalPropsID]int)
-	m.groups = append(m.groups, memoGroup{id: id, norm: offset, exprs: exprs, bestExprsMap: bestExprsMap})
+	bestExprs := []bestExpr{{op: op, offset: offset, cost: maxCost}}
+	bestExprsMap[defaultPhysPropsID] = 0
+
+	m.groups = append(m.groups, memoGroup{
+		id:           id,
+		norm:         offset,
+		exprs:        exprs,
+		bestExprsMap: bestExprsMap,
+		bestExprs:    bestExprs,
+	})
+
 	return &m.groups[len(m.groups)-1]
 }
 

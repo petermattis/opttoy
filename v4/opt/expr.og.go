@@ -10,7 +10,10 @@ import (
 type childCountLookupFunc func(e *Expr) int
 
 var childCountLookup = []childCountLookupFunc{
-	nil,
+	// UnknownOp
+	func(e *Expr) int {
+		panic("op type not initialized")
+	},
 
 	// VariableOp
 	func(e *Expr) int {
@@ -390,12 +393,20 @@ var childCountLookup = []childCountLookupFunc{
 	func(e *Expr) int {
 		return 1
 	},
+
+	// ArrangeOp
+	func(e *Expr) int {
+		return 1
+	},
 }
 
 type childGroupLookupFunc func(e *Expr, n int) GroupID
 
 var childGroupLookup = []childGroupLookupFunc{
-	nil, // unknownOp
+	// UnknownOp
+	func(e *Expr, n int) GroupID {
+		panic("op type not initialized")
+	},
 
 	// VariableOp
 	func(e *Expr, n int) GroupID {
@@ -1382,12 +1393,24 @@ var childGroupLookup = []childGroupLookupFunc{
 
 		panic("child index out of range")
 	},
+
+	// ArrangeOp
+	func(e *Expr, n int) GroupID {
+		if n == 0 {
+			return e.group
+		}
+
+		panic("child index out of range")
+	},
 }
 
 type privateIDLookupFunc func(e *Expr) PrivateID
 
 var privateIDLookup = []privateIDLookupFunc{
-	nil,
+	// UnknownOp
+	func(e *Expr) PrivateID {
+		panic("op type not initialized")
+	},
 
 	// VariableOp
 	func(e *Expr) PrivateID {
@@ -1409,12 +1432,12 @@ var privateIDLookup = []privateIDLookupFunc{
 
 	// ListOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// OrderedListOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ProjectionsOp
@@ -1425,227 +1448,227 @@ var privateIDLookup = []privateIDLookupFunc{
 
 	// ExistsOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// AndOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// OrOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// EqOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LtOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// GtOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// GeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// InOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotInOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LikeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotLikeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ILikeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotILikeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SimilarToOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotSimilarToOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// RegMatchOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotRegMatchOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// RegIMatchOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// NotRegIMatchOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// IsDistinctFromOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// IsNotDistinctFromOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// IsOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// IsNotOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// AnyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SomeOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// AllOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// BitandOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// BitorOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// BitxorOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// PlusOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// MinusOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// MultOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// DivOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// FloorDivOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ModOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// PowOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ConcatOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LShiftOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// RShiftOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// UnaryPlusOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// UnaryMinusOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// UnaryComplementOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// FunctionOp
@@ -1656,12 +1679,12 @@ var privateIDLookup = []privateIDLookupFunc{
 
 	// TrueOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// FalseOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ScanOp
@@ -1672,102 +1695,108 @@ var privateIDLookup = []privateIDLookupFunc{
 
 	// ValuesOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SelectOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ProjectOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// InnerJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LeftJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// RightJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// FullJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SemiJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// AntiJoinOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// InnerJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// LeftJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// RightJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// FullJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SemiJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// AntiJoinApplyOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// GroupByOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// UnionOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		unionExpr := (*unionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return unionExpr.colMap
 	},
 
 	// IntersectOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// ExceptOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
 	},
 
 	// SortOp
 	func(e *Expr) PrivateID {
-		panic("expression does not have a private field")
+		return 0
+	},
+
+	// ArrangeOp
+	func(e *Expr) PrivateID {
+		return 0
 	},
 }
 
@@ -1849,6 +1878,7 @@ var isScalarLookup = []bool{
 	false, // IntersectOp
 	false, // ExceptOp
 	false, // SortOp
+	false, // ArrangeOp
 }
 
 var isRelationalLookup = []bool{
@@ -1929,6 +1959,7 @@ var isRelationalLookup = []bool{
 	true,  // IntersectOp
 	true,  // ExceptOp
 	true,  // SortOp
+	true,  // ArrangeOp
 }
 
 var isEnforcerLookup = []bool{
@@ -2009,6 +2040,7 @@ var isEnforcerLookup = []bool{
 	false, // IntersectOp
 	false, // ExceptOp
 	true,  // SortOp
+	true,  // ArrangeOp
 }
 
 func (e *Expr) IsScalar() bool {
@@ -7046,8 +7078,9 @@ func (m *memo) memoizeGroupBy(expr *groupByExpr) GroupID {
 
 type unionExpr struct {
 	memoExpr
-	left  GroupID
-	right GroupID
+	left   GroupID
+	right  GroupID
+	colMap PrivateID
 }
 
 func (e *unionExpr) fingerprint() (f fingerprint) {
@@ -7083,6 +7116,10 @@ func (m *memo) memoizeUnion(expr *unionExpr) GroupID {
 
 	if expr.right == 0 {
 		panic("right child cannot be undefined")
+	}
+
+	if expr.colMap == 0 {
+		panic("colMap child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()

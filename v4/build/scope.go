@@ -187,7 +187,7 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 		tableName := cat.TableName(t.TableName.Table())
 		var projections []tree.Expr
 		for _, col := range s.cols {
-			if col.table == tableName {
+			if col.table == tableName && !col.hidden {
 				projections = append(projections, tree.NewIndexedVar(int(col.index)))
 			}
 		}

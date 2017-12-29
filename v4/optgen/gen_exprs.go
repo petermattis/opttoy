@@ -17,7 +17,10 @@ func (g *generator) genExprs(w io.Writer) {
 	fmt.Fprintf(w, "type childCountLookupFunc func(e *Expr) int\n")
 
 	fmt.Fprintf(w, "var childCountLookup = []childCountLookupFunc{\n")
-	fmt.Fprintf(w, "  nil,\n\n")
+	fmt.Fprintf(w, "  // UnknownOp\n")
+	fmt.Fprintf(w, "  func(e *Expr) int {\n")
+	fmt.Fprintf(w, "    panic(\"op type not initialized\")\n")
+	fmt.Fprintf(w, "  },\n\n")
 
 	for _, elem := range g.compiled.Root().Defines().All() {
 		define := elem.(*DefineExpr)
@@ -49,7 +52,10 @@ func (g *generator) genExprs(w io.Writer) {
 	fmt.Fprintf(w, "type childGroupLookupFunc func(e *Expr, n int) GroupID\n")
 
 	fmt.Fprintf(w, "var childGroupLookup = []childGroupLookupFunc{\n")
-	fmt.Fprintf(w, "  nil, // unknownOp\n\n")
+	fmt.Fprintf(w, "  // UnknownOp\n")
+	fmt.Fprintf(w, "  func(e *Expr, n int) GroupID {\n")
+	fmt.Fprintf(w, "    panic(\"op type not initialized\")\n")
+	fmt.Fprintf(w, "  },\n\n")
 
 	for _, elem := range g.compiled.Root().Defines().All() {
 		define := elem.(*DefineExpr)
@@ -119,7 +125,10 @@ func (g *generator) genExprs(w io.Writer) {
 	fmt.Fprintf(w, "type privateIDLookupFunc func(e *Expr) PrivateID\n")
 
 	fmt.Fprintf(w, "var privateIDLookup = []privateIDLookupFunc{\n")
-	fmt.Fprintf(w, "  nil,\n\n")
+	fmt.Fprintf(w, "  // UnknownOp\n")
+	fmt.Fprintf(w, "  func(e *Expr) PrivateID {\n")
+	fmt.Fprintf(w, "    panic(\"op type not initialized\")\n")
+	fmt.Fprintf(w, "  },\n\n")
 
 	for _, elem := range g.compiled.Root().Defines().All() {
 		define := elem.(*DefineExpr)
@@ -134,7 +143,7 @@ func (g *generator) genExprs(w io.Writer) {
 			fmt.Fprintf(w, "    %s := (*%s)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))\n", varName, exprType)
 			fmt.Fprintf(w, "    return %s.%s\n", varName, unTitle(private.Name()))
 		} else {
-			fmt.Fprintf(w, "    panic(\"expression does not have a private field\")\n")
+			fmt.Fprintf(w, "    return 0\n")
 		}
 
 		fmt.Fprintf(w, "  },\n\n")

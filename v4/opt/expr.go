@@ -1,5 +1,7 @@
 package opt
 
+//go:generate optgen -out expr.og.go -pkg opt exprs ops/scalar.opt ops/relational.opt ops/enforcer.opt
+
 import (
 	"bytes"
 	"fmt"
@@ -7,7 +9,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/treeprinter"
 )
 
-//go:generate optgen -out expr.og.go -pkg opt exprs ops/scalar.opt ops/relational.opt ops/enforcer.opt
+type ColMap map[ColumnIndex]ColumnIndex
 
 // Expr is 24 bytes on a 64-bit machine, and is immutable after construction,
 // so it can be passed by value.
@@ -39,7 +41,7 @@ func (e *Expr) ChildCount() int {
 
 func (e *Expr) Child(nth int) Expr {
 	group := e.ChildGroup(nth)
-	required := e.mem.physPropsFactory.constructRequiredProps(e, nth)
+	required := e.mem.physPropsFactory.constructChildProps(e, nth)
 	best := e.mem.lookupGroup(group).lookupBestExpr(required)
 	return Expr{mem: e.mem, group: group, op: best.op, offset: best.offset, required: required}
 }
@@ -70,23 +72,38 @@ func (e *Expr) formatScalar(tp treeprinter.Node) {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "%v", e.op)
-
-	private := e.Private()
-	if private != nil {
-		fmt.Fprintf(&buf, " (%s)", private)
-	}
+	e.formatPrivate(&buf, e.Private())
 
 	logical := e.Logical()
-	buf.WriteString(" [")
-	if !logical.UnboundCols.Empty() {
-		fmt.Fprintf(&buf, "in=%s", logical.UnboundCols)
+	hasUnboundCols := !logical.UnboundCols.Empty()
+
+	if hasUnboundCols {
+		buf.WriteString(" [")
+		if hasUnboundCols {
+			fmt.Fprintf(&buf, "unbound=%s", logical.UnboundCols)
+		}
+		buf.WriteString("]")
 	}
-	buf.WriteString("]")
 
 	tp = tp.Child(buf.String())
 	for i := 0; i < e.ChildCount(); i++ {
 		child := e.Child(i)
 		child.format(tp)
+	}
+}
+
+func (e *Expr) formatPrivate(buf *bytes.Buffer, private interface{}) {
+	switch e.op {
+	case VariableOp:
+		colIndex := private.(ColumnIndex)
+		private = e.mem.metadata.ColumnLabel(colIndex)
+
+	case ProjectionsOp:
+		private = nil
+	}
+
+	if private != nil {
+		fmt.Fprintf(buf, ": %v", private)
 	}
 }
 
@@ -107,31 +124,18 @@ func (e *Expr) formatRelational(tp treeprinter.Node) {
 	buf.Reset()
 	buf.WriteString("columns:")
 
-	// Write the required columns.
-	if len(requiredProps.Projection.ordered) > 0 {
-		for _, colIndex := range requiredProps.Projection.ordered {
-			e.formatCol(&buf, colIndex, logicalProps.Relational.NotNullCols, " ")
+	// Write the output columns.
+	if requiredProps.Projection.Defined() {
+		// Write columns in required order, with required names.
+		for _, col := range requiredProps.Projection.Columns {
+			e.formatCol(&buf, col.Label, col.Index, logicalProps.Relational.NotNullCols)
 		}
 	} else {
-		requiredProps.Projection.unordered.ForEach(func(i int) {
-			e.formatCol(&buf, ColumnIndex(i), logicalProps.Relational.NotNullCols, " ")
+		// Fall back to writing output columns in column index order, with best
+		// guess label.
+		logicalProps.Relational.OutputCols.ForEach(func(i int) {
+			e.formatCol(&buf, "", ColumnIndex(i), logicalProps.Relational.NotNullCols)
 		})
-	}
-
-	// Write the hidden columns.
-	foundHidden := false
-	logicalProps.Relational.OutputCols.ForEach(func(i int) {
-		if !requiredProps.Projection.unordered.Contains(i) {
-			if !foundHidden {
-				e.formatCol(&buf, ColumnIndex(i), logicalProps.Relational.NotNullCols, " (")
-				foundHidden = true
-			} else {
-				e.formatCol(&buf, ColumnIndex(i), logicalProps.Relational.NotNullCols, " ")
-			}
-		}
-	})
-	if foundHidden {
-		buf.WriteString(")")
 	}
 
 	tp.Child(buf.String())
@@ -169,14 +173,18 @@ func (e *Expr) formatRelational(tp treeprinter.Node) {
 	}
 }
 
-func (e *Expr) formatCol(buf *bytes.Buffer, colIndex ColumnIndex, notNullCols ColSet, separator string) {
-	label := e.mem.metadata.ColumnLabel(colIndex)
+func (e *Expr) formatCol(buf *bytes.Buffer, label string, colIndex ColumnIndex, notNullCols ColSet) {
+	metaLabel := e.mem.metadata.ColumnLabel(colIndex)
+	if label == "" {
+		// Use the metadata column label if there is no requested label.
+		label = metaLabel
+	}
 
-	buf.WriteString(separator)
+	buf.WriteByte(' ')
 	buf.WriteString(label)
-	buf.WriteString(":")
+	buf.WriteByte(':')
 	fmt.Fprintf(buf, "%d", colIndex)
 	if notNullCols.Contains(int(colIndex)) {
-		buf.WriteString("*")
+		buf.WriteByte('*')
 	}
 }

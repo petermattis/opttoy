@@ -68,11 +68,13 @@ type Builder struct {
 	factory *opt.Factory
 	stmt    tree.Statement
 	semaCtx tree.SemaContext
-	colMap  []columnProps
+
+	// Skip index 0 in order to reserve it to indicate the "unknown" column.
+	colMap []columnProps
 }
 
 func NewBuilder(factory *opt.Factory, stmt tree.Statement) *Builder {
-	b := &Builder{factory: factory, stmt: stmt}
+	b := &Builder{factory: factory, stmt: stmt, colMap: make([]columnProps, 1)}
 
 	ivarHelper := tree.MakeIndexedVarHelper(b, 0)
 	b.semaCtx.IVarHelper = &ivarHelper
@@ -86,18 +88,19 @@ func (b *Builder) Build() (root opt.GroupID, required *opt.PhysicalProps) {
 
 	// Construct the set of physical properties that are required of the root
 	// planner group.
-	ordered := make([]opt.ColumnIndex, len(outScope.cols))
+	labeledCols := make([]opt.LabeledColumn, len(outScope.cols))
 	for i := range outScope.cols {
-		ordered[i] = outScope.cols[i].index
+		col := &outScope.cols[i]
+		labeledCols[i] = opt.LabeledColumn{Label: string(col.name), Index: col.index}
 	}
 
 	root = out
-	required = &opt.PhysicalProps{Ordering: outScope.ordering, Projection: opt.NewOrderedProjection(ordered)}
+	required = &opt.PhysicalProps{Ordering: outScope.ordering, Projection: opt.Projection{Columns: labeledCols}}
 	return
 }
 
 func (b *Builder) buildStmt(stmt tree.Statement, inScope *scope) (out opt.GroupID, outScope *scope) {
-	switch stmt := b.stmt.(type) {
+	switch stmt := stmt.(type) {
 	case *tree.Select:
 		return b.buildSelect(stmt, inScope)
 	case *tree.ParenSelect:
@@ -173,7 +176,7 @@ func (b *Builder) buildScan(tbl *cat.Table, inScope *scope) (out opt.GroupID, ou
 
 	outScope = inScope.push()
 	for i, col := range tbl.Columns {
-		colIndex := b.factory.Metadata().TableColumn(tblIndex, i)
+		colIndex := b.factory.Metadata().TableColumn(tblIndex, cat.ColumnOrdinal(i))
 		col := columnProps{
 			index: colIndex,
 			name:  col.Name,
@@ -204,7 +207,7 @@ func (b *Builder) buildOnJoin(
 	outScope.appendColumns(leftScope)
 	outScope.appendColumns(rightScope)
 
-	filter := b.buildScalar(inScope.resolveType(on, types.Bool), outScope)
+	filter := b.buildScalar(outScope.resolveType(on, types.Bool), outScope)
 
 	return b.constructJoin(join.Join, left, right, filter), outScope
 }
@@ -216,7 +219,7 @@ func (b *Builder) buildNaturalJoin(join *tree.JoinTableExpr, inScope *scope) (ou
 	var common tree.NameList
 	for _, leftCol := range leftScope.cols {
 		for _, rightCol := range rightScope.cols {
-			if leftCol.name == rightCol.name {
+			if leftCol.name == rightCol.name && !leftCol.hidden && !rightCol.hidden {
 				common = append(common, tree.Name(leftCol.name))
 				break
 			}
@@ -249,6 +252,7 @@ func (b *Builder) buildUsingJoinParts(
 ) (out opt.GroupID, outScope *scope) {
 	var filter opt.GroupID
 
+	joined := make(map[cat.ColumnName]*columnProps, len(names))
 	outScope = inScope.push()
 	for _, name := range names {
 		name := cat.ColumnName(name)
@@ -265,6 +269,7 @@ func (b *Builder) buildUsingJoinParts(
 		}
 
 		outScope.cols = append(outScope.cols, *leftCol)
+		joined[name] = &outScope.cols[len(outScope.cols)-1]
 
 		leftVar := b.factory.ConstructVariable(b.factory.InternPrivate(leftCol.index))
 		rightVar := b.factory.ConstructVariable(b.factory.InternPrivate(rightCol.index))
@@ -277,16 +282,21 @@ func (b *Builder) buildUsingJoinParts(
 		}
 	}
 
-	for _, col := range leftCols {
-		if findColByName(outScope.cols, col.name) == nil {
-			outScope.cols = append(outScope.cols, col)
+	for i, col := range leftCols {
+		foundCol, ok := joined[col.name]
+		if ok {
+			// Hide other columns with the same name.
+			if &leftCols[i] == foundCol {
+				continue
+			}
+			col.hidden = true
 		}
+		outScope.cols = append(outScope.cols, col)
 	}
 
 	for _, col := range rightCols {
-		if findColByName(outScope.cols, col.name) == nil {
-			outScope.cols = append(outScope.cols, col)
-		}
+		_, col.hidden = joined[col.name]
+		outScope.cols = append(outScope.cols, col)
 	}
 
 	return filter, outScope
@@ -322,6 +332,8 @@ func (b *Builder) buildScalarProjection(scalar tree.TypedExpr, inScope, outScope
 			// Unbound reference, so project a synthesized wrapper column.
 			label := string(b.colMap[colIndex].name)
 			b.synthesizeColumn(outScope, label, scalar.ResolvedType())
+		} else {
+			outScope.cols = append(outScope.cols, b.colMap[colIndex])
 		}
 
 		return out
@@ -451,7 +463,7 @@ func (b *Builder) buildFunction(f *tree.FuncExpr, inScope *scope) opt.GroupID {
 func (b *Builder) buildSelect(stmt *tree.Select, inScope *scope) (out opt.GroupID, outScope *scope) {
 	switch t := stmt.Select.(type) {
 	case *tree.SelectClause:
-		out, outScope = b.buildSelectClause(t, inScope)
+		return b.buildSelectClause(stmt, inScope)
 
 	case *tree.UnionClause:
 		out, outScope = b.buildUnion(t, inScope)
@@ -465,57 +477,92 @@ func (b *Builder) buildSelect(stmt *tree.Select, inScope *scope) (out opt.GroupI
 		unimplemented("%T", stmt.Select)
 	}
 
-	b.setOrdering(stmt.OrderBy, outScope)
-
 	// TODO(peter): stmt.Limit
+
+	out, outScope.ordering = b.buildOrderBy(out, stmt.OrderBy, outScope)
 	return
 }
 
-func (b *Builder) buildSelectClause(sel *tree.SelectClause, inScope *scope) (out opt.GroupID, outScope *scope) {
-	out, fromScope := b.buildFrom(sel.From, sel.Where, inScope)
+// Pass the entire Select statement rather than just the select clause in
+// order to handle ORDER BY scoping rules. ORDER BY can sort results using
+// columns from the FROM/GROUP BY clause and/or from the projection list.
+func (b *Builder) buildSelectClause(stmt *tree.Select, inScope *scope) (out opt.GroupID, outScope *scope) {
+	sel := stmt.Select.(*tree.SelectClause)
 
-	// The "from" columns are visible to the grouping expressions.
+	var fromScope *scope
+	out, fromScope = b.buildFrom(sel.From, sel.Where, inScope)
+
+	// The "from" columns are visible to the grouping expressions. Even if
+	// there is no group by clause in the expression, buildGroupingList will
+	// still create a scope in order to track aggregate expressions in the
+	// project list, since these cause a group by to be built.
 	groupings, groupingsScope := b.buildGroupingList(sel.GroupBy, fromScope)
 
 	// Any "grouping" columns are visible to both the "having" and "projection"
 	// expressions. The build has the side effect of extracting aggregations.
 	var having opt.GroupID
-	if groupings != 0 {
-		having = b.buildScalar(inScope.resolveType(sel.Having.Expr, types.Bool), groupingsScope)
+	if groupings == nil {
+		// No groupby clause, so use "from" scope directly.
+		groupingsScope = fromScope
+	} else {
+		having = b.buildScalar(groupingsScope.resolveType(sel.Having.Expr, types.Bool), groupingsScope)
 	}
 
-	// Any grouping columns are visible to the projection expressions.
+	// Any grouping columns are visible to the projection expressions. If the
+	// projection is empty or a simple pass-through, then buildProjectionList
+	// will return nil values.
 	projections, projectionsScope := b.buildProjectionList(sel.Exprs, groupingsScope)
 
-	// If one or more aggregate functions were discovered that referenced this
-	// grouping scope, then create set of aggregate expressions.
-	var aggs opt.GroupID
-	if len(groupingsScope.groupby.aggs) > 0 {
-		// The aggregate columns were appended to the end of the grouping scope.
-		cols := groupingsScope.cols[len(groupingsScope.cols)-len(groupingsScope.groupby.aggs):]
-		aggs = b.constructProjectionList(groupingsScope.groupby.aggs, cols)
-	}
-
 	// Wrap with groupby operator if groupings or aggregates exist.
-	if groupings != 0 || aggs != 0 {
-		out = b.factory.ConstructGroupBy(out, groupings, aggs)
+	if groupings != nil || len(groupingsScope.groupby.aggs) > 0 {
+		// Any aggregate columns that were discovered would have been appended
+		// to the end of the grouping scope.
+		aggCols := groupingsScope.cols[len(groupingsScope.cols)-len(groupingsScope.groupby.aggs):]
+		aggList := b.constructProjectionList(groupingsScope.groupby.aggs, aggCols)
+
+		var groupingCols []columnProps
+		if groupings != nil {
+			groupingCols = groupingsScope.cols
+		}
+
+		groupingList := b.constructProjectionList(groupings, groupingCols)
+		out = b.factory.ConstructGroupBy(out, groupingList, aggList)
+
+		// Wrap with having filter if it exists.
+		if having != 0 {
+			out = b.factory.ConstructSelect(out, having)
+		}
 	}
 
-	// Wrap with having filter if it exists.
-	if having != 0 {
-		out = b.factory.ConstructSelect(out, having)
-	}
-
-	// Wrap with project operator if it exists.
-	if projections != 0 {
-		out = b.factory.ConstructProject(out, projections)
+	// Set final output scope.
+	if projections != nil {
 		outScope = projectionsScope
 	} else {
 		outScope = groupingsScope
 	}
 
+	if stmt.OrderBy != nil {
+		// OrderBy can reference columns from either the from/grouping clause
+		// or the projections clause, so combine them in a single projection.
+		var orderByScope *scope
+		out, orderByScope = b.buildAppendingProject(out, groupingsScope, projections, projectionsScope)
+
+		// Wrap with distinct operator if it exists.
+		out = b.buildDistinct(out, sel.Distinct, outScope.cols, orderByScope)
+
+		// Build projection containing any additional synthetic order by
+		// columns and set the ordering on the output scope.
+		out, outScope.ordering = b.buildOrderBy(out, stmt.OrderBy, orderByScope)
+		return
+	}
+
+	// Wrap with project operator if it exists.
+	if projections != nil {
+		out = b.factory.ConstructProject(out, b.constructProjectionList(projections, projectionsScope.cols))
+	}
+
 	// Wrap with distinct operator if it exists.
-	out = b.buildDistinct(out, sel.Distinct, outScope)
+	out = b.buildDistinct(out, sel.Distinct, outScope.cols, outScope)
 	return
 }
 
@@ -548,7 +595,7 @@ func (b *Builder) buildFrom(from *tree.From, where *tree.Where, inScope *scope) 
 
 	if where != nil {
 		// All "from" columns are visible to the filter expression.
-		texpr := inScope.resolveType(where.Expr, types.Bool)
+		texpr := outScope.resolveType(where.Expr, types.Bool)
 		filter := b.buildScalar(texpr, outScope)
 		out = b.factory.ConstructSelect(out, filter)
 	}
@@ -556,7 +603,7 @@ func (b *Builder) buildFrom(from *tree.From, where *tree.Where, inScope *scope) 
 	return
 }
 
-func (b *Builder) buildGroupingList(groupBy tree.GroupBy, inScope *scope) (out opt.GroupID, outScope *scope) {
+func (b *Builder) buildGroupingList(groupBy tree.GroupBy, inScope *scope) (groupings []opt.GroupID, outScope *scope) {
 	// Create a grouping scope even if there is no explicit groupby in the
 	// query, since one or more aggregate functions in the projection list
 	// triggers an implicit groupby.
@@ -570,22 +617,25 @@ func (b *Builder) buildGroupingList(groupBy tree.GroupBy, inScope *scope) (out o
 		return
 	}
 
-	groupings := make([]opt.GroupID, 0, len(groupBy))
+	groupings = make([]opt.GroupID, 0, len(groupBy))
 	for _, e := range groupBy {
 		scalar := b.buildScalarProjection(inScope.resolveType(e, types.Any), inScope, outScope)
 		groupings = append(groupings, scalar)
 	}
 
-	return b.constructProjectionList(groupings, outScope.cols), outScope
+	return
 }
 
-func (b *Builder) buildProjectionList(selects tree.SelectExprs, inScope *scope) (out opt.GroupID, outScope *scope) {
+func (b *Builder) buildProjectionList(
+	selects tree.SelectExprs,
+	inScope *scope,
+) (projections []opt.GroupID, outScope *scope) {
 	if len(selects) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
 	outScope = inScope.push()
-	projections := make([]opt.GroupID, 0, len(selects))
+	projections = make([]opt.GroupID, 0, len(selects))
 	for _, e := range selects {
 		end := len(outScope.cols)
 		subset := b.buildProjection(e.Expr, inScope, outScope)
@@ -610,20 +660,22 @@ func (b *Builder) buildProjectionList(selects tree.SelectExprs, inScope *scope) 
 		}
 
 		if matches {
-			return 0, inScope
+			return nil, nil
 		}
 	}
 
-	return b.constructProjectionList(projections, outScope.cols), outScope
+	return
 }
 
 func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope) (projections []opt.GroupID) {
 	switch t := projection.(type) {
 	case tree.UnqualifiedStar:
 		for _, col := range inScope.cols {
-			v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
-			projections = append(projections, v)
-			outScope.cols = append(outScope.cols, col)
+			if !col.hidden {
+				v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
+				projections = append(projections, v)
+				outScope.cols = append(outScope.cols, col)
+			}
 		}
 
 		if len(projections) == 0 {
@@ -635,7 +687,7 @@ func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope
 	case *tree.AllColumnsSelector:
 		tableName := cat.TableName(t.TableName.Table())
 		for _, col := range inScope.cols {
-			if col.table == tableName {
+			if col.table == tableName && !col.hidden {
 				v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
 				projections = append(projections, v)
 				outScope.cols = append(outScope.cols, col)
@@ -662,15 +714,15 @@ func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope
 	}
 }
 
-func (b *Builder) buildDistinct(in opt.GroupID, distinct bool, inScope *scope) opt.GroupID {
+func (b *Builder) buildDistinct(in opt.GroupID, distinct bool, byCols []columnProps, inScope *scope) opt.GroupID {
 	if !distinct {
 		return in
 	}
 
 	// Distinct is equivalent to group by without any aggregations.
-	groupings := make([]opt.GroupID, 0, len(inScope.cols))
-	for _, col := range inScope.cols {
-		v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
+	groupings := make([]opt.GroupID, 0, len(byCols))
+	for i := range byCols {
+		v := b.factory.ConstructVariable(b.factory.InternPrivate(byCols[i].index))
 		groupings = append(groupings, v)
 	}
 
@@ -678,51 +730,101 @@ func (b *Builder) buildDistinct(in opt.GroupID, distinct bool, inScope *scope) o
 	return b.factory.ConstructGroupBy(in, list, 0)
 }
 
-func (b *Builder) setOrdering(orderBy tree.OrderBy, inScope *scope) {
+func (b *Builder) buildOrderBy(
+	in opt.GroupID,
+	orderBy tree.OrderBy,
+	inScope *scope,
+) (out opt.GroupID, ordering opt.Ordering) {
 	if orderBy == nil {
-		inScope.ordering = nil
-		return
+		return in, nil
 	}
+
+	orderScope := inScope.push()
+
+	projections := make([]opt.GroupID, len(orderBy))
+	for _, order := range orderBy {
+		scalar := b.buildScalarProjection(inScope.resolveType(order.Expr, types.Any), inScope, orderScope)
+		projections = append(projections, scalar)
+	}
+
+	out, _ = b.buildAppendingProject(in, inScope, projections, orderScope)
 
 	// Order-by is not a relational expression, but instead a required property
 	// on the output. We set the required ordering on the scope so that callers
 	// can extract that and pass that as a required physical property to the
 	// optimizer.
-	ordering := make(opt.Ordering, 0, len(orderBy))
-	for _, o := range orderBy {
-		texpr := inScope.resolveType(o.Expr, types.Any)
-		switch t := texpr.(type) {
-		case *tree.IndexedVar:
-			index := opt.ColumnIndex(t.Idx)
-			if o.Direction == tree.Descending {
-				index = -(index + 1)
-			}
+	ordering = make(opt.Ordering, 0, len(orderBy))
+	for i := range orderScope.cols {
+		index := orderScope.cols[i].index
+		if orderBy[i].Direction == tree.Descending {
+			index = -(index + 1)
+		}
 
-			ordering = append(ordering, index)
+		ordering = append(ordering, index)
+	}
 
-		default:
-			unimplemented("unsupported order-by: %s", o.Expr)
+	return
+}
+
+func (b *Builder) buildAppendingProject(
+	in opt.GroupID,
+	inScope *scope,
+	projections []opt.GroupID,
+	projectionsScope *scope,
+) (out opt.GroupID, outScope *scope) {
+	if projections == nil {
+		return in, inScope
+	}
+
+	outScope = projectionsScope.push()
+
+	combined := make([]opt.GroupID, 0, len(inScope.cols)+len(projectionsScope.cols))
+	for i := range inScope.cols {
+		col := &inScope.cols[i]
+		outScope.cols = append(outScope.cols, *col)
+		combined = append(combined, b.factory.ConstructVariable(b.factory.InternPrivate(col.index)))
+	}
+
+	for i := range projectionsScope.cols {
+		col := &projectionsScope.cols[i]
+
+		// Only append projection columns that aren't already present.
+		if findColByIndex(outScope.cols, col.index) == nil {
+			outScope.cols = append(outScope.cols, *col)
+			combined = append(combined, b.factory.ConstructVariable(b.factory.InternPrivate(col.index)))
 		}
 	}
 
-	inScope.ordering = ordering
+	if len(outScope.cols) == len(inScope.cols) {
+		// All projection columns were already present, so no need to construct
+		// the projection expression.
+		return in, inScope
+	}
+
+	out = b.factory.ConstructProject(in, b.constructProjectionList(combined, outScope.cols))
+	return
 }
 
 func (b *Builder) buildUnion(clause *tree.UnionClause, inScope *scope) (out opt.GroupID, outScope *scope) {
-	var left, right opt.GroupID
+	left, leftScope := b.buildSelect(clause.Left, inScope)
+	right, rightScope := b.buildSelect(clause.Right, inScope)
 
-	left, outScope = b.buildSelect(clause.Left, inScope)
-	right, _ = b.buildSelect(clause.Right, inScope)
+	// Build map from left columns to right columns.
+	colMap := make(opt.ColMap)
+	for i := range leftScope.cols {
+		colMap[leftScope.cols[i].index] = rightScope.cols[i].index
+	}
 
 	switch clause.Type {
 	case tree.UnionOp:
-		out = b.factory.ConstructUnion(left, right)
+		out = b.factory.ConstructUnion(left, right, b.factory.InternPrivate(&colMap))
 	case tree.IntersectOp:
 		out = b.factory.ConstructIntersect(left, right)
 	case tree.ExceptOp:
 		out = b.factory.ConstructExcept(left, right)
 	}
 
+	outScope = leftScope
 	return
 }
 

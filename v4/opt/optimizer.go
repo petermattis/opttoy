@@ -14,7 +14,7 @@ type optimizer struct {
 }
 
 func newOptimizer(factory *Factory, maxSteps int) *optimizer {
-	o := &optimizer{mem: factory.mem, maxSteps: maxSteps, factory: factory}
+	o := &optimizer{mem: factory.mem, maxSteps: maxSteps, factory: factory, pass: optimizePass{major: 1}}
 	o.coster.init(factory.mem)
 	o.explorer.init(factory)
 	return o
@@ -23,64 +23,55 @@ func newOptimizer(factory *Factory, maxSteps int) *optimizer {
 func (o *optimizer) optimize(root GroupID, required physicalPropsID) Expr {
 	mgrp := o.mem.lookupGroup(root)
 	best := o.optimizeGroup(mgrp, required, maxCost)
+	if best.op == UnknownOp {
+		panic("optimization step returned invalid result")
+	}
 	return Expr{mem: o.mem, group: root, op: best.op, offset: best.offset, required: required}
 }
 
-func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, maxCost physicalCost) *bestExpr {
-	// Check whether this group has already been optimized during the current
-	// optimization pass, or if has already been fully optimized.
-	if o.isGroupOptimizedThisPass(mgrp) {
-		return o.enforceProps(mgrp, required)
+func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, costLimit physicalCost) *bestExpr {
+	// If this group was already optimized during this pass for the given
+	// required properties, or if it's already fully optimized, then return
+	// the already prepared best expression.
+	best := mgrp.ensureBestExpr(required)
+	if best.wasOptimizedSince(o.pass) {
+		return best
 	}
 
-	// As long as there's been some improvement, keep optimizing the group.
+	// As long as there's been some improvement to the best expression, then
+	// keep optimizing the group.
 	pass := o.pass
 	start := 0
 	for {
 		groupFullyOptimized := true
-		groupCostImproved := false
 
-		for index, offset := range mgrp.exprs[start:] {
-			// If expression is already fully optimized, then skip it.
-			if o.isExprFullyOptimized(mgrp, index) {
+		for index, _ := range mgrp.exprs[start:] {
+			// If the group is already fully optimized for the given required
+			// properties, then skip it, since it won't get better.
+			if best.isExprFullyOptimized(index) {
 				continue
-			}
-
-			op := o.mem.lookupExpr(offset).op
-			e := Expr{mem: o.mem, group: mgrp.id, op: op, offset: offset, required: required}
-
-			recomputeCost, exprFullyOptimized := o.optimizeExpr(&e, maxCost)
-			if exprFullyOptimized {
-				o.markExprAsFullyOptimized(mgrp, index)
-			} else {
-				groupFullyOptimized = false
 			}
 
 			// If this is the first time that the expression has been costed, then
 			// always compute its cost.
-			if index >= int(mgrp.optimizeCtx.start) {
-				recomputeCost = true
-			}
+			recomputeCost := index >= int(best.costedIndex)
 
-			if recomputeCost && o.recomputeCost(mgrp, &e) {
-				groupCostImproved = true
-			}
-		}
+			// Optimize the expression, adding enforcers as necessary to
+			// provide the required properties. The best expression will be
+			// updated by optimizeExpr if the expression has a lower cost.
+			best = o.optimizeExpr(mgrp, index, required, recomputeCost)
 
-		// Recompute the cost of enforcement if any expression in the group
-		// improved. Also, check whether substituting enforcers will improve
-		// the group cost.
-		if groupCostImproved {
-			o.recomputeEnforceCost(mgrp)
+			if !best.isExprFullyOptimized(index) {
+				groupFullyOptimized = false
+			}
 		}
 
 		pass.minor++
 		start = len(mgrp.exprs)
-		mgrp.optimizeCtx.start = uint32(start)
+		best.costedIndex = uint32(start)
 
 		// Now generate new expressions that are logically equivalent to other
-		// expressions in this group. Until all expressions have been transitively
-		// generated, optimization of this group is not complete.
+		// expressions in this group.
 		if o.maxSteps > 0 {
 			if !o.explorer.exploreGroup(mgrp, pass) {
 				groupFullyOptimized = false
@@ -88,52 +79,83 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, max
 		}
 
 		if groupFullyOptimized {
-			// If exploration and costing of this group is complete, then skip it
-			// in all future optimization passes.
-			mgrp.optimizeCtx.pass = fullyOptimizedPass
+			// If exploration and costing of this group for the given required
+			// properties is complete, then skip it in all future optimization
+			// passes.
+			best.lastOptimized = fullyOptimizedPass
 			break
 		}
 
-		// This group has been optimized during this pass, but there may be
-		// further iterations.
-		mgrp.optimizeCtx.pass = o.pass
+		// This group has been optimized during this pass for the given
+		// required properties, but there may be further iterations.
+		best.lastOptimized = pass
 
-		if !groupCostImproved {
-			// The group's cost did not improve, so iterations are complete
+		if best.lastImproved.Less(pass) {
+			// The best expression did not improve, so iterations are complete
 			// during this pass
 			break
 		}
 	}
 
-	return o.enforceProps(mgrp, required)
+	return best
 }
 
-func (o *optimizer) optimizeExpr(e *Expr, maxCost physicalCost) (recomputeCost, fullyOptimized bool) {
-	recomputeCost = false
-	fullyOptimized = true
+func (o *optimizer) optimizeExpr(
+	mgrp *memoGroup,
+	index int,
+	required physicalPropsID,
+	recomputeCost bool,
+) (best *bestExpr) {
+	offset := mgrp.exprs[index]
+	op := o.mem.lookupExpr(offset).op
+	e := Expr{mem: o.mem, group: mgrp.id, op: op, offset: offset, required: required}
+
+	// Compute the cost for enforcers to provide the required properties. This
+	// may be lower than the expression providing the properties itself.
+	fullyEnforced := o.enforceProps(&e, recomputeCost)
+
+	// If the expression cannot provide the required properties, then don't
+	// continue.
+	if !o.mem.physPropsFactory.canProvide(&e) {
+		// If enforcers have been fully costed, then optimization of this
+		// expression is complete for the required properties.
+		best = mgrp.lookupBestExpr(required)
+		if fullyEnforced {
+			best.markExprAsFullyOptimized(index)
+		}
+		return best
+	}
+
+	// Don't attempt to hoist this lookup above the call to enforceProps,
+	// because it recursively calls optimizeGroup, and that can change the
+	// address of the best expression when the bestExprs array resizes.
+	best = mgrp.lookupBestExpr(required)
+	costLimit := best.cost
+	remainingCost := costLimit
+	fullyOptimized := true
 
 	for child := 0; child < e.ChildCount(); child++ {
 		childGroup := o.mem.lookupGroup(e.ChildGroup(child))
 
 		// Given required parent properties, get the properties required from
 		// the child.
-		required := o.mem.physPropsFactory.constructRequiredProps(e, child)
+		required := o.mem.physPropsFactory.constructChildProps(&e, child)
 
 		// Recursively optimize the child group.
-		best := o.optimizeGroup(childGroup, required, maxCost)
+		bestChild := o.optimizeGroup(childGroup, required, remainingCost)
 
 		// If a lower cost expression was found for the child group during this
 		// optimization pass, then recompute the cost of the parent expression
 		// as well. Since each parent expression is only costed once during a
 		// given pass, this won't trigger redundant work, even if in the case
 		// of multiple iterations during the pass.
-		if best.pass == o.pass {
+		if bestChild.lastImproved == o.pass {
 			recomputeCost = true
 		}
 
-		// If any child group is not fully optimized, then this expression is
-		// also not fully optimized.
-		if !o.isGroupFullyOptimized(childGroup) {
+		// If any child expression is not fully optimized, then the parent
+		// expression is also not fully optimized.
+		if !bestChild.isFullyOptimized() {
 			fullyOptimized = false
 		}
 
@@ -144,11 +166,11 @@ func (o *optimizer) optimizeExpr(e *Expr, maxCost physicalCost) (recomputeCost, 
 		// prune it) if all child groups have been optimized up until
 		// this point. In that case, further optimization passes will not
 		// reduce the cost, so pruning is in order.
-		if maxCost.Less(best.cost) {
+		if remainingCost.Less(bestChild.cost) {
 			// If any child group has been fully optimized, but has a cost
 			// that's greater than the total cost budget, then there's no way
 			// the expression's cost will ever be good enough.
-			if o.isGroupFullyOptimized(childGroup) && maxCost.Less(best.cost) {
+			if bestChild.isFullyOptimized() && !bestChild.cost.Less(costLimit) {
 				fullyOptimized = true
 			}
 
@@ -159,235 +181,82 @@ func (o *optimizer) optimizeExpr(e *Expr, maxCost physicalCost) (recomputeCost, 
 		}
 
 		// Decrease the remaining max cost by the cost of the child.
-		maxCost = maxCost.Sub(best.cost)
+		remainingCost = remainingCost.Sub(bestChild.cost)
+	}
+
+	if recomputeCost {
+		o.ratchetCost(best, &e)
+	}
+
+	if fullyEnforced && fullyOptimized {
+		best.markExprAsFullyOptimized(index)
 	}
 
 	return
 }
 
-func (o *optimizer) enforceProps(mgrp *memoGroup, required physicalPropsID) *bestExpr {
-	// Look for exact match.
-	best := mgrp.lookupBestExpr(required)
-	if best != nil {
-		return best
-	}
+func (o *optimizer) enforceProps(e *Expr, recomputeCost bool) (fullyOptimized bool) {
+	props := o.mem.lookupPhysicalProps(e.required)
+	innerProps := *props
 
-	// No exact match could be found, so look for the best match. Start by
-	// searching for an existing expression that provides all the required
-	// properties (but was indexed using a subset of required properties).
-	best = o.findLowestCostProvider(mgrp, required)
-	if best != nil {
-		mgrp.ratchetBestExpr(required, best)
-		return best
-	}
+	// Strip off one property that can be enforced. Other properties will be
+	// stripped by recursively optimizing the group with successively fewer
+	// properties.
+	if props.Projection.Defined() {
+		innerProps.Projection = Projection{}
 
-	// Couldn't find an existing expression that provides all the properties,
-	// so look for an expression that provides as many properties as possible.
-	// Use this as a starting point towards enforcing the required properties.
-	var provided physicalPropsID
-	for {
-		required = o.stripEnforcedProperty(required)
-
-		best = o.findLowestCostProvider(mgrp, required)
-		if best != nil {
-			provided = best.provided
-			break
+		// Projection costs so little, that if this is the only required
+		// property, and the expression can provide it, don't waste time
+		// costing the enforcer separately.
+		if o.mem.physPropsFactory.canProvideProjection(e) && !innerProps.Defined() {
+			return true
 		}
-	}
-
-	if provided == 0 {
-		requiredProps := o.mem.lookupPhysicalProps(required)
-		fatalf("no expression in group %d for required properties: %v", mgrp.id, requiredProps)
-	}
-
-	return o.addEnforcers(mgrp, required, provided)
-}
-
-func (o *optimizer) findLowestCostProvider(mgrp *memoGroup, required physicalPropsID) *bestExpr {
-	requiredProps := o.mem.lookupPhysicalProps(required)
-
-	var lowestCost *bestExpr
-	for i := range mgrp.bestExprs {
-		best := &mgrp.bestExprs[i]
-		if lowestCost == nil || best.cost.Less(lowestCost.cost) {
-			if o.mem.lookupPhysicalProps(best.provided).Provides(requiredProps) {
-				lowestCost = best
-			}
+	} else if props.Ordering.Defined() {
+		innerProps.Ordering = nil
+	} else {
+		// No remaining properties, so no more enforcers.
+		if props.Defined() {
+			fatalf("unhandled physical property: %v", props)
 		}
+		return
 	}
 
-	return lowestCost
-}
+	// Optimize the group for the "inner" properties.
+	mgrp := o.mem.lookupGroup(e.group)
+	inner := *e
+	inner.required = o.mem.internPhysicalProps(&innerProps)
+	costLimit := mgrp.ensureBestExpr(inner.required).cost
+	innerBest := o.optimizeGroup(mgrp, inner.required, costLimit)
+	fullyOptimized = innerBest.isFullyOptimized()
 
-func (o *optimizer) stripEnforcedProperty(required physicalPropsID) physicalPropsID {
-	requiredProps := *o.mem.lookupPhysicalProps(required)
-
-	// Always strip projections, since every relational expression can provide
-	// projections at no extra cost.
-	requiredProps.Projection = Projection{}
-
-	// Strip other required properties in order from least likely to be costly
-	// to most likely. This heuristic increases the chance of finding a low
-	// cost expression to wrap with enforcer(s).
-	if requiredProps.Ordering.Defined() {
-		requiredProps.Ordering = Ordering{}
+	// If a lower cost expression was found for the inner expression during
+	// this optimization pass, then recompute the cost of the enforcer as well.
+	if innerBest.lastImproved == o.pass {
+		recomputeCost = true
 	}
 
-	return o.mem.internPhysicalProps(&requiredProps)
-}
-
-func (o *optimizer) addEnforcers(mgrp *memoGroup, required, provided physicalPropsID) *bestExpr {
-	requiredProps := *o.mem.lookupPhysicalProps(required)
-	providedProps := *o.mem.lookupPhysicalProps(provided)
-
-	// Add additional required enforcers if they aren't already provided.
-	if !providedProps.Ordering.Provides(requiredProps.Ordering) {
-		providedProps.Ordering = requiredProps.Ordering
-		provided = o.mem.internPhysicalProps(&providedProps)
-
-		e := Expr{mem: o.mem, group: mgrp.id, op: SortOp, required: provided}
-		o.ratchetBestExpr(mgrp, &e, provided)
-	}
-
-	if !providedProps.Provides(&requiredProps) {
-		fatalf("enforcers did not provide the complete set of required physical properties")
-	}
-
-	// It's possible for the provided properties to be a superset of the
-	// required properties. Since best expr lookup needs to be an exact lookup,
-	// make sure that the original required props are entered into bestExprs.
-	best := mgrp.lookupBestExpr(required)
-	if best == nil {
-		best = mgrp.lookupBestExpr(provided)
-		mgrp.ratchetBestExpr(required, best)
-	}
-
-	return best
-}
-
-// recomputeEnforceCost scans over the set of best expressions and recomputes
-// them as if they used enforcers to add any required properties. Sometimes an
-// expression cost will be lower when using an enforcer rather than using an
-// expression that naturally provides the properties.
-//
-// This scan is done after all non-enforcer expressions in the group have been
-// updated, and then only if that found a lower cost expression. Since enforcer
-// expressions are directly or indirectly dependent on other expressions in the
-// group, that could cause their cost to change as well.
-func (o *optimizer) recomputeEnforceCost(mgrp *memoGroup) {
-	var visited bitmap
-
-	// Start with the lowest cost expression of the default properties.
-	best := o.findLowestCostProvider(mgrp, defaultPhysPropsID)
-
-	// Recompute the best exprs by wrapping that expression with enforcers.
-	for required, index := range mgrp.bestExprsMap {
-
-		provided := required
-		for {
-			// Base case of expression that is not dependent on any other
-			// expression.
-			if provided == defaultPhysPropsID {
-				break
-			}
-
-			// Base case of visiting a best expression that has already been
-			// visited.
-			if visited.Contains(index) {
-				break
-			}
-
-			visited.Add(index)
-
-			// Strip off enforced properties until an already visited
-			// expression is found.
-			for {
-				provided = o.stripEnforcedProperty(provided)
-
-				var ok bool
-				index, ok = mgrp.bestExprsMap[provided]
-				if ok {
-					break
-				}
-
-				// If no expression exists yet for the provided properties,
-				// just skip to the next.
-			}
+	if recomputeCost {
+		// Cost the expression with the enforcer added.
+		var enforcer Expr
+		if props.Projection.Defined() {
+			enforcer = Expr{mem: o.mem, group: e.group, op: ArrangeOp, required: e.required}
+		} else if props.Ordering.Defined() {
+			enforcer = Expr{mem: o.mem, group: e.group, op: SortOp, required: e.required}
 		}
 
-		// The actual provided properties may be a superset.
-		provided = mgrp.lookupBestExpr(provided).provided
-
-		// Add any needed enforcers and ratchet the best expr costs.
-		if provided != required {
-			o.addEnforcers(mgrp, required, provided)
-		}
+		// Don't attempt to hoist the lookup above the optimizeGroup call,
+		// since that will change the address of the best expression when the
+		// bestExprs array resizes.
+		best := o.mem.lookupGroup(e.group).lookupBestExpr(e.required)
+		o.ratchetCost(best, &enforcer)
 	}
+
+	return
 }
 
-func (o *optimizer) recomputeCost(mgrp *memoGroup, e *Expr) bool {
-	if e.IsEnforcer() {
-		panic("enforcers should have their cost recomputed in recomputeEnforcerCost")
-	}
-
-	// Special-case certain operators.
-	switch e.Operator() {
-	case SelectOp:
-		return o.ratchetPassthruBestExprs(mgrp, e, 0)
-
-	case ProjectOp:
-		return o.ratchetPassthruBestExprs(mgrp, e, 0)
-
-	default:
-		return o.ratchetBestExpr(mgrp, e, defaultPhysPropsID)
-	}
-}
-
-func (o *optimizer) ratchetPassthruBestExprs(mgrp *memoGroup, e *Expr, child int) bool {
-	improved := false
-
-	childGroup := o.mem.lookupGroup(e.ChildGroup(child))
-	for required, index := range childGroup.bestExprsMap {
-		best := &childGroup.bestExprs[index]
-
-		if best.isEnforcer() {
-			// Don't add child enforcers to the parent group, because it's
-			// better to add those at a higher level of the expression tree.
-			continue
-		}
-
-		if o.ratchetBestExpr(mgrp, e, best.provided) {
-			improved = true
-		}
-	}
-
-	return improved
-}
-
-func (o *optimizer) ratchetBestExpr(mgrp *memoGroup, e *Expr, provided physicalPropsID) bool {
+func (o *optimizer) ratchetCost(best *bestExpr, e *Expr) {
 	cost := o.coster.computeCost(e)
-	best := bestExpr{op: e.op, pass: o.pass, offset: e.offset, provided: provided, cost: cost}
-	return mgrp.ratchetBestExpr(e.required, &best)
-}
-
-// isGroupOptimizedThisPass returns true if the specified memo group has
-// already been optimized during this optimization pass, or if all possible
-// optimizations have already been applied to this group and all subgroups.
-// In that case, there is no need to reevaluate this group.
-func (o *optimizer) isGroupOptimizedThisPass(mgrp *memoGroup) bool {
-	return mgrp.optimizeCtx.pass.Less(o.pass)
-}
-
-func (o *optimizer) isGroupFullyOptimized(mgrp *memoGroup) bool {
-	return mgrp.optimizeCtx.pass == fullyOptimizedPass
-}
-
-func (o *optimizer) isExprFullyOptimized(mgrp *memoGroup, index int) bool {
-	return mgrp.optimizeCtx.exprs.Contains(index)
-}
-
-func (o *optimizer) markExprAsFullyOptimized(mgrp *memoGroup, index int) {
-	mgrp.optimizeCtx.exprs.Add(index)
+	best.ratchetCost(e, cost, o.pass)
 }
 
 type optimizePass struct {

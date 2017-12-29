@@ -1020,8 +1020,9 @@ func (_f *Factory) ConstructGroupBy(
 func (_f *Factory) ConstructUnion(
 	left GroupID,
 	right GroupID,
+	colMap PrivateID,
 ) GroupID {
-	_unionExpr := unionExpr{memoExpr: memoExpr{op: UnionOp}, left: left, right: right}
+	_unionExpr := unionExpr{memoExpr: memoExpr{op: UnionOp}, left: left, right: right, colMap: colMap}
 	_fingerprint := _unionExpr.fingerprint()
 	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
 	if _group != 0 {

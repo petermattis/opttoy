@@ -112,8 +112,9 @@ define GroupBy {
 
 [Relational]
 define Union {
-    Left  Expr
-    Right Expr
+    Left   Expr
+    Right  Expr
+    ColMap ColMap
 }
 
 [Relational]

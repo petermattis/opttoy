@@ -80,8 +80,9 @@ const (
 	IntersectOp
 	ExceptOp
 	SortOp
+	ArrangeOp
 )
 
-const opNames = "unknownvariableconstplaceholderlistorderedListprojectionsexistsandornoteqltgtlegeneinnotInlikenotLikeiLikenotILikesimilarTonotSimilarToregMatchnotRegMatchregIMatchnotRegIMatchisDistinctFromisNotDistinctFromisisNotanysomeallbitandbitorbitxorplusminusmultdivfloorDivmodpowconcatlShiftrShiftunaryPlusunaryMinusunaryComplementfunctiontruefalsescanvaluesselectprojectinnerJoinleftJoinrightJoinfullJoinsemiJoinantiJoininnerJoinApplyleftJoinApplyrightJoinApplyfullJoinApplysemiJoinApplyantiJoinApplygroupByunionintersectexceptsort"
+const opNames = "unknownvariableconstplaceholderlistordered-listprojectionsexistsandornoteqltgtlegeneinnot-inlikenot-likei-likenot-i-likesimilar-tonot-similar-toreg-matchnot-reg-matchreg-i-matchnot-reg-i-matchis-distinct-fromis-not-distinct-fromisis-notanysomeallbitandbitorbitxorplusminusmultdivfloor-divmodpowconcatl-shiftr-shiftunary-plusunary-minusunary-complementfunctiontruefalsescanvaluesselectprojectinner-joinleft-joinright-joinfull-joinsemi-joinanti-joininner-join-applyleft-join-applyright-join-applyfull-join-applysemi-join-applyanti-join-applygroup-byunionintersectexceptsortarrange"
 
-var opIndexes = [...]uint32{0, 7, 15, 20, 31, 35, 46, 57, 63, 66, 68, 71, 73, 75, 77, 79, 81, 83, 85, 90, 94, 101, 106, 114, 123, 135, 143, 154, 163, 175, 189, 206, 208, 213, 216, 220, 223, 229, 234, 240, 244, 249, 253, 256, 264, 267, 270, 276, 282, 288, 297, 307, 322, 330, 334, 339, 343, 349, 355, 362, 371, 379, 388, 396, 404, 412, 426, 439, 453, 466, 479, 492, 499, 504, 513, 519, 523}
+var opIndexes = [...]uint32{0, 7, 15, 20, 31, 35, 47, 58, 64, 67, 69, 72, 74, 76, 78, 80, 82, 84, 86, 92, 96, 104, 110, 120, 130, 144, 153, 166, 177, 192, 208, 228, 230, 236, 239, 243, 246, 252, 257, 263, 267, 272, 276, 279, 288, 291, 294, 300, 307, 314, 324, 335, 351, 359, 363, 368, 372, 378, 384, 391, 401, 410, 420, 429, 438, 447, 463, 478, 494, 509, 524, 539, 547, 552, 561, 567, 571, 578}

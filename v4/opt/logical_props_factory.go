@@ -1,9 +1,5 @@
 package opt
 
-import (
-	"fmt"
-)
-
 type logicalPropsFactory struct {
 	mem *memo
 }
@@ -13,100 +9,45 @@ func (f *logicalPropsFactory) init(mem *memo) {
 }
 
 func (f *logicalPropsFactory) constructProps(e *Expr) *LogicalProps {
-	if e.IsScalar() {
-		var props LogicalProps
-		f.setScalarUnboundCols(&props, e)
-		return &props
+	if e.IsRelational() {
+		return f.constructRelationalProps(e)
 	}
 
+	return f.constructScalarProps(e)
+}
+
+func (f *logicalPropsFactory) constructRelationalProps(e *Expr) *LogicalProps {
 	switch e.Operator() {
 	case ScanOp:
 		return f.constructScanProps(e)
+
 	case ValuesOp:
 		return &LogicalProps{}
+
+	case SelectOp:
+		return f.constructSelectProps(e)
+
 	case ProjectOp:
 		return f.constructProjectProps(e)
 
-	case LeftJoinOp:
+	case InnerJoinOp, LeftJoinOp, RightJoinOp, FullJoinOp,
+		SemiJoinOp, AntiJoinOp, InnerJoinApplyOp, LeftJoinApplyOp,
+		RightJoinApplyOp, FullJoinApplyOp, SemiJoinApplyOp, AntiJoinApplyOp:
 		return f.constructJoinProps(e)
-	case RightJoinOp:
-		return f.constructJoinProps(e)
-	case FullJoinOp:
-		return f.constructJoinProps(e)
-	case SemiJoinOp:
-		return f.constructJoinProps(e)
-	case AntiJoinOp:
-		return f.constructJoinProps(e)
-	case InnerJoinApplyOp:
-		return f.constructJoinProps(e)
-	case LeftJoinApplyOp:
-		return f.constructJoinProps(e)
-	case RightJoinApplyOp:
-		return f.constructJoinProps(e)
-	case FullJoinApplyOp:
-		return f.constructJoinProps(e)
-	case SemiJoinApplyOp:
-		return f.constructJoinProps(e)
-	case AntiJoinApplyOp:
-		return f.constructJoinProps(e)
+
+	case UnionOp:
+		return f.constructSetProps(e)
 	}
 
-	panic(fmt.Sprintf("unrecognized expression type: %v", e.op))
-}
-
-func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
-	var props LogicalProps
-
-	leftProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
-	rightProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
-	filterProps := f.mem.lookupGroup(e.ChildGroup(2)).logical
-
-	// Output columns are union of columns from left and right inputs.
-	props.Relational.OutputCols.UnionWith(leftProps.Relational.OutputCols)
-	props.Relational.OutputCols.UnionWith(rightProps.Relational.OutputCols)
-
-	// Left/full outer joins can result in right columns becoming null.
-	// Otherwise, propagate not null setting from right child.
-	switch e.Operator() {
-	case LeftJoinOp, FullJoinOp, LeftJoinApplyOp, FullJoinApplyOp:
-		props.Relational.NotNullCols.UnionWith(rightProps.Relational.OutputCols)
-
-	default:
-		props.Relational.NotNullCols.UnionWith(rightProps.Relational.NotNullCols)
-	}
-
-	// Right/full outer joins can result in left columns becoming null.
-	// Otherwise, propagate not null setting from left child.
-	switch e.Operator() {
-	case RightJoinOp, FullJoinOp, RightJoinApplyOp, FullJoinApplyOp:
-		props.Relational.NotNullCols.UnionWith(leftProps.Relational.OutputCols)
-
-	default:
-		props.Relational.NotNullCols.UnionWith(leftProps.Relational.NotNullCols)
-	}
-
-	// Any columns which are used by any of the join children, but are not
-	// part of the join output columns are unbound columns.
-	props.UnboundCols = filterProps.UnboundCols.Difference(props.Relational.OutputCols)
-	props.UnboundCols.UnionWith(leftProps.UnboundCols)
-	props.UnboundCols.UnionWith(rightProps.UnboundCols)
-
-	// Union overlapping equivalent columns from inputs.
-	props.addEquivColumnSets(leftProps.Relational.EquivCols)
-	props.addEquivColumnSets(rightProps.Relational.EquivCols)
-
-	// Set additional properties according to the join filter.
-	filter := e.Child(2)
-	f.setPropsFromFilter(&props, &filter)
-
-	return &props
+	fatalf("unrecognized relational expression type: %v", e.op)
+	return nil
 }
 
 func (f *logicalPropsFactory) constructScanProps(e *Expr) *LogicalProps {
 	var props LogicalProps
 
 	tblIndex := e.Private().(TableIndex)
-	tbl := f.mem.metadata.Table(tblIndex)
+	tbl := f.mem.metadata.Table(tblIndex).Table
 
 	// A table's output column indexes are contiguous.
 	props.Relational.OutputCols.AddRange(int(tblIndex), int(tblIndex)+len(tbl.Columns)-1)
@@ -133,21 +74,46 @@ func (f *logicalPropsFactory) constructScanProps(e *Expr) *LogicalProps {
 	return &props
 }
 
+func (f *logicalPropsFactory) constructSelectProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	inputProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+	filterProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
+
+	// Inherit output columns from input.
+	props.Relational.OutputCols = inputProps.Relational.OutputCols
+
+	// Inherit not null columns from input.
+	props.Relational.NotNullCols = inputProps.Relational.NotNullCols
+
+	// Any columns which are used by the input, but are not part of the select
+	// output columns are unbound columns.
+	props.UnboundCols = filterProps.UnboundCols.Difference(props.Relational.OutputCols)
+	props.UnboundCols.UnionWith(inputProps.UnboundCols)
+
+	// Inherit equivalent columns from input.
+	props.Relational.EquivCols = inputProps.Relational.EquivCols
+
+	// Set additional properties according to the join filter.
+	filter := e.Child(1)
+	f.addPropsFromFilter(&props, &filter, true)
+
+	return &props
+}
+
 func (f *logicalPropsFactory) constructProjectProps(e *Expr) *LogicalProps {
 	var props LogicalProps
 
 	inputProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
 	projectionProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
 
-	// Output columns include both the projection list columns *and* the input
-	// columns, even if the projection list excludes columns. Those "hidden"
-	// columns are excluded by physical properties rather than by logical.
-	props.Relational.OutputCols = inputProps.Relational.OutputCols.Copy()
-	projectionList := f.mem.lookupNormExpr(e.ChildGroup(1)).asProjections()
-	projectionCols := f.mem.lookupPrivate(projectionList.cols).(*ColSet)
-	props.Relational.OutputCols.UnionWith(*projectionCols)
+	// Use output columns from projection list.
+	projections := e.Child(1)
+	props.Relational.OutputCols = *projections.Private().(*ColSet)
 
-	// Inherit not null columns from input.
+	// Inherit not null columns from input. This may contain non-output
+	// columns.
+	// TODO(andy): is it OK to not intersect the set with output cols?
 	props.Relational.NotNullCols = inputProps.Relational.NotNullCols
 
 	// Any columns which are used by any of the project children, but are not
@@ -155,8 +121,82 @@ func (f *logicalPropsFactory) constructProjectProps(e *Expr) *LogicalProps {
 	props.UnboundCols = projectionProps.UnboundCols.Difference(props.Relational.OutputCols)
 	props.UnboundCols.UnionWith(inputProps.UnboundCols)
 
-	// Inherit equivalent columns from input.
+	// Inherit equivalent columns from input. This may contain non-output
+	// columns.
 	props.Relational.EquivCols = inputProps.Relational.EquivCols
+
+	return &props
+}
+
+func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	leftProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+	rightProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
+	filterProps := f.mem.lookupGroup(e.ChildGroup(2)).logical
+
+	// Output columns are union of columns from left and right inputs.
+	props.Relational.OutputCols.UnionWith(leftProps.Relational.OutputCols)
+	props.Relational.OutputCols.UnionWith(rightProps.Relational.OutputCols)
+
+	// Left/full outer joins can result in right columns becoming null.
+	// Otherwise, propagate not null setting from right child.
+	switch e.Operator() {
+	case LeftJoinOp, FullJoinOp, LeftJoinApplyOp, FullJoinApplyOp:
+
+	default:
+		props.Relational.NotNullCols.UnionWith(rightProps.Relational.NotNullCols)
+	}
+
+	// Right/full outer joins can result in left columns becoming null.
+	// Otherwise, propagate not null setting from left child.
+	switch e.Operator() {
+	case RightJoinOp, FullJoinOp, RightJoinApplyOp, FullJoinApplyOp:
+
+	default:
+		props.Relational.NotNullCols.UnionWith(leftProps.Relational.NotNullCols)
+	}
+
+	// Any columns which are used by any of the join children, but are not
+	// part of the join output columns are unbound columns.
+	props.UnboundCols = filterProps.UnboundCols.Difference(props.Relational.OutputCols)
+	props.UnboundCols.UnionWith(leftProps.UnboundCols)
+	props.UnboundCols.UnionWith(rightProps.UnboundCols)
+
+	// Union equivalent columns from inputs (these never overlap).
+	props.Relational.EquivCols = append(props.Relational.EquivCols, leftProps.Relational.EquivCols...)
+	props.Relational.EquivCols = append(props.Relational.EquivCols, rightProps.Relational.EquivCols...)
+
+	// Set additional properties according to the join filter.
+	filter := e.Child(2)
+	f.addPropsFromFilter(&props, &filter, false)
+
+	return &props
+}
+
+func (f *logicalPropsFactory) constructSetProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	leftProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+	rightProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
+	colMap := *e.Private().(*ColMap)
+
+	// Use left input's output columns.
+	props.Relational.OutputCols = leftProps.Relational.OutputCols
+
+	// Columns have to be not-null on both sides to be not-null in result.
+	for leftIndex, rightIndex := range colMap {
+		if !leftProps.Relational.NotNullCols.Contains(int(leftIndex)) {
+			continue
+		}
+		if !rightProps.Relational.NotNullCols.Contains(int(rightIndex)) {
+			continue
+		}
+		props.Relational.NotNullCols.Add(int(leftIndex))
+	}
+
+	// Unbound columns from either side are unbound in result.
+	props.UnboundCols = leftProps.UnboundCols.Union(rightProps.UnboundCols)
 
 	return &props
 }
@@ -170,16 +210,19 @@ func (f *logicalPropsFactory) setScalarUnboundCols(props *LogicalProps, e *Expr)
 }
 
 // Add additional not-NULL columns based on the filtering expression.
-func (f *logicalPropsFactory) setPropsFromFilter(props *LogicalProps, filter *Expr) {
+func (f *logicalPropsFactory) addPropsFromFilter(props *LogicalProps, filter *Expr, copyOnWrite bool) {
 	// Expand the set of non-NULL columns based on the filter.
 	//
 	// TODO(peter): Need to make sure the filter is not null-tolerant.
+	if copyOnWrite {
+		props.Relational.NotNullCols = props.Relational.NotNullCols.Copy()
+	}
 	props.Relational.NotNullCols.UnionWith(filter.Logical().UnboundCols)
 
-	f.setEquivProperties(props, filter)
+	f.addEquivProperties(props, filter, copyOnWrite)
 }
 
-func (f *logicalPropsFactory) setEquivProperties(props *LogicalProps, filter *Expr) {
+func (f *logicalPropsFactory) addEquivProperties(props *LogicalProps, filter *Expr, copyOnWrite bool) bool {
 	// Find equivalent columns.
 	switch filter.Operator() {
 	case EqOp:
@@ -187,8 +230,11 @@ func (f *logicalPropsFactory) setEquivProperties(props *LogicalProps, filter *Ex
 		right := filter.Child(1)
 
 		if left.op == VariableOp && right.op == VariableOp {
-			cols := left.Logical().UnboundCols
-			cols.UnionWith(right.Logical().UnboundCols)
+			cols := left.Logical().UnboundCols.Union(right.Logical().UnboundCols)
+			if copyOnWrite {
+				props.Relational.EquivCols = props.Relational.EquivCols.Copy()
+				copyOnWrite = false
+			}
 			props.addEquivColumns(cols)
 		}
 
@@ -196,9 +242,25 @@ func (f *logicalPropsFactory) setEquivProperties(props *LogicalProps, filter *Ex
 		left := filter.Child(0)
 		right := filter.Child(1)
 
-		f.setEquivProperties(props, &left)
-		f.setEquivProperties(props, &right)
+		copyOnWrite = f.addEquivProperties(props, &left, copyOnWrite)
+		copyOnWrite = f.addEquivProperties(props, &right, copyOnWrite)
 	}
 
 	// TODO(peter): Support tuple comparisons such as "(a, b) = (c, d)".
+
+	return copyOnWrite
+}
+
+func (f *logicalPropsFactory) constructScalarProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	switch e.Operator() {
+	case VariableOp:
+		props.UnboundCols.Add(int(e.Private().(ColumnIndex)))
+
+	default:
+		f.setScalarUnboundCols(&props, e)
+	}
+
+	return &props
 }
