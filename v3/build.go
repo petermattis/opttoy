@@ -422,6 +422,7 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		fatalf("unexpected unresolved scalar expr: %T", pexpr)
 
 	case *tree.ComparisonExpr:
+		// TODO(peter): handle t.SubOperator.
 		result = newBinaryExpr(comparisonOpMap[t.Operator],
 			buildScalar(t.TypedLeft(), scope),
 			buildScalar(t.TypedRight(), scope))
