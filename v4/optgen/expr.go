@@ -122,8 +122,8 @@ type RootExpr struct {
 
 func NewRootExpr() *RootExpr {
 	children := []ParsedExpr{
-		NewDefineListExpr(),
-		NewRuleListExpr(),
+		NewDefineSetExpr(),
+		NewRuleSetExpr(),
 	}
 
 	names := map[int]string{0: "Defines", 1: "Rules"}
@@ -131,27 +131,27 @@ func NewRootExpr() *RootExpr {
 	return &RootExpr{expr{op: rootOp, children: children, names: names}}
 }
 
-func (e *RootExpr) Defines() *DefineListExpr {
-	return e.children[0].(*DefineListExpr)
+func (e *RootExpr) Defines() *DefineSetExpr {
+	return e.children[0].(*DefineSetExpr)
 }
 
-func (e *RootExpr) Rules() *RuleListExpr {
-	return e.children[1].(*RuleListExpr)
+func (e *RootExpr) Rules() *RuleSetExpr {
+	return e.children[1].(*RuleSetExpr)
 }
 
-type DefineListExpr struct {
+type DefineSetExpr struct {
 	expr
 }
 
-func NewDefineListExpr() *DefineListExpr {
-	return &DefineListExpr{expr{op: defineListOp}}
+func NewDefineSetExpr() *DefineSetExpr {
+	return &DefineSetExpr{expr{op: defineSetOp}}
 }
 
-func (e *DefineListExpr) All() []ParsedExpr {
+func (e *DefineSetExpr) All() []ParsedExpr {
 	return e.children
 }
 
-func (e *DefineListExpr) Add(define *DefineExpr) {
+func (e *DefineSetExpr) Add(define *DefineExpr) {
 	e.children = append(e.children, define)
 }
 
@@ -268,19 +268,19 @@ func (e *DefineFieldExpr) IsPrivateType() bool {
 	return typ != "Expr" && typ != "ExprList"
 }
 
-type RuleListExpr struct {
+type RuleSetExpr struct {
 	expr
 }
 
-func NewRuleListExpr() *RuleListExpr {
-	return &RuleListExpr{expr{op: ruleListOp}}
+func NewRuleSetExpr() *RuleSetExpr {
+	return &RuleSetExpr{expr{op: ruleSetOp}}
 }
 
-func (e *RuleListExpr) All() []ParsedExpr {
+func (e *RuleSetExpr) All() []ParsedExpr {
 	return e.children
 }
 
-func (e *RuleListExpr) Add(rule *RuleExpr) {
+func (e *RuleSetExpr) Add(rule *RuleExpr) {
 	e.children = append(e.children, rule)
 }
 
@@ -288,10 +288,10 @@ type RuleExpr struct {
 	expr
 }
 
-func NewRuleExpr(header *RuleHeaderExpr, matchFields *MatchFieldsExpr, replace ParsedExpr) *RuleExpr {
+func NewRuleExpr(header *RuleHeaderExpr, match ParsedExpr, replace ParsedExpr) *RuleExpr {
 	children := []ParsedExpr{
 		header,
-		matchFields,
+		match,
 		replace,
 	}
 
@@ -304,8 +304,8 @@ func (e *RuleExpr) Header() *RuleHeaderExpr {
 	return e.children[0].(*RuleHeaderExpr)
 }
 
-func (e *RuleExpr) Match() *MatchFieldsExpr {
-	return e.children[1].(*MatchFieldsExpr)
+func (e *RuleExpr) Match() ParsedExpr {
+	return e.children[1]
 }
 
 func (e *RuleExpr) Replace() ParsedExpr {
@@ -374,6 +374,44 @@ func NewRefExpr(label string) *RefExpr {
 
 func (e *RefExpr) Label() string {
 	return e.children[0].(*StringExpr).ValueAsString()
+}
+
+type MatchTemplateExpr struct {
+	expr
+}
+
+func NewMatchTemplateExpr(opNames *MatchTemplateNamesExpr) *MatchTemplateExpr {
+	children := []ParsedExpr{
+		opNames,
+	}
+
+	names := map[int]string{0: "Names"}
+
+	return &MatchTemplateExpr{expr{op: matchTemplateOp, children: children, names: names}}
+}
+
+func (e *MatchTemplateExpr) Names() *MatchTemplateNamesExpr {
+	return e.children[0].(*MatchTemplateNamesExpr)
+}
+
+func (e *MatchTemplateExpr) Fields() []ParsedExpr {
+	return e.children[1:]
+}
+
+func (e *MatchTemplateExpr) Add(match ParsedExpr) {
+	e.children = append(e.children, match)
+}
+
+type MatchTemplateNamesExpr struct {
+	expr
+}
+
+func NewMatchTemplateNamesExpr() *MatchTemplateNamesExpr {
+	return &MatchTemplateNamesExpr{expr{op: matchTemplateNamesOp}}
+}
+
+func (e *MatchTemplateNamesExpr) Add(name *StringExpr) {
+	e.children = append(e.children, name)
 }
 
 type MatchAndExpr struct {
@@ -466,12 +504,24 @@ func NewMatchAnyExpr() *MatchAnyExpr {
 	return matchAnySingleton
 }
 
+type MatchListExpr struct {
+	expr
+}
+
+func NewMatchListExpr(matchItem ParsedExpr) *MatchListExpr {
+	return &MatchListExpr{expr{op: matchListOp, children: []ParsedExpr{matchItem}}}
+}
+
+func (e *MatchListExpr) MatchItem() ParsedExpr {
+	return e.children[0]
+}
+
 type ReplaceListExpr struct {
 	expr
 }
 
-func NewReplaceListExpr() *ReplaceListExpr {
-	return &ReplaceListExpr{expr{op: replaceListOp}}
+func NewReplaceRootExpr() *ReplaceListExpr {
+	return &ReplaceListExpr{expr{op: replaceRootOp}}
 }
 
 func (e *ReplaceListExpr) All() []ParsedExpr {
@@ -506,6 +556,18 @@ func (e *ConstructExpr) All() []ParsedExpr {
 
 func (e *ConstructExpr) Add(replace ParsedExpr) {
 	e.children = append(e.children, replace)
+}
+
+type ConstructListExpr struct {
+	expr
+}
+
+func NewConstructListExpr() *ConstructListExpr {
+	return &ConstructListExpr{expr{op: constructListOp}}
+}
+
+func (e *ConstructListExpr) Add(item ParsedExpr) {
+	e.children = append(e.children, item)
 }
 
 type TagsExpr struct {

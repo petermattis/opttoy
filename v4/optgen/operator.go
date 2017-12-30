@@ -8,24 +8,28 @@ const (
 
 	rootOp
 
-	defineListOp
+	defineSetOp
 	defineOp
 	defineFieldOp
 
-	ruleListOp
+	ruleSetOp
 	ruleHeaderOp
 	ruleOp
 	bindOp
 	refOp
 
+	matchTemplateOp
+	matchTemplateNamesOp
 	matchInvokeOp
 	matchFieldsOp
 	matchAndOp
 	matchNotOp
 	matchAnyOp
+	matchListOp
 
-	replaceListOp
+	replaceRootOp
 	constructOp
+	constructListOp
 
 	tagsOp
 	stringOp

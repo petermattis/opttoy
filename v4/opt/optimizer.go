@@ -6,15 +6,14 @@ import (
 
 type optimizer struct {
 	mem      *memo
-	maxSteps int
 	factory  *Factory
 	coster   coster
 	explorer explorer
 	pass     optimizePass
 }
 
-func newOptimizer(factory *Factory, maxSteps int) *optimizer {
-	o := &optimizer{mem: factory.mem, maxSteps: maxSteps, factory: factory, pass: optimizePass{major: 1}}
+func newOptimizer(factory *Factory) *optimizer {
+	o := &optimizer{mem: factory.mem, factory: factory, pass: optimizePass{major: 1}}
 	o.coster.init(factory.mem)
 	o.explorer.init(factory)
 	return o
@@ -72,7 +71,7 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 
 		// Now generate new expressions that are logically equivalent to other
 		// expressions in this group.
-		if o.maxSteps > 0 {
+		if false { //o.factory.maxSteps > 0 {
 			if !o.explorer.exploreGroup(mgrp, pass) {
 				groupFullyOptimized = false
 			}

@@ -33,6 +33,8 @@ const (
 	AMPERSANDS
 	COMMA
 	CARET
+	ELLIPSES
+	PIPE
 
 	// Keywords.
 	DEFINE
@@ -144,6 +146,10 @@ func (s *Scanner) Scan() Token {
 		s.tok = CARET
 		s.lit = "^"
 
+	case '|':
+		s.tok = PIPE
+		s.lit = "|"
+
 	case '&':
 		if s.read() == '&' {
 			s.tok = AMPERSANDS
@@ -168,6 +174,16 @@ func (s *Scanner) Scan() Token {
 	case '"':
 		s.unread()
 		return s.scanStringLiteral()
+
+	case '.':
+		if s.read() == '.' && s.read() == '.' {
+			s.tok = ELLIPSES
+			s.lit = "..."
+			break
+		}
+
+		s.tok = ILLEGAL
+		s.lit = "."
 
 	default:
 		s.tok = ILLEGAL

@@ -1,4 +1,10 @@
 [Scalar]
+define Subquery {
+    Input      Expr
+    Projection Expr
+}
+
+[Scalar]
 define Variable {
     Col ColIndex
 }
@@ -21,6 +27,11 @@ define List {
 [Scalar]
 define OrderedList {
     Items ExprList
+}
+
+[Scalar]
+define FilterList {
+    Conditions ExprList
 }
 
 [Scalar]

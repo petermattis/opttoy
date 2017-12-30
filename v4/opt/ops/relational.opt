@@ -19,84 +19,84 @@ define Project {
     Projections Expr
 }
 
-[Relational]
+[Relational, Join]
 define InnerJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join]
 define LeftJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join]
 define RightJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join]
 define FullJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join]
 define SemiJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join]
 define AntiJoin {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define InnerJoinApply {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define LeftJoinApply {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define RightJoinApply {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define FullJoinApply {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define SemiJoinApply {
     Left   Expr
     Right  Expr
     Filter Expr
 }
 
-[Relational]
+[Relational, Join, JoinApply]
 define AntiJoinApply {
     Left   Expr
     Right  Expr

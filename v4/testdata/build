@@ -127,9 +127,10 @@ project
  │    │    └── columns: a.x:1 a.y:2
  │    ├── scan
  │    │    └── columns: b.x:3 b.z:4
- │    └── eq [unbound=(1,3)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: b.x [unbound=(3)]
+ │    └── filter-list [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
  └── projections [unbound=(1,2,4)]
       ├── variable: a.x [unbound=(1)]
       ├── variable: a.y [unbound=(2)]
@@ -148,12 +149,12 @@ project
  │    │    └── columns: a.x:1 a.y:2
  │    ├── scan
  │    │    └── columns: b.x:3 b.z:4
- │    └── eq [unbound=(1,3)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: b.x [unbound=(3)]
+ │    └── filter-list [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
  └── projections [unbound=(4)]
       └── variable: b.z [unbound=(4)]
-
 
 build
 SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
@@ -225,9 +226,10 @@ project
  │    │    │    └── columns: a.x:1 a.y:2
  │    │    ├── scan
  │    │    │    └── columns: b.x:3 b.z:4
- │    │    └── eq [unbound=(1,3)]
- │    │         ├── variable: a.x [unbound=(1)]
- │    │         └── variable: b.x [unbound=(3)]
+ │    │    └── filter-list [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
  │    └── and [unbound=(1,4)]
  │         ├── gt [unbound=(1)]
  │         │    ├── variable: a.x [unbound=(1)]
@@ -254,9 +256,10 @@ project
  │    │    │    └── columns: a.x:1 a.y:2
  │    │    ├── scan
  │    │    │    └── columns: b.x:3 b.z:4
- │    │    └── eq [unbound=(1,3)]
- │    │         ├── variable: a.x [unbound=(1)]
- │    │         └── variable: b.x [unbound=(3)]
+ │    │    └── filter-list [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
  │    └── and [unbound=(1,4)]
  │         ├── gt [unbound=(1)]
  │         │    ├── variable: a.x [unbound=(1)]
@@ -280,9 +283,10 @@ project
  │    │    └── columns: a.x:1 a.y:2
  │    ├── scan
  │    │    └── columns: b.x:3 b.z:4
- │    └── eq [unbound=(1,3)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: b.x [unbound=(3)]
+ │    └── filter-list [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
  └── projections [unbound=(1,2,4)]
       ├── variable: a.x [unbound=(1)]
       ├── variable: a.y [unbound=(2)]
@@ -301,9 +305,10 @@ project
  │    │    └── columns: a.x:1 a.y:2
  │    ├── scan
  │    │    └── columns: b.x:3 b.z:4
- │    └── eq [unbound=(1,3)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: b.x [unbound=(3)]
+ │    └── filter-list [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
  └── projections [unbound=(1,2,4)]
       ├── variable: a.x [unbound=(1)]
       ├── variable: a.y [unbound=(2)]
@@ -322,9 +327,10 @@ project
  │    │    └── columns: a.x:1 a.y:2
  │    ├── scan
  │    │    └── columns: b.x:3 b.z:4
- │    └── eq [unbound=(1,3)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: b.x [unbound=(3)]
+ │    └── filter-list [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
  └── projections [unbound=(1,2,4)]
       ├── variable: a.x [unbound=(1)]
       ├── variable: a.y [unbound=(2)]
@@ -363,14 +369,16 @@ project
  │    │    │    └── columns: a.x:1 a.y:2
  │    │    ├── scan
  │    │    │    └── columns: b.x:3 b.z:4
- │    │    └── eq [unbound=(1,3)]
- │    │         ├── variable: a.x [unbound=(1)]
- │    │         └── variable: b.x [unbound=(3)]
+ │    │    └── filter-list [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
  │    ├── scan
  │    │    └── columns: c.x:5 c.w:6
- │    └── eq [unbound=(1,5)]
- │         ├── variable: a.x [unbound=(1)]
- │         └── variable: c.x [unbound=(5)]
+ │    └── filter-list [unbound=(1,5)]
+ │         └── eq [unbound=(1,5)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: c.x [unbound=(5)]
  └── projections [unbound=(3)]
       └── variable: b.x [unbound=(3)]
 

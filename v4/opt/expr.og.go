@@ -15,6 +15,11 @@ var childCountLookup = []childCountLookupFunc{
 		panic("op type not initialized")
 	},
 
+	// SubqueryOp
+	func(e *Expr) int {
+		return 2
+	},
+
 	// VariableOp
 	func(e *Expr) int {
 		return 0
@@ -40,6 +45,12 @@ var childCountLookup = []childCountLookupFunc{
 	func(e *Expr) int {
 		orderedListExpr := (*orderedListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
 		return 0 + int(orderedListExpr.items.len)
+	},
+
+	// FilterListOp
+	func(e *Expr) int {
+		filterListExpr := (*filterListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return 0 + int(filterListExpr.conditions.len)
 	},
 
 	// ProjectionsOp
@@ -408,6 +419,20 @@ var childGroupLookup = []childGroupLookupFunc{
 		panic("op type not initialized")
 	},
 
+	// SubqueryOp
+	func(e *Expr, n int) GroupID {
+		subqueryExpr := (*subqueryExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+
+		switch n {
+		case 0:
+			return subqueryExpr.input
+		case 1:
+			return subqueryExpr.projection
+		default:
+			panic("child index out of range")
+		}
+	},
+
 	// VariableOp
 	func(e *Expr, n int) GroupID {
 		panic("child index out of range")
@@ -441,6 +466,17 @@ var childGroupLookup = []childGroupLookupFunc{
 		switch n {
 		default:
 			list := e.mem.lookupList(orderedListExpr.items)
+			return list[n-0]
+		}
+	},
+
+	// FilterListOp
+	func(e *Expr, n int) GroupID {
+		filterListExpr := (*filterListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+
+		switch n {
+		default:
+			list := e.mem.lookupList(filterListExpr.conditions)
 			return list[n-0]
 		}
 	},
@@ -1404,12 +1440,17 @@ var childGroupLookup = []childGroupLookupFunc{
 	},
 }
 
-type privateIDLookupFunc func(e *Expr) PrivateID
+type privateLookupFunc func(e *Expr) PrivateID
 
-var privateIDLookup = []privateIDLookupFunc{
+var privateLookup = []privateLookupFunc{
 	// UnknownOp
 	func(e *Expr) PrivateID {
 		panic("op type not initialized")
+	},
+
+	// SubqueryOp
+	func(e *Expr) PrivateID {
+		return 0
 	},
 
 	// VariableOp
@@ -1436,6 +1477,11 @@ var privateIDLookup = []privateIDLookupFunc{
 	},
 
 	// OrderedListOp
+	func(e *Expr) PrivateID {
+		return 0
+	},
+
+	// FilterListOp
 	func(e *Expr) PrivateID {
 		return 0
 	},
@@ -1803,11 +1849,13 @@ var privateIDLookup = []privateIDLookupFunc{
 var isScalarLookup = []bool{
 	false, // UnknownOp
 
+	true,  // SubqueryOp
 	true,  // VariableOp
 	true,  // ConstOp
 	true,  // PlaceholderOp
 	true,  // ListOp
 	true,  // OrderedListOp
+	true,  // FilterListOp
 	true,  // ProjectionsOp
 	true,  // ExistsOp
 	true,  // AndOp
@@ -1884,11 +1932,13 @@ var isScalarLookup = []bool{
 var isRelationalLookup = []bool{
 	false, // UnknownOp
 
+	false, // SubqueryOp
 	false, // VariableOp
 	false, // ConstOp
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // FilterListOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -1962,14 +2012,182 @@ var isRelationalLookup = []bool{
 	true,  // ArrangeOp
 }
 
-var isEnforcerLookup = []bool{
+var isJoinLookup = []bool{
 	false, // UnknownOp
 
+	false, // SubqueryOp
 	false, // VariableOp
 	false, // ConstOp
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // FilterListOp
+	false, // ProjectionsOp
+	false, // ExistsOp
+	false, // AndOp
+	false, // OrOp
+	false, // NotOp
+	false, // EqOp
+	false, // LtOp
+	false, // GtOp
+	false, // LeOp
+	false, // GeOp
+	false, // NeOp
+	false, // InOp
+	false, // NotInOp
+	false, // LikeOp
+	false, // NotLikeOp
+	false, // ILikeOp
+	false, // NotILikeOp
+	false, // SimilarToOp
+	false, // NotSimilarToOp
+	false, // RegMatchOp
+	false, // NotRegMatchOp
+	false, // RegIMatchOp
+	false, // NotRegIMatchOp
+	false, // IsDistinctFromOp
+	false, // IsNotDistinctFromOp
+	false, // IsOp
+	false, // IsNotOp
+	false, // AnyOp
+	false, // SomeOp
+	false, // AllOp
+	false, // BitandOp
+	false, // BitorOp
+	false, // BitxorOp
+	false, // PlusOp
+	false, // MinusOp
+	false, // MultOp
+	false, // DivOp
+	false, // FloorDivOp
+	false, // ModOp
+	false, // PowOp
+	false, // ConcatOp
+	false, // LShiftOp
+	false, // RShiftOp
+	false, // UnaryPlusOp
+	false, // UnaryMinusOp
+	false, // UnaryComplementOp
+	false, // FunctionOp
+	false, // TrueOp
+	false, // FalseOp
+	false, // ScanOp
+	false, // ValuesOp
+	false, // SelectOp
+	false, // ProjectOp
+	true,  // InnerJoinOp
+	true,  // LeftJoinOp
+	true,  // RightJoinOp
+	true,  // FullJoinOp
+	true,  // SemiJoinOp
+	true,  // AntiJoinOp
+	true,  // InnerJoinApplyOp
+	true,  // LeftJoinApplyOp
+	true,  // RightJoinApplyOp
+	true,  // FullJoinApplyOp
+	true,  // SemiJoinApplyOp
+	true,  // AntiJoinApplyOp
+	false, // GroupByOp
+	false, // UnionOp
+	false, // IntersectOp
+	false, // ExceptOp
+	false, // SortOp
+	false, // ArrangeOp
+}
+
+var isJoinApplyLookup = []bool{
+	false, // UnknownOp
+
+	false, // SubqueryOp
+	false, // VariableOp
+	false, // ConstOp
+	false, // PlaceholderOp
+	false, // ListOp
+	false, // OrderedListOp
+	false, // FilterListOp
+	false, // ProjectionsOp
+	false, // ExistsOp
+	false, // AndOp
+	false, // OrOp
+	false, // NotOp
+	false, // EqOp
+	false, // LtOp
+	false, // GtOp
+	false, // LeOp
+	false, // GeOp
+	false, // NeOp
+	false, // InOp
+	false, // NotInOp
+	false, // LikeOp
+	false, // NotLikeOp
+	false, // ILikeOp
+	false, // NotILikeOp
+	false, // SimilarToOp
+	false, // NotSimilarToOp
+	false, // RegMatchOp
+	false, // NotRegMatchOp
+	false, // RegIMatchOp
+	false, // NotRegIMatchOp
+	false, // IsDistinctFromOp
+	false, // IsNotDistinctFromOp
+	false, // IsOp
+	false, // IsNotOp
+	false, // AnyOp
+	false, // SomeOp
+	false, // AllOp
+	false, // BitandOp
+	false, // BitorOp
+	false, // BitxorOp
+	false, // PlusOp
+	false, // MinusOp
+	false, // MultOp
+	false, // DivOp
+	false, // FloorDivOp
+	false, // ModOp
+	false, // PowOp
+	false, // ConcatOp
+	false, // LShiftOp
+	false, // RShiftOp
+	false, // UnaryPlusOp
+	false, // UnaryMinusOp
+	false, // UnaryComplementOp
+	false, // FunctionOp
+	false, // TrueOp
+	false, // FalseOp
+	false, // ScanOp
+	false, // ValuesOp
+	false, // SelectOp
+	false, // ProjectOp
+	false, // InnerJoinOp
+	false, // LeftJoinOp
+	false, // RightJoinOp
+	false, // FullJoinOp
+	false, // SemiJoinOp
+	false, // AntiJoinOp
+	true,  // InnerJoinApplyOp
+	true,  // LeftJoinApplyOp
+	true,  // RightJoinApplyOp
+	true,  // FullJoinApplyOp
+	true,  // SemiJoinApplyOp
+	true,  // AntiJoinApplyOp
+	false, // GroupByOp
+	false, // UnionOp
+	false, // IntersectOp
+	false, // ExceptOp
+	false, // SortOp
+	false, // ArrangeOp
+}
+
+var isEnforcerLookup = []bool{
+	false, // UnknownOp
+
+	false, // SubqueryOp
+	false, // VariableOp
+	false, // ConstOp
+	false, // PlaceholderOp
+	false, // ListOp
+	false, // OrderedListOp
+	false, // FilterListOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -2051,8 +2269,87 @@ func (e *Expr) IsRelational() bool {
 	return isRelationalLookup[e.op]
 }
 
+func (e *Expr) IsJoin() bool {
+	return isJoinLookup[e.op]
+}
+
+func (e *Expr) IsJoinApply() bool {
+	return isJoinApplyLookup[e.op]
+}
+
 func (e *Expr) IsEnforcer() bool {
 	return isEnforcerLookup[e.op]
+}
+
+type subqueryExpr struct {
+	memoExpr
+	input      GroupID
+	projection GroupID
+}
+
+func (e *subqueryExpr) fingerprint() (f fingerprint) {
+	const size = unsafe.Sizeof(subqueryExpr{})
+	const offset = unsafe.Offsetof(subqueryExpr{}.op)
+
+	b := *(*[size]byte)(unsafe.Pointer(e))
+
+	if size-offset <= unsafe.Sizeof(f) {
+		copy(f[:], b[offset:])
+	} else {
+		f = fingerprint(md5.Sum(b[offset:]))
+	}
+
+	return
+}
+
+func (m *memoExpr) asSubquery() *subqueryExpr {
+	if m.op != SubqueryOp {
+		return nil
+	}
+
+	return (*subqueryExpr)(unsafe.Pointer(m))
+}
+
+func (m *memo) memoizeSubquery(expr *subqueryExpr) GroupID {
+	const size = uint32(unsafe.Sizeof(subqueryExpr{}))
+	const align = uint32(unsafe.Alignof(subqueryExpr{}))
+
+	if expr.input == 0 {
+		panic("input child cannot be undefined")
+	}
+
+	if expr.projection == 0 {
+		panic("projection child cannot be undefined")
+	}
+
+	fingerprint := expr.fingerprint()
+	loc := m.exprMap[fingerprint]
+	if loc.offset == 0 {
+		loc.offset = exprOffset(m.arena.alloc(size, align))
+		p := (*subqueryExpr)(m.arena.getPointer(uint32(loc.offset)))
+		*p = *expr
+
+		if loc.group == 0 {
+			if expr.group != 0 {
+				loc.group = expr.group
+			} else {
+				mgrp := m.newGroup(SubqueryOp, loc.offset)
+				p.group = mgrp.id
+				loc.group = mgrp.id
+				e := Expr{mem: m, group: mgrp.id, op: SubqueryOp, offset: loc.offset}
+				mgrp.logical = m.logPropsFactory.constructProps(&e)
+			}
+		} else {
+			if expr.group != loc.group {
+				panic("denormalized expression's group doesn't match fingerprint group")
+			}
+		}
+
+		m.lookupGroup(loc.group).addExpr(loc.offset)
+		m.exprMap[fingerprint] = loc
+	}
+
+	return loc.group
 }
 
 type variableExpr struct {
@@ -2370,6 +2667,72 @@ func (m *memo) memoizeOrderedList(expr *orderedListExpr) GroupID {
 				p.group = mgrp.id
 				loc.group = mgrp.id
 				e := Expr{mem: m, group: mgrp.id, op: OrderedListOp, offset: loc.offset}
+				mgrp.logical = m.logPropsFactory.constructProps(&e)
+			}
+		} else {
+			if expr.group != loc.group {
+				panic("denormalized expression's group doesn't match fingerprint group")
+			}
+		}
+
+		m.lookupGroup(loc.group).addExpr(loc.offset)
+		m.exprMap[fingerprint] = loc
+	}
+
+	return loc.group
+}
+
+type filterListExpr struct {
+	memoExpr
+	conditions ListID
+}
+
+func (e *filterListExpr) fingerprint() (f fingerprint) {
+	const size = unsafe.Sizeof(filterListExpr{})
+	const offset = unsafe.Offsetof(filterListExpr{}.op)
+
+	b := *(*[size]byte)(unsafe.Pointer(e))
+
+	if size-offset <= unsafe.Sizeof(f) {
+		copy(f[:], b[offset:])
+	} else {
+		f = fingerprint(md5.Sum(b[offset:]))
+	}
+
+	return
+}
+
+func (m *memoExpr) asFilterList() *filterListExpr {
+	if m.op != FilterListOp {
+		return nil
+	}
+
+	return (*filterListExpr)(unsafe.Pointer(m))
+}
+
+func (m *memo) memoizeFilterList(expr *filterListExpr) GroupID {
+	const size = uint32(unsafe.Sizeof(filterListExpr{}))
+	const align = uint32(unsafe.Alignof(filterListExpr{}))
+
+	if expr.conditions == UndefinedList {
+		panic("conditions child cannot be undefined")
+	}
+
+	fingerprint := expr.fingerprint()
+	loc := m.exprMap[fingerprint]
+	if loc.offset == 0 {
+		loc.offset = exprOffset(m.arena.alloc(size, align))
+		p := (*filterListExpr)(m.arena.getPointer(uint32(loc.offset)))
+		*p = *expr
+
+		if loc.group == 0 {
+			if expr.group != 0 {
+				loc.group = expr.group
+			} else {
+				mgrp := m.newGroup(FilterListOp, loc.offset)
+				p.group = mgrp.id
+				loc.group = mgrp.id
+				e := Expr{mem: m, group: mgrp.id, op: FilterListOp, offset: loc.offset}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {

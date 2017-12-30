@@ -1,0 +1,98 @@
+[ExpandSelectExists, Normalize]
+(Select
+    $input:*
+    $filter:(FilterList
+        $list:[... $exists:(Exists $subquery:*) ...]
+    )
+)
+=>
+(SemiJoinApply
+    $input
+    $subquery
+    (FilterList (RemoveListItem $list $exists))
+)
+
+[ExpandSelectNotExists, Normalize]
+(Select
+    $input:*
+    $filter:(FilterList
+        $list:[... $exists:(Not (Exists $subquery:*)) ...]
+    )
+)
+=>
+(AntiJoinApply
+    $input
+    $subquery
+    (FilterList (RemoveListItem $list $exists))
+)
+
+[DecorrelateJoinSelect, Normalize]
+(JoinApply
+    $left:*
+    $right:(Select $input:* $selectFilter:*) && (IsCorrelated $right $left)
+    $filter:*
+)
+=>
+(OpName
+    $left
+    $input
+    (ConcatFilterConditions $filter $selectFilter)
+)
+
+[DecorrelateJoinProject, Normalize]
+(JoinApply
+    $left:*
+    $right:(Project $input:* $projections:*) && (IsCorrelated $right $left)
+    $filter:*
+)
+=>
+(Project
+    (OpName
+        $left
+        $input
+        $filter
+    )
+    $projections
+)
+
+[DecorrelateJoin, Normalize]
+(JoinApply
+    $left:*
+    $right:* && ^(IsCorrelated $right $left)
+    $filter:*
+)
+=>
+(NonJoinApply $optype $left $right $filter)
+
+[HoistJoinFilterSubquery, Normalize]
+(Join
+    $left:*
+    $right:*
+    (FilterList
+        $list:[... $subquery:(Subquery $subqueryInput:* $projection:*) ...]
+    )
+)
+=>
+(InnerJoinApply
+    (OpName
+        $left
+        $right
+        (True)
+    )
+    $subqueryInput
+    (FilterList (ReplaceListItem $list $subquery $projection))
+)
+
+[HoistSelectFilterSubquery, Normalize]
+(Select
+    $input:*
+    (FilterList
+        $list:[... $subquery:(Subquery $subqueryInput:* $projection:*) ...]
+    )
+)
+=>
+(InnerJoinApply
+    $input
+    $subqueryInput
+    (FilterList (ReplaceListItem $list $subquery $projection))
+)

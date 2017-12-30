@@ -1,0 +1,26 @@
+[EliminateFilterList, Normalize]
+(FilterList $items:* && (IsEmptyList $items)) => (True)
+
+[EnsureJoinFilterList, Normalize]
+(Join
+    $left:*
+    $right:*
+    $filter:^(FilterList) && (UseFilterList $filter)
+)
+=>
+(OpName
+    $left
+    $right
+    (FlattenFilterCondition $filter)
+)
+
+[EnsureSelectFilterList, Normalize]
+(Select
+    $input:*
+    $filter:^(FilterList) && (UseFilterList $filter)
+)
+=>
+(Select
+    $input
+    (FlattenFilterCondition $filter)
+)

@@ -7,14 +7,14 @@ import (
 	"unicode"
 )
 
-func (g *generator) genOps(w io.Writer) {
-	fmt.Fprintf(w, "package %s\n\n", g.pkg)
+type opsGen struct {
+}
 
+func (g *opsGen) generate(compiled CompiledExpr, w io.Writer) {
 	fmt.Fprintf(w, "const (\n")
 	fmt.Fprintf(w, "  UnknownOp Operator = iota\n\n")
 
-	for _, elem := range g.compiled.Root().Defines().All() {
-		define := elem.(*DefineExpr)
+	for _, define := range compiled.Defines() {
 		fmt.Fprintf(w, "  %sOp\n", define.Name())
 	}
 
@@ -27,9 +27,7 @@ func (g *generator) genOps(w io.Writer) {
 	fmt.Fprint(&names, "unknown")
 	fmt.Fprint(&indexes, "0, ")
 
-	for _, elem := range g.compiled.Root().Defines().All() {
-		define := elem.(*DefineExpr)
-
+	for _, define := range compiled.Defines() {
 		fmt.Fprintf(&indexes, "%d, ", names.Len())
 
 		// Trim the Op suffix and convert to "dash case".

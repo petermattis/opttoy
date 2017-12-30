@@ -277,7 +277,7 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 
 		// TODO(peter): We're assuming the type of the subquery is the type of the
 		// first column. This is all sorts of wrong.
-		return false, &subquery{typ: outScope.cols[0].typ, out: out}
+		return false, &subquery{col: outScope.cols[0], out: out}
 	}
 
 	return true, expr
@@ -312,7 +312,7 @@ func (s *scope) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 }
 
 type subquery struct {
-	typ types.T
+	col columnProps
 	out opt.GroupID
 }
 
@@ -337,7 +337,7 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 
 // ResolvedType implements the tree.TypedExpr interface.
 func (s *subquery) ResolvedType() types.T {
-	return s.typ
+	return s.col.typ
 }
 
 // Eval implements the tree.TypedExpr interface.

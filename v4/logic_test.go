@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -198,7 +199,12 @@ func TestLogic(t *testing.T) {
 					return e.Execute(d.stmt)
 				}
 
-				p := opt.NewPlanner(catalog)
+				var maxSteps int
+				if d.cmd == "normalize" {
+					maxSteps = int(math.MaxInt32)
+				}
+
+				p := opt.NewPlanner(catalog, maxSteps)
 				b := build.NewBuilder(p.Factory(), d.stmt)
 				root, required := b.Build()
 				e := p.Optimize(root, required)

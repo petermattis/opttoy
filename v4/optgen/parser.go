@@ -115,8 +115,8 @@ func (p *Parser) parseDefineField() *DefineFieldExpr {
 func (p *Parser) parseRule(tags []string) *RuleExpr {
 	ruleHeader := NewRuleHeaderExpr(tags[0], tags[1:])
 
-	matchFields := p.parseMatchFields()
-	if matchFields == nil {
+	match := p.parseMatchTemplate()
+	if match == nil {
 		return nil
 	}
 
@@ -129,7 +129,47 @@ func (p *Parser) parseRule(tags []string) *RuleExpr {
 		return nil
 	}
 
-	return NewRuleExpr(ruleHeader, matchFields, replace)
+	return NewRuleExpr(ruleHeader, match, replace)
+}
+
+func (p *Parser) parseMatchTemplate() ParsedExpr {
+	if !p.scanToken(LPAREN) {
+		return nil
+	}
+
+	if !p.scanToken(IDENT) {
+		return nil
+	}
+
+	templateNames := NewMatchTemplateNamesExpr()
+	for {
+		templateNames.Add(NewStringExpr(p.s.Literal()))
+
+		if p.scan() != PIPE {
+			p.unscan()
+			break
+		}
+
+		if !p.scanToken(IDENT) {
+			return nil
+		}
+	}
+
+	template := NewMatchTemplateExpr(templateNames)
+
+	for {
+		if p.scan() == RPAREN {
+			return template
+		}
+
+		p.unscan()
+		match := p.parseMatchFieldsArg()
+		if match == nil {
+			return nil
+		}
+
+		template.Add(match)
+	}
 }
 
 func (p *Parser) parseMatchFields() *MatchFieldsExpr {
@@ -194,6 +234,10 @@ func (p *Parser) parseMatchExpr() ParsedExpr {
 	case ASTERISK:
 		return NewMatchAnyExpr()
 
+	case LBRACKET:
+		p.unscan()
+		return p.parseMatchListExpr()
+
 	default:
 		p.setTokenErr(p.s.Literal())
 		return nil
@@ -216,6 +260,7 @@ func (p *Parser) parseMatchBind() *BindExpr {
 	}
 
 	target := p.parseMatchExpr()
+
 	return NewBindExpr(label, target)
 }
 
@@ -278,8 +323,30 @@ func (p *Parser) parseMatchInvoke() *MatchInvokeExpr {
 	}
 }
 
+func (p *Parser) parseMatchListExpr() ParsedExpr {
+	if !p.scanToken(LBRACKET) {
+		return nil
+	}
+
+	if !p.scanToken(ELLIPSES) {
+		return nil
+	}
+
+	matchItem := p.parseMatchBind()
+
+	if !p.scanToken(ELLIPSES) {
+		return nil
+	}
+
+	if !p.scanToken(RBRACKET) {
+		return nil
+	}
+
+	return NewMatchListExpr(matchItem)
+}
+
 func (p *Parser) parseReplace() ParsedExpr {
-	replaceList := NewReplaceListExpr()
+	replaceRoot := NewReplaceRootExpr()
 
 	for {
 		switch p.scan() {
@@ -292,21 +359,21 @@ func (p *Parser) parseReplace() ParsedExpr {
 		case DOLLAR:
 			p.unscan()
 			replace := p.parseReplaceItem()
-			replaceList.Add(replace)
+			replaceRoot.Add(replace)
 
 		default:
 			p.unscan()
-			switch len(replaceList.All()) {
+			switch len(replaceRoot.All()) {
 			case 0:
 				// Must be at least one replace expression.
 				p.setTokenErr(p.s.Literal())
 				return nil
 
 			case 1:
-				return replaceList.All()[0]
+				return replaceRoot.All()[0]
 			}
 
-			return replaceList
+			return replaceRoot
 		}
 	}
 }
@@ -316,6 +383,10 @@ func (p *Parser) parseReplaceItem() ParsedExpr {
 	case LPAREN:
 		p.unscan()
 		return p.parseConstruct()
+
+	case LBRACKET:
+		p.unscan()
+		return p.parseConstructList()
 
 	case DOLLAR:
 		p.unscan()
@@ -344,6 +415,28 @@ func (p *Parser) parseConstruct() *ConstructExpr {
 
 	for {
 		if p.scan() == RPAREN {
+			return replaceResult
+		}
+
+		p.unscan()
+		item := p.parseReplaceItem()
+		if item == nil {
+			return nil
+		}
+
+		replaceResult.Add(item)
+	}
+}
+
+func (p *Parser) parseConstructList() *ConstructListExpr {
+	if !p.scanToken(LBRACKET) {
+		return nil
+	}
+
+	replaceResult := NewConstructListExpr()
+
+	for {
+		if p.scan() == RBRACKET {
 			return replaceResult
 		}
 

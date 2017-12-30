@@ -250,9 +250,8 @@ func (b *Builder) buildUsingJoinParts(
 	names tree.NameList,
 	inScope *scope,
 ) (out opt.GroupID, outScope *scope) {
-	var filter opt.GroupID
-
 	joined := make(map[cat.ColumnName]*columnProps, len(names))
+	conditions := make([]opt.GroupID, 0, len(names))
 	outScope = inScope.push()
 	for _, name := range names {
 		name := cat.ColumnName(name)
@@ -275,11 +274,7 @@ func (b *Builder) buildUsingJoinParts(
 		rightVar := b.factory.ConstructVariable(b.factory.InternPrivate(rightCol.index))
 		eq := b.factory.ConstructEq(leftVar, rightVar)
 
-		if filter == 0 {
-			filter = eq
-		} else {
-			filter = b.factory.ConstructAnd(eq, filter)
-		}
+		conditions = append(conditions, eq)
 	}
 
 	for i, col := range leftCols {
@@ -299,7 +294,7 @@ func (b *Builder) buildUsingJoinParts(
 		outScope.cols = append(outScope.cols, col)
 	}
 
-	return filter, outScope
+	return b.factory.ConstructFilterList(b.factory.StoreList(conditions)), outScope
 }
 
 // buildScalarProjection takes the output of buildScalar and adds it as new
@@ -398,7 +393,8 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 		// `SELECT 1` subquery is being used as a projection. We need to wrap the
 		// relational expression in something like a subqueryOp scalar expression
 		// that is typed according to the subquery.
-		return t.out
+		v := b.factory.ConstructVariable(b.factory.InternPrivate(t.col.index))
+		return b.factory.ConstructSubquery(t.out, v)
 
 	default:
 		// NB: we can't type assert on tree.dNull because the type is not

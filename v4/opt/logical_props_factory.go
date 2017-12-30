@@ -159,9 +159,10 @@ func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
 
 	// Any columns which are used by any of the join children, but are not
 	// part of the join output columns are unbound columns.
-	props.UnboundCols = filterProps.UnboundCols.Difference(props.Relational.OutputCols)
+	props.UnboundCols = filterProps.UnboundCols.Copy()
 	props.UnboundCols.UnionWith(leftProps.UnboundCols)
 	props.UnboundCols.UnionWith(rightProps.UnboundCols)
+	props.UnboundCols.DifferenceWith(props.Relational.OutputCols)
 
 	// Union equivalent columns from inputs (these never overlap).
 	props.Relational.EquivCols = append(props.Relational.EquivCols, leftProps.Relational.EquivCols...)
@@ -201,14 +202,6 @@ func (f *logicalPropsFactory) constructSetProps(e *Expr) *LogicalProps {
 	return &props
 }
 
-func (f *logicalPropsFactory) setScalarUnboundCols(props *LogicalProps, e *Expr) {
-	for i := 0; i < e.ChildCount(); i++ {
-		props.UnboundCols.UnionWith(f.mem.lookupGroup(e.ChildGroup(i)).logical.UnboundCols)
-	}
-
-	return
-}
-
 // Add additional not-NULL columns based on the filtering expression.
 func (f *logicalPropsFactory) addPropsFromFilter(props *LogicalProps, filter *Expr, copyOnWrite bool) {
 	// Expand the set of non-NULL columns based on the filter.
@@ -238,12 +231,11 @@ func (f *logicalPropsFactory) addEquivProperties(props *LogicalProps, filter *Ex
 			props.addEquivColumns(cols)
 		}
 
-	case AndOp:
-		left := filter.Child(0)
-		right := filter.Child(1)
-
-		copyOnWrite = f.addEquivProperties(props, &left, copyOnWrite)
-		copyOnWrite = f.addEquivProperties(props, &right, copyOnWrite)
+	case FilterListOp:
+		for i := 0; i < filter.ChildCount(); i++ {
+			child := filter.Child(i)
+			copyOnWrite = f.addEquivProperties(props, &child, copyOnWrite)
+		}
 	}
 
 	// TODO(peter): Support tuple comparisons such as "(a, b) = (c, d)".
@@ -252,15 +244,38 @@ func (f *logicalPropsFactory) addEquivProperties(props *LogicalProps, filter *Ex
 }
 
 func (f *logicalPropsFactory) constructScalarProps(e *Expr) *LogicalProps {
-	var props LogicalProps
-
 	switch e.Operator() {
 	case VariableOp:
-		props.UnboundCols.Add(int(e.Private().(ColumnIndex)))
+		return f.constructVariableProps(e)
 
-	default:
-		f.setScalarUnboundCols(&props, e)
+	case SubqueryOp:
+		return f.constructSubqueryProps(e)
 	}
+
+	// Union unbound props from all children by default.
+	var props LogicalProps
+	for i := 0; i < e.ChildCount(); i++ {
+		props.UnboundCols.UnionWith(f.mem.lookupGroup(e.ChildGroup(i)).logical.UnboundCols)
+	}
+	return &props
+}
+
+func (f *logicalPropsFactory) constructVariableProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+	props.UnboundCols.Add(int(e.Private().(ColumnIndex)))
+	return &props
+}
+
+func (f *logicalPropsFactory) constructSubqueryProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	inputProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+	projectionProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
+
+	// Unbound columns include those from the input and those from the
+	// projection that are not satisfied by the input.
+	props.UnboundCols = projectionProps.UnboundCols.Difference(inputProps.Relational.OutputCols)
+	props.UnboundCols.UnionWith(inputProps.UnboundCols)
 
 	return &props
 }

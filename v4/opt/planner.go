@@ -9,9 +9,9 @@ type Planner struct {
 	factory *Factory
 }
 
-func NewPlanner(catalog *cat.Catalog) *Planner {
+func NewPlanner(catalog *cat.Catalog, maxSteps int) *Planner {
 	mem := newMemo(catalog)
-	factory := &Factory{mem: mem}
+	factory := newFactory(mem, maxSteps)
 	return &Planner{mem: mem, factory: factory}
 }
 
@@ -24,7 +24,7 @@ func (p *Planner) Factory() *Factory {
 }
 
 func (p *Planner) Optimize(root GroupID, required *PhysicalProps) Expr {
-	o := newOptimizer(p.factory, 0)
+	o := newOptimizer(p.factory)
 	requiredID := p.mem.internPhysicalProps(required)
 	return o.optimize(root, requiredID)
 }

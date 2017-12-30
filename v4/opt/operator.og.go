@@ -5,11 +5,13 @@ package opt
 const (
 	UnknownOp Operator = iota
 
+	SubqueryOp
 	VariableOp
 	ConstOp
 	PlaceholderOp
 	ListOp
 	OrderedListOp
+	FilterListOp
 	ProjectionsOp
 	ExistsOp
 	AndOp
@@ -83,6 +85,6 @@ const (
 	ArrangeOp
 )
 
-const opNames = "unknownvariableconstplaceholderlistordered-listprojectionsexistsandornoteqltgtlegeneinnot-inlikenot-likei-likenot-i-likesimilar-tonot-similar-toreg-matchnot-reg-matchreg-i-matchnot-reg-i-matchis-distinct-fromis-not-distinct-fromisis-notanysomeallbitandbitorbitxorplusminusmultdivfloor-divmodpowconcatl-shiftr-shiftunary-plusunary-minusunary-complementfunctiontruefalsescanvaluesselectprojectinner-joinleft-joinright-joinfull-joinsemi-joinanti-joininner-join-applyleft-join-applyright-join-applyfull-join-applysemi-join-applyanti-join-applygroup-byunionintersectexceptsortarrange"
+const opNames = "unknownsubqueryvariableconstplaceholderlistordered-listfilter-listprojectionsexistsandornoteqltgtlegeneinnot-inlikenot-likei-likenot-i-likesimilar-tonot-similar-toreg-matchnot-reg-matchreg-i-matchnot-reg-i-matchis-distinct-fromis-not-distinct-fromisis-notanysomeallbitandbitorbitxorplusminusmultdivfloor-divmodpowconcatl-shiftr-shiftunary-plusunary-minusunary-complementfunctiontruefalsescanvaluesselectprojectinner-joinleft-joinright-joinfull-joinsemi-joinanti-joininner-join-applyleft-join-applyright-join-applyfull-join-applysemi-join-applyanti-join-applygroup-byunionintersectexceptsortarrange"
 
-var opIndexes = [...]uint32{0, 7, 15, 20, 31, 35, 47, 58, 64, 67, 69, 72, 74, 76, 78, 80, 82, 84, 86, 92, 96, 104, 110, 120, 130, 144, 153, 166, 177, 192, 208, 228, 230, 236, 239, 243, 246, 252, 257, 263, 267, 272, 276, 279, 288, 291, 294, 300, 307, 314, 324, 335, 351, 359, 363, 368, 372, 378, 384, 391, 401, 410, 420, 429, 438, 447, 463, 478, 494, 509, 524, 539, 547, 552, 561, 567, 571, 578}
+var opIndexes = [...]uint32{0, 7, 15, 23, 28, 39, 43, 55, 66, 77, 83, 86, 88, 91, 93, 95, 97, 99, 101, 103, 105, 111, 115, 123, 129, 139, 149, 163, 172, 185, 196, 211, 227, 247, 249, 255, 258, 262, 265, 271, 276, 282, 286, 291, 295, 298, 307, 310, 313, 319, 326, 333, 343, 354, 370, 378, 382, 387, 391, 397, 403, 410, 420, 429, 439, 448, 457, 466, 482, 497, 513, 528, 543, 558, 566, 571, 580, 586, 590, 597}

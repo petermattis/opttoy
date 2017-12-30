@@ -22,6 +22,10 @@ type ListID struct {
 
 var UndefinedList ListID = ListID{}
 
+func (l ListID) isEmpty() bool {
+	return l.len == 0
+}
+
 // fingerprint contains the fingerprint of memoExpr. Two memo expressions are
 // considered equal if their fingerprints are equal. The fast-path case for
 // expressions that are 16 bytes are less is to copy the memo data directly

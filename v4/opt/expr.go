@@ -21,6 +21,11 @@ type Expr struct {
 	required physicalPropsID
 }
 
+func makeExpr(mem *memo, group GroupID, required physicalPropsID) Expr {
+	best := mem.lookupGroup(group).lookupBestExpr(required)
+	return Expr{mem: mem, group: group, op: best.op, offset: best.offset, required: required}
+}
+
 func (e *Expr) Operator() Operator {
 	return e.op
 }
@@ -42,8 +47,7 @@ func (e *Expr) ChildCount() int {
 func (e *Expr) Child(nth int) Expr {
 	group := e.ChildGroup(nth)
 	required := e.mem.physPropsFactory.constructChildProps(e, nth)
-	best := e.mem.lookupGroup(group).lookupBestExpr(required)
-	return Expr{mem: e.mem, group: group, op: best.op, offset: best.offset, required: required}
+	return makeExpr(e.mem, group, required)
 }
 
 func (e *Expr) ChildGroup(nth int) GroupID {
@@ -51,13 +55,25 @@ func (e *Expr) ChildGroup(nth int) GroupID {
 }
 
 func (e *Expr) Private() interface{} {
-	return e.mem.lookupPrivate(privateIDLookup[e.op](e))
+	return e.mem.lookupPrivate(privateLookup[e.op](e))
 }
 
 func (e *Expr) String() string {
 	tp := treeprinter.New()
 	e.format(tp)
 	return tp.String()
+}
+
+func (e *Expr) getChildGroups() []GroupID {
+	children := make([]GroupID, e.ChildCount())
+	for i := 0; i < e.ChildCount(); i++ {
+		children[i] = e.ChildGroup(i)
+	}
+	return children
+}
+
+func (e *Expr) privateID() PrivateID {
+	return privateLookup[e.op](e)
 }
 
 func (e *Expr) format(tp treeprinter.Node) {

@@ -4,9 +4,9 @@ package main
 
 import "fmt"
 
-const _operator_name = "unknownOprootOpdefineListOpdefineOpdefineFieldOpruleListOpruleHeaderOpruleOpbindOprefOpmatchInvokeOpmatchFieldsOpmatchAndOpmatchNotOpmatchAnyOpreplaceListOpconstructOptagsOpstringOp"
+const _operator_name = "unknownOprootOpdefineSetOpdefineOpdefineFieldOpruleSetOpruleHeaderOpruleOpbindOprefOpmatchTemplateOpmatchNamesOpmatchInvokeOpmatchFieldsOpmatchAndOpmatchNotOpmatchAnyOpmatchListOpreplaceRootOpconstructOpconstructListOptagsOpstringOp"
 
-var _operator_index = [...]uint8{0, 9, 15, 27, 35, 48, 58, 70, 76, 82, 87, 100, 113, 123, 133, 143, 156, 167, 173, 181}
+var _operator_index = [...]uint8{0, 9, 15, 26, 34, 47, 56, 68, 74, 80, 85, 100, 112, 125, 138, 148, 158, 168, 179, 192, 203, 218, 224, 232}
 
 func (i operator) String() string {
 	if i < 0 || i >= operator(len(_operator_index)-1) {
