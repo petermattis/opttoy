@@ -171,6 +171,11 @@ func (s *scope) endAggFunc(agg opt.GroupID) (refScope *scope) {
 }
 
 func (s *scope) resolveType(expr tree.Expr, desired types.T) tree.TypedExpr {
+	// TODO(peter): The caller should specify the desired number of columns.
+	// This is needed when a subquery is used by an UPDATE statement.
+	// TODO(andy): v3 does this with a scope.columns variable, but shouldn't it
+	// be part of the desired type rather than yet another parameter?
+
 	expr, _ = tree.WalkExpr(s, expr)
 	texpr, err := tree.TypeCheck(expr, &s.builder.semaCtx, desired)
 	if err != nil {
@@ -183,30 +188,11 @@ func (s *scope) resolveType(expr tree.Expr, desired types.T) tree.TypedExpr {
 // NB: This code is adapted from sql/select_name_resolution.go.
 func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 	switch t := expr.(type) {
-	case *tree.AllColumnsSelector:
-		tableName := cat.TableName(t.TableName.Table())
-		var projections []tree.Expr
-		for _, col := range s.cols {
-			if col.table == tableName && !col.hidden {
-				projections = append(projections, tree.NewIndexedVar(int(col.index)))
-			}
-		}
-
-		if len(projections) == 0 {
-			fatalf("unknown table %s", t)
-		}
-
-		return false, &tree.Tuple{Exprs: projections}
-
-	case *tree.IndexedVar:
-		return false, t
-
 	case tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
 		}
-
 		return s.VisitPre(vn)
 
 	case *tree.ColumnItem:
@@ -222,8 +208,7 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 						t.TableName.TableName = tree.Name(col.table)
 						t.TableName.DBNameOriginallyOmitted = true
 					}
-
-					return false, tree.NewIndexedVar(int(col.index))
+					return false, col
 				}
 			}
 		}
@@ -263,7 +248,7 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 				}
 				// We call TypeCheck to fill in FuncExpr internals. This is a fixed
 				// expression; we should not hit an error here.
-				if _, err := e.TypeCheck(&tree.SemaContext{}, types.Any); err != nil {
+				if _, err := e.TypeCheck(&s.builder.semaCtx, types.Any); err != nil {
 					panic(err)
 				}
 				e.Filter = t.Filter
@@ -272,12 +257,28 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 			}
 		}
 
-	case *tree.Subquery:
-		out, outScope := s.builder.buildStmt(t.Select, s)
+	case *tree.ArrayFlatten:
+		// TODO(peter): the ARRAY flatten operator requires a single column from
+		// the subquery.
+		if sub, ok := t.Subquery.(*tree.Subquery); ok {
+			t.Subquery = s.replaceSubquery(sub, true /* multi-row */, 1 /* desired-columns */)
+		}
 
-		// TODO(peter): We're assuming the type of the subquery is the type of the
-		// first column. This is all sorts of wrong.
-		return false, &subquery{col: outScope.cols[0], out: out}
+	case *tree.ComparisonExpr:
+		switch t.Operator {
+		case tree.In, tree.NotIn, tree.Any, tree.Some, tree.All:
+			if sub, ok := t.Right.(*tree.Subquery); ok {
+				t.Right = s.replaceSubquery(sub, true /* multi-row */, -1 /* desired-columns */)
+			}
+		}
+
+	case *tree.ExistsExpr:
+		if sub, ok := t.Subquery.(*tree.Subquery); ok {
+			t.Subquery = s.replaceSubquery(sub, true /* multi-row */, -1 /* desired-columns */)
+		}
+
+	case *tree.Subquery:
+		expr = s.replaceSubquery(t, false /* multi-row */, 1 /* desired-columns */)
 	}
 
 	return true, expr
@@ -311,9 +312,40 @@ func (s *scope) IndexedVarNodeFormatter(idx int) tree.NodeFormatter {
 	return nil
 }
 
+// Replace a raw subquery node with a typed subquery. multiRow specifies
+// whether the subquery is occurring in a single-row or multi-row
+// context. desiredColumns specifies the desired number of columns for the
+// subquery. Specifying -1 for desiredColumns allows the subquery to return any
+// number of columns and is used when the normal type checking machinery will
+// verify that the correct number of columns is returned.
+func (s *scope) replaceSubquery(sub *tree.Subquery, multiRow bool, desiredColumns int) *subquery {
+	out, outScope := s.builder.buildStmt(sub.Select, s)
+	if desiredColumns > 0 && len(outScope.cols) != desiredColumns {
+		n := len(outScope.cols)
+		switch desiredColumns {
+		case 1:
+			panic(fmt.Errorf("subquery must return one column, found %d", n))
+		default:
+			panic(fmt.Errorf("subquery must return %d columns, found %d", desiredColumns, n))
+		}
+	}
+
+	return &subquery{
+		cols:     outScope.cols,
+		out:      out,
+		multiRow: multiRow,
+	}
+}
+
 type subquery struct {
-	col columnProps
-	out opt.GroupID
+	cols []columnProps
+	out  opt.GroupID
+
+	// Is the subquery in a multi-row or single-row context?
+	multiRow bool
+
+	// typ is the lazily resolved type of the subquery.
+	typ types.T
 }
 
 // String implements the tree.Expr interface.
@@ -332,15 +364,124 @@ func (s *subquery) Walk(v tree.Visitor) tree.Expr {
 
 // TypeCheck implements the tree.Expr interface.
 func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedExpr, error) {
+	if s.typ != nil {
+		return s, nil
+	}
+
+	// The typing for subqueries is complex, but regular.
+	//
+	// * If the subquery is used in a single-row context:
+	//
+	//   - If the subquery returns a single column with type "U", the type of the
+	//     subquery is the type of the column "U". For example:
+	//
+	//       SELECT 1 = (SELECT 1)
+	//
+	//     The type of the subquery is "int".
+	//
+	//   - If the subquery returns multiple columns, the type of the subquery is
+	//     "tuple{C}" where "C" expands to all of the types of the columns of the
+	//     subquery. For example:
+	//
+	//       SELECT (1, 'a') = (SELECT 1, 'a')
+	//
+	//     The type of the subquery is "tuple{int,string}"
+	//
+	// * If the subquery is used in a multi-row context:
+	//
+	//   - If the subquery returns a single column with type "U", the type of the
+	//     subquery is the singleton tuple of type "U": "tuple{U}". For example:
+	//
+	//       SELECT 1 IN (SELECT 1)
+	//
+	//     The type of the subquery's columns is "int" and the type of the
+	//     subquery is "tuple{int}".
+	//
+	//   - If the subquery returns multiple columns, the type of the subquery is
+	//     "tuple{tuple{C}}" where "C expands to all of the types of the columns
+	//     of the subquery. For example:
+	//
+	//       SELECT (1, 'a') IN (SELECT 1, 'a')
+	//
+	//     The types of the subquery's columns are "int" and "string". These are
+	//     wrapped into "tuple{int,string}" to form the row type. And these are
+	//     wrapped again to form the subquery type "tuple{tuple{int,string}}".
+	//
+	// Note that these rules produce a somewhat surprising equivalence:
+	//
+	//   SELECT (SELECT 1, 2) = (SELECT (1, 2))
+	//
+	// A subquery which returns a single column tuple is equivalent to a subquery
+	// which returns the elements of the tuple as individual columns. While
+	// surprising, this is necessary for regularity and in order to handle:
+	//
+	//   SELECT 1 IN (SELECT 1)
+	//
+	// Without that auto-unwrapping of single-column subqueries, this query would
+	// type check as "<int> IN <tuple{tuple{int}}>" which would fail.
+
+	if len(s.cols) == 1 {
+		s.typ = s.cols[0].typ
+	} else {
+		t := make(types.TTuple, len(s.cols))
+		for i := range s.cols {
+			t[i] = s.cols[i].typ
+		}
+		s.typ = t
+	}
+
+	if s.multiRow {
+		// The subquery is in a multi-row context. For example:
+		//
+		//   SELECT 1 IN (SELECT * FROM t)
+		//
+		// Wrap the type in a tuple.
+		s.typ = types.TTuple{s.typ}
+	} else {
+		// The subquery is in a single-row context. For example:
+		//
+		//   SELECT (1, 2) = (SELECT 1, 2)
+		//
+		// Nothing more to do here, the type computed above is sufficient.
+	}
+
 	return s, nil
 }
 
 // ResolvedType implements the tree.TypedExpr interface.
 func (s *subquery) ResolvedType() types.T {
-	return s.col.typ
+	return s.typ
 }
 
 // Eval implements the tree.TypedExpr interface.
 func (s *subquery) Eval(_ *tree.EvalContext) (tree.Datum, error) {
 	panic("subquery must be replaced before evaluation")
+}
+
+// Format implements the tree.Expr interface.
+func (c *columnProps) Format(buf *bytes.Buffer, f tree.FmtFlags) {
+	fmt.Fprintf(buf, "@%d", c.index+1)
+}
+
+// Walk implements the tree.Expr interface.
+func (c *columnProps) Walk(v tree.Visitor) tree.Expr {
+	return c
+}
+
+func (c *columnProps) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedExpr, error) {
+	return c, nil
+}
+
+// ResolvedType implements the tree.TypedExpr interface.
+func (c *columnProps) ResolvedType() types.T {
+	return c.typ
+}
+
+// Variable implements the tree.VariableExpr interface. This prevents the
+// column from being evaluated during normalization.
+func (*columnProps) Variable() {}
+
+// Eval implements the tree.TypedExpr interface.
+func (*columnProps) Eval(_ *tree.EvalContext) (tree.Datum, error) {
+	panic(fmt.Errorf("columnProps must be replaced before evaluation"))
 }

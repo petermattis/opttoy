@@ -48,7 +48,7 @@ func (g *factoryGen) generate(compiled CompiledExpr, w io.Writer) {
 			g.w.write("\n")
 		}
 
-		g.w.writeIndent("return _f.onConstruct(_fingerprint, _f.mem.memoize%s(&%s))\n", define.name, define.varName)
+		g.w.writeIndent("return _f.onConstruct(_f.mem.memoize%s(&%s))\n", define.name, define.varName)
 		g.w.unnest(1, "}\n\n")
 	}
 

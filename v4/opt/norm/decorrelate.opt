@@ -2,7 +2,7 @@
 (Select
     $input:*
     $filter:(FilterList
-        $list:[... $exists:(Exists $subquery:*) ...]
+        $list:[ ... $exists:(Exists $subquery:*) ... ]
     )
 )
 =>
@@ -16,7 +16,7 @@
 (Select
     $input:*
     $filter:(FilterList
-        $list:[... $exists:(Not (Exists $subquery:*)) ...]
+        $list:[ ... $exists:(Not (Exists $subquery:*)) ... ]
     )
 )
 =>
@@ -26,33 +26,47 @@
     (FilterList (RemoveListItem $list $exists))
 )
 
-[DecorrelateJoinSelect, Normalize]
-(JoinApply
-    $left:*
-    $right:(Select $input:* $selectFilter:*) && (IsCorrelated $right $left)
-    $filter:*
-)
-=>
-(OpName
-    $left
-    $input
-    (ConcatFilterConditions $filter $selectFilter)
-)
-
-[DecorrelateJoinProject, Normalize]
+[HoistJoinProject, Normalize]
 (JoinApply
     $left:*
     $right:(Project $input:* $projections:*) && (IsCorrelated $right $left)
     $filter:*
 )
 =>
-(Project
-    (OpName
-        $left
-        $input
-        $filter
+(Select
+    (Project
+        (OpName
+            $left
+            $input
+            (True)
+        )
+        (AppendColumnProjections $projections $left)
     )
-    $projections
+    $filter
+)
+
+[HoistJoinGroupBy, Normalize]
+(JoinApply
+    $left:*
+    $right: (GroupBy
+        $input:*
+        (Projections $items:* && (IsEmptyList $items))
+        $aggregations:*
+    ) && (IsCorrelated $right $left)
+    $filter:*
+)
+=>
+(Select
+    (GroupBy
+        (LeftJoinApply
+            $left
+            $input
+            (True)
+        )
+        (ColumnProjections $left)
+        $aggregations
+    )
+    $filter
 )
 
 [DecorrelateJoin, Normalize]
@@ -69,7 +83,7 @@
     $left:*
     $right:*
     (FilterList
-        $list:[... $subquery:(Subquery $subqueryInput:* $projection:*) ...]
+        $list:[ ... $subquery:(Subquery $subqueryInput:* $projection:*) ... ]
     )
 )
 =>

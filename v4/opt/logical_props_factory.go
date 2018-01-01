@@ -37,6 +37,9 @@ func (f *logicalPropsFactory) constructRelationalProps(e *Expr) *LogicalProps {
 
 	case UnionOp:
 		return f.constructSetProps(e)
+
+	case GroupByOp:
+		return f.constructGroupByProps(e)
 	}
 
 	fatalf("unrecognized relational expression type: %v", e.op)
@@ -117,8 +120,8 @@ func (f *logicalPropsFactory) constructProjectProps(e *Expr) *LogicalProps {
 	props.Relational.NotNullCols = inputProps.Relational.NotNullCols
 
 	// Any columns which are used by any of the project children, but are not
-	// part of the output columns are unbound columns.
-	props.UnboundCols = projectionProps.UnboundCols.Difference(props.Relational.OutputCols)
+	// part of the input columns are unbound columns.
+	props.UnboundCols = projectionProps.UnboundCols.Difference(inputProps.Relational.OutputCols)
 	props.UnboundCols.UnionWith(inputProps.UnboundCols)
 
 	// Inherit equivalent columns from input. This may contain non-output
@@ -171,6 +174,31 @@ func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
 	// Set additional properties according to the join filter.
 	filter := e.Child(2)
 	f.addPropsFromFilter(&props, &filter, false)
+
+	return &props
+}
+
+func (f *logicalPropsFactory) constructGroupByProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	inputProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+	groupingsProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
+	aggProps := f.mem.lookupGroup(e.ChildGroup(2)).logical
+
+	// Output columns are union of columns from grouping and aggregate
+	// projection lists.
+	groupings := e.Child(1)
+	props.Relational.OutputCols = groupings.Private().(*ColSet).Copy()
+	agg := e.Child(2)
+	props.Relational.OutputCols.UnionWith(*agg.Private().(*ColSet))
+
+	// Find all unbound columns from the groupings or aggregation expressions
+	// that are not bound by the input columns, and union those with unbound
+	// columns from the input.
+	props.UnboundCols = groupingsProps.UnboundCols.Copy()
+	props.UnboundCols.UnionWith(aggProps.UnboundCols)
+	props.UnboundCols.DifferenceWith(inputProps.Relational.OutputCols)
+	props.UnboundCols.UnionWith(inputProps.UnboundCols)
 
 	return &props
 }

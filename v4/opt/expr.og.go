@@ -2336,7 +2336,7 @@ func (m *memo) memoizeSubquery(expr *subqueryExpr) GroupID {
 				mgrp := m.newGroup(SubqueryOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SubqueryOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SubqueryOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2402,7 +2402,7 @@ func (m *memo) memoizeVariable(expr *variableExpr) GroupID {
 				mgrp := m.newGroup(VariableOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: VariableOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: VariableOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2468,7 +2468,7 @@ func (m *memo) memoizeConst(expr *constExpr) GroupID {
 				mgrp := m.newGroup(ConstOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ConstOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ConstOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2534,7 +2534,7 @@ func (m *memo) memoizePlaceholder(expr *placeholderExpr) GroupID {
 				mgrp := m.newGroup(PlaceholderOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PlaceholderOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: PlaceholderOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2600,7 +2600,7 @@ func (m *memo) memoizeList(expr *listExpr) GroupID {
 				mgrp := m.newGroup(ListOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ListOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ListOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2666,7 +2666,7 @@ func (m *memo) memoizeOrderedList(expr *orderedListExpr) GroupID {
 				mgrp := m.newGroup(OrderedListOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: OrderedListOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: OrderedListOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2732,7 +2732,7 @@ func (m *memo) memoizeFilterList(expr *filterListExpr) GroupID {
 				mgrp := m.newGroup(FilterListOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FilterListOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FilterListOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2803,7 +2803,7 @@ func (m *memo) memoizeProjections(expr *projectionsExpr) GroupID {
 				mgrp := m.newGroup(ProjectionsOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ProjectionsOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ProjectionsOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2869,7 +2869,7 @@ func (m *memo) memoizeExists(expr *existsExpr) GroupID {
 				mgrp := m.newGroup(ExistsOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ExistsOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ExistsOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -2940,7 +2940,7 @@ func (m *memo) memoizeAnd(expr *andExpr) GroupID {
 				mgrp := m.newGroup(AndOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AndOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: AndOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3011,7 +3011,7 @@ func (m *memo) memoizeOr(expr *orExpr) GroupID {
 				mgrp := m.newGroup(OrOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: OrOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: OrOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3077,7 +3077,7 @@ func (m *memo) memoizeNot(expr *notExpr) GroupID {
 				mgrp := m.newGroup(NotOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3148,7 +3148,7 @@ func (m *memo) memoizeEq(expr *eqExpr) GroupID {
 				mgrp := m.newGroup(EqOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: EqOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: EqOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3219,7 +3219,7 @@ func (m *memo) memoizeLt(expr *ltExpr) GroupID {
 				mgrp := m.newGroup(LtOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LtOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LtOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3290,7 +3290,7 @@ func (m *memo) memoizeGt(expr *gtExpr) GroupID {
 				mgrp := m.newGroup(GtOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GtOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: GtOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3361,7 +3361,7 @@ func (m *memo) memoizeLe(expr *leExpr) GroupID {
 				mgrp := m.newGroup(LeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3432,7 +3432,7 @@ func (m *memo) memoizeGe(expr *geExpr) GroupID {
 				mgrp := m.newGroup(GeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: GeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3503,7 +3503,7 @@ func (m *memo) memoizeNe(expr *neExpr) GroupID {
 				mgrp := m.newGroup(NeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3574,7 +3574,7 @@ func (m *memo) memoizeIn(expr *inExpr) GroupID {
 				mgrp := m.newGroup(InOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: InOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3645,7 +3645,7 @@ func (m *memo) memoizeNotIn(expr *notInExpr) GroupID {
 				mgrp := m.newGroup(NotInOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotInOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotInOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3716,7 +3716,7 @@ func (m *memo) memoizeLike(expr *likeExpr) GroupID {
 				mgrp := m.newGroup(LikeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LikeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LikeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3787,7 +3787,7 @@ func (m *memo) memoizeNotLike(expr *notLikeExpr) GroupID {
 				mgrp := m.newGroup(NotLikeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotLikeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotLikeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3858,7 +3858,7 @@ func (m *memo) memoizeILike(expr *iLikeExpr) GroupID {
 				mgrp := m.newGroup(ILikeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ILikeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ILikeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -3929,7 +3929,7 @@ func (m *memo) memoizeNotILike(expr *notILikeExpr) GroupID {
 				mgrp := m.newGroup(NotILikeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotILikeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotILikeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4000,7 +4000,7 @@ func (m *memo) memoizeSimilarTo(expr *similarToExpr) GroupID {
 				mgrp := m.newGroup(SimilarToOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SimilarToOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SimilarToOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4071,7 +4071,7 @@ func (m *memo) memoizeNotSimilarTo(expr *notSimilarToExpr) GroupID {
 				mgrp := m.newGroup(NotSimilarToOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotSimilarToOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotSimilarToOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4142,7 +4142,7 @@ func (m *memo) memoizeRegMatch(expr *regMatchExpr) GroupID {
 				mgrp := m.newGroup(RegMatchOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RegMatchOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: RegMatchOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4213,7 +4213,7 @@ func (m *memo) memoizeNotRegMatch(expr *notRegMatchExpr) GroupID {
 				mgrp := m.newGroup(NotRegMatchOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotRegMatchOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotRegMatchOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4284,7 +4284,7 @@ func (m *memo) memoizeRegIMatch(expr *regIMatchExpr) GroupID {
 				mgrp := m.newGroup(RegIMatchOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RegIMatchOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: RegIMatchOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4355,7 +4355,7 @@ func (m *memo) memoizeNotRegIMatch(expr *notRegIMatchExpr) GroupID {
 				mgrp := m.newGroup(NotRegIMatchOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotRegIMatchOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: NotRegIMatchOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4426,7 +4426,7 @@ func (m *memo) memoizeIsDistinctFrom(expr *isDistinctFromExpr) GroupID {
 				mgrp := m.newGroup(IsDistinctFromOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsDistinctFromOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: IsDistinctFromOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4497,7 +4497,7 @@ func (m *memo) memoizeIsNotDistinctFrom(expr *isNotDistinctFromExpr) GroupID {
 				mgrp := m.newGroup(IsNotDistinctFromOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsNotDistinctFromOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: IsNotDistinctFromOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4568,7 +4568,7 @@ func (m *memo) memoizeIs(expr *isExpr) GroupID {
 				mgrp := m.newGroup(IsOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: IsOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4639,7 +4639,7 @@ func (m *memo) memoizeIsNot(expr *isNotExpr) GroupID {
 				mgrp := m.newGroup(IsNotOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsNotOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: IsNotOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4710,7 +4710,7 @@ func (m *memo) memoizeAny(expr *anyExpr) GroupID {
 				mgrp := m.newGroup(AnyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AnyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: AnyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4781,7 +4781,7 @@ func (m *memo) memoizeSome(expr *someExpr) GroupID {
 				mgrp := m.newGroup(SomeOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SomeOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SomeOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4852,7 +4852,7 @@ func (m *memo) memoizeAll(expr *allExpr) GroupID {
 				mgrp := m.newGroup(AllOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AllOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: AllOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4923,7 +4923,7 @@ func (m *memo) memoizeBitand(expr *bitandExpr) GroupID {
 				mgrp := m.newGroup(BitandOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitandOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: BitandOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -4994,7 +4994,7 @@ func (m *memo) memoizeBitor(expr *bitorExpr) GroupID {
 				mgrp := m.newGroup(BitorOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitorOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: BitorOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5065,7 +5065,7 @@ func (m *memo) memoizeBitxor(expr *bitxorExpr) GroupID {
 				mgrp := m.newGroup(BitxorOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitxorOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: BitxorOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5136,7 +5136,7 @@ func (m *memo) memoizePlus(expr *plusExpr) GroupID {
 				mgrp := m.newGroup(PlusOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PlusOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: PlusOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5207,7 +5207,7 @@ func (m *memo) memoizeMinus(expr *minusExpr) GroupID {
 				mgrp := m.newGroup(MinusOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: MinusOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: MinusOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5278,7 +5278,7 @@ func (m *memo) memoizeMult(expr *multExpr) GroupID {
 				mgrp := m.newGroup(MultOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: MultOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: MultOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5349,7 +5349,7 @@ func (m *memo) memoizeDiv(expr *divExpr) GroupID {
 				mgrp := m.newGroup(DivOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: DivOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: DivOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5420,7 +5420,7 @@ func (m *memo) memoizeFloorDiv(expr *floorDivExpr) GroupID {
 				mgrp := m.newGroup(FloorDivOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FloorDivOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FloorDivOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5491,7 +5491,7 @@ func (m *memo) memoizeMod(expr *modExpr) GroupID {
 				mgrp := m.newGroup(ModOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ModOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ModOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5562,7 +5562,7 @@ func (m *memo) memoizePow(expr *powExpr) GroupID {
 				mgrp := m.newGroup(PowOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PowOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: PowOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5633,7 +5633,7 @@ func (m *memo) memoizeConcat(expr *concatExpr) GroupID {
 				mgrp := m.newGroup(ConcatOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ConcatOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ConcatOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5704,7 +5704,7 @@ func (m *memo) memoizeLShift(expr *lShiftExpr) GroupID {
 				mgrp := m.newGroup(LShiftOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LShiftOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LShiftOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5775,7 +5775,7 @@ func (m *memo) memoizeRShift(expr *rShiftExpr) GroupID {
 				mgrp := m.newGroup(RShiftOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RShiftOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: RShiftOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5841,7 +5841,7 @@ func (m *memo) memoizeUnaryPlus(expr *unaryPlusExpr) GroupID {
 				mgrp := m.newGroup(UnaryPlusOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryPlusOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: UnaryPlusOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5907,7 +5907,7 @@ func (m *memo) memoizeUnaryMinus(expr *unaryMinusExpr) GroupID {
 				mgrp := m.newGroup(UnaryMinusOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryMinusOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: UnaryMinusOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -5973,7 +5973,7 @@ func (m *memo) memoizeUnaryComplement(expr *unaryComplementExpr) GroupID {
 				mgrp := m.newGroup(UnaryComplementOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryComplementOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: UnaryComplementOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6044,7 +6044,7 @@ func (m *memo) memoizeFunction(expr *functionExpr) GroupID {
 				mgrp := m.newGroup(FunctionOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FunctionOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FunctionOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6105,7 +6105,7 @@ func (m *memo) memoizeTrue(expr *trueExpr) GroupID {
 				mgrp := m.newGroup(TrueOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: TrueOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: TrueOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6166,7 +6166,7 @@ func (m *memo) memoizeFalse(expr *falseExpr) GroupID {
 				mgrp := m.newGroup(FalseOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FalseOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FalseOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6232,7 +6232,7 @@ func (m *memo) memoizeScan(expr *scanExpr) GroupID {
 				mgrp := m.newGroup(ScanOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ScanOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ScanOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6293,7 +6293,7 @@ func (m *memo) memoizeValues(expr *valuesExpr) GroupID {
 				mgrp := m.newGroup(ValuesOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ValuesOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ValuesOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6364,7 +6364,7 @@ func (m *memo) memoizeSelect(expr *selectExpr) GroupID {
 				mgrp := m.newGroup(SelectOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SelectOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SelectOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6435,7 +6435,7 @@ func (m *memo) memoizeProject(expr *projectExpr) GroupID {
 				mgrp := m.newGroup(ProjectOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ProjectOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ProjectOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6511,7 +6511,7 @@ func (m *memo) memoizeInnerJoin(expr *innerJoinExpr) GroupID {
 				mgrp := m.newGroup(InnerJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InnerJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: InnerJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6587,7 +6587,7 @@ func (m *memo) memoizeLeftJoin(expr *leftJoinExpr) GroupID {
 				mgrp := m.newGroup(LeftJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeftJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LeftJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6663,7 +6663,7 @@ func (m *memo) memoizeRightJoin(expr *rightJoinExpr) GroupID {
 				mgrp := m.newGroup(RightJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RightJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: RightJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6739,7 +6739,7 @@ func (m *memo) memoizeFullJoin(expr *fullJoinExpr) GroupID {
 				mgrp := m.newGroup(FullJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FullJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FullJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6815,7 +6815,7 @@ func (m *memo) memoizeSemiJoin(expr *semiJoinExpr) GroupID {
 				mgrp := m.newGroup(SemiJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SemiJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SemiJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6891,7 +6891,7 @@ func (m *memo) memoizeAntiJoin(expr *antiJoinExpr) GroupID {
 				mgrp := m.newGroup(AntiJoinOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AntiJoinOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: AntiJoinOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6967,7 +6967,7 @@ func (m *memo) memoizeInnerJoinApply(expr *innerJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(InnerJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InnerJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: InnerJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7043,7 +7043,7 @@ func (m *memo) memoizeLeftJoinApply(expr *leftJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(LeftJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeftJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: LeftJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7119,7 +7119,7 @@ func (m *memo) memoizeRightJoinApply(expr *rightJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(RightJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RightJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: RightJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7195,7 +7195,7 @@ func (m *memo) memoizeFullJoinApply(expr *fullJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(FullJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FullJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: FullJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7271,7 +7271,7 @@ func (m *memo) memoizeSemiJoinApply(expr *semiJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(SemiJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SemiJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: SemiJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7347,7 +7347,7 @@ func (m *memo) memoizeAntiJoinApply(expr *antiJoinApplyExpr) GroupID {
 				mgrp := m.newGroup(AntiJoinApplyOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AntiJoinApplyOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: AntiJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7423,7 +7423,7 @@ func (m *memo) memoizeGroupBy(expr *groupByExpr) GroupID {
 				mgrp := m.newGroup(GroupByOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GroupByOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: GroupByOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7499,7 +7499,7 @@ func (m *memo) memoizeUnion(expr *unionExpr) GroupID {
 				mgrp := m.newGroup(UnionOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnionOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: UnionOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7570,7 +7570,7 @@ func (m *memo) memoizeIntersect(expr *intersectExpr) GroupID {
 				mgrp := m.newGroup(IntersectOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IntersectOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: IntersectOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -7641,7 +7641,7 @@ func (m *memo) memoizeExcept(expr *exceptExpr) GroupID {
 				mgrp := m.newGroup(ExceptOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ExceptOp, offset: loc.offset}
+				e := Expr{mem: m, group: mgrp.id, op: ExceptOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {

@@ -201,6 +201,7 @@ func TestLogic(t *testing.T) {
 
 				var maxSteps int
 				if d.cmd == "normalize" {
+					// Complete all normalization steps.
 					maxSteps = int(math.MaxInt32)
 				}
 
@@ -208,50 +209,6 @@ func TestLogic(t *testing.T) {
 				b := build.NewBuilder(p.Factory(), d.stmt)
 				root, required := b.Build()
 				e := p.Optimize(root, required)
-
-				//var m *memo
-				//var s *search
-				//var r *physicalProps
-
-				for _, cmd := range strings.Split(d.cmd, ",") {
-					switch cmd {
-					case "build":
-						// Already done.
-						/*					case "trim":
-												trimOutputCols(e, e.props.outputCols)
-											case "infer":
-												inferFilters(e)
-											case "prep":
-												r = prep(e)
-											case "apply":
-												expandApply(e)
-											case "decorrelate":
-												expandApply(e)
-												decorrelate(e)
-											case "normalize":
-												normalize(e)
-											case "memo":
-												m = newMemo()
-												m.addRoot(e)
-												e = nil
-											case "search":
-												s = newSearch(m)
-												s.run(r)
-											case "extract":
-												e = m.extract(r, m.root)
-												s = nil
-												m = nil*/
-					default:
-						t.Fatalf("unknown command: %s", cmd)
-					}
-				}
-
-				/*if s != nil {
-					return s.memo.String()
-				}
-				if m != nil {
-					return m.String()
-				}*/
 
 				return e.String()
 			})

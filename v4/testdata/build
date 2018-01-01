@@ -69,7 +69,7 @@ project
 build
 SELECT * FROM (SELECT a.x+1 FROM a)
 ----
-project [unbound=(1)]
+project
  ├── columns: column1:3
  ├── scan
  │    └── columns: a.x:1 a.y:2
@@ -92,7 +92,7 @@ project
 build
 SELECT a.y+1 FROM a
 ----
-project [unbound=(2)]
+project
  ├── columns: column1:3
  ├── scan
  │    └── columns: a.x:1 a.y:2
@@ -386,10 +386,38 @@ build
 SELECT a.x FROM a ORDER BY a.x
 ----
 arrange
- ├── columns: x:1
+ ├── columns: x:1 y:2
  ├── ordering: +1
  └── sort
       ├── columns: a.x:1 a.y:2
       ├── ordering: +1
       └── scan
            └── columns: a.x:1 a.y:2
+
+build
+SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
+----
+arrange
+ ├── columns: x:1* y:2
+ └── select
+      ├── columns: a.x:1* a.y:2
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      └── lt [unbound=(1)]
+           ├── const: 1000000
+           └── subquery [unbound=(1)]
+                ├── group-by [unbound=(1)]
+                │    ├── columns: column1:5
+                │    ├── select [unbound=(1)]
+                │    │    ├── columns: b.x:3* b.z:4
+                │    │    ├── equiv: (1,3)
+                │    │    ├── scan
+                │    │    │    └── columns: b.x:3 b.z:4
+                │    │    └── eq [unbound=(1,3)]
+                │    │         ├── variable: a.x [unbound=(1)]
+                │    │         └── variable: b.x [unbound=(3)]
+                │    ├── projections
+                │    └── projections [unbound=(4)]
+                │         └── function: sum [unbound=(4)]
+                │              └── variable: b.z [unbound=(4)]
+                └── variable: column1 [unbound=(5)]

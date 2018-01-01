@@ -1,6 +1,6 @@
 package opt
 
-//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/decorrelate.opt norm/filter.opt
+//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/decorrelate.opt norm/filter.opt norm/project.opt
 
 type Factory struct {
 	mem      *memo
@@ -8,7 +8,7 @@ type Factory struct {
 
 	// The customNormalize function cannot be directly invoked in generated
 	// code due to golang initialization loop rules, so do it indirectly.
-	onConstruct func(fingerprint fingerprint, group GroupID) GroupID
+	onConstruct func(group GroupID) GroupID
 }
 
 func newFactory(mem *memo, maxSteps int) *Factory {
@@ -29,7 +29,7 @@ func (f *Factory) InternPrivate(private interface{}) PrivateID {
 	return f.mem.internPrivate(private)
 }
 
-func (f *Factory) normalizeManually(fingerprint fingerprint, group GroupID) GroupID {
+func (f *Factory) normalizeManually(group GroupID) GroupID {
 	if f.maxSteps <= 0 {
 		return group
 	}
@@ -54,7 +54,6 @@ func (f *Factory) normalizeManually(fingerprint fingerprint, group GroupID) Grou
 
 				// Construct subquery as parent.
 				group = f.ConstructSubquery(child.ChildGroup(0), scalar)
-				f.mem.addAltFingerprint(fingerprint, group)
 				return group
 			}
 		}
@@ -64,8 +63,24 @@ func (f *Factory) normalizeManually(fingerprint fingerprint, group GroupID) Grou
 }
 
 func (f *Factory) concatFilterConditions(filterLeft, filterRight GroupID) GroupID {
-	leftConditions := f.mem.lookupNormExpr(filterLeft).asFilterList().conditions
-	rightConditions := f.mem.lookupNormExpr(filterRight).asFilterList().conditions
+	leftExpr := f.mem.lookupNormExpr(filterLeft)
+	if leftExpr.op == TrueOp {
+		return filterRight
+	} else if leftExpr.op == FalseOp {
+		return filterLeft
+	}
+
+	rightExpr := f.mem.lookupNormExpr(filterRight)
+	if rightExpr.op == TrueOp {
+		return filterLeft
+	} else if rightExpr.op == FalseOp {
+		// TODO(andy): Is it OK to not evaluate the left-side, in case it involves
+		//             a side-effect such as an error?
+		return filterRight
+	}
+
+	leftConditions := leftExpr.asFilterList().conditions
+	rightConditions := rightExpr.asFilterList().conditions
 
 	items := make([]GroupID, leftConditions.len, leftConditions.len+rightConditions.len)
 	copy(items, f.mem.lookupList(leftConditions))
@@ -189,4 +204,51 @@ func (f *Factory) nonJoinApply(op Operator, left, right, filter GroupID) GroupID
 
 	fatalf("unexpected join operator: %v", op)
 	return 0
+}
+
+func (f *Factory) columnProjections(group GroupID) GroupID {
+	outputCols := f.mem.lookupGroup(group).logical.Relational.OutputCols
+	items := make([]GroupID, 0, outputCols.Len())
+	outputCols.ForEach(func(i int) {
+		items = append(items, f.ConstructVariable(f.mem.internPrivate(ColumnIndex(i))))
+	})
+
+	return f.ConstructProjections(f.mem.storeList(items), f.mem.internPrivate(&outputCols))
+}
+
+func (f *Factory) appendColumnProjections(projections, group GroupID) GroupID {
+	projectionsExpr := f.mem.lookupNormExpr(projections).asProjections()
+	projectionsItems := f.mem.lookupList(projectionsExpr.items)
+	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols).(*ColSet)
+
+	// The final output columns are the union of the columns in "projections"
+	// with the appended columns.
+	appendCols := f.mem.lookupGroup(group).logical.Relational.OutputCols
+	outputCols := projectionsCols.Union(appendCols)
+
+	// If no net-new columns are being appended, then no-op.
+	if outputCols.Equals(projectionsCols) {
+		return projections
+	}
+
+	// Start by copying in the existing projection items.
+	items := make([]GroupID, len(projectionsItems), outputCols.Len())
+	copy(items, projectionsItems)
+
+	// Now append new projection items synthesized from columns in the group
+	// expression.
+	appendCols.ForEach(func(i int) {
+		if !projectionsCols.Contains(i) {
+			items = append(items, f.ConstructVariable(f.mem.internPrivate(ColumnIndex(i))))
+		}
+	})
+
+	return f.ConstructProjections(f.mem.storeList(items), f.mem.internPrivate(&outputCols))
+}
+
+func (f *Factory) projectsSameCols(projections, input GroupID) bool {
+	projectionsExpr := f.mem.lookupNormExpr(projections).asProjections()
+	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols).(*ColSet)
+	inputCols := f.mem.lookupGroup(input).logical.Relational.OutputCols
+	return projectionsCols.Equals(inputCols)
 }

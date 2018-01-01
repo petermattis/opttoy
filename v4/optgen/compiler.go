@@ -155,7 +155,6 @@ func (c *Compiler) compileRules() bool {
 					if define.HasTag(name) {
 						c.expandTemplate(rule, template, define.Name())
 						found = true
-						break
 					}
 				}
 

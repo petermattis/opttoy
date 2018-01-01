@@ -87,8 +87,8 @@ func (c *physicalPropsFactory) constructChildProps(e *Expr, nth int) (required p
 			RightJoinApplyOp, FullJoinApplyOp, SemiJoinApplyOp, AntiJoinApplyOp:
 			return c.constructJoinChildProps(e, nth)
 
-		case UnionOp:
-			// Pass through for both sides (provides no properties).
+		case UnionOp, GroupByOp:
+			// Pass through for all inputs (provides no properties).
 			return e.required
 
 		case SortOp:

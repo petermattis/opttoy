@@ -291,7 +291,7 @@ func (g *exprsGen) genMemoFuncs(define *DefineExpr) {
 	fmt.Fprintf(g.w, "        mgrp := m.newGroup(%s, loc.offset)\n", opType)
 	fmt.Fprintf(g.w, "        p.group = mgrp.id\n")
 	fmt.Fprintf(g.w, "        loc.group = mgrp.id\n")
-	fmt.Fprintf(g.w, "        e := Expr{mem: m, group: mgrp.id, op: %s, offset: loc.offset}\n", opType)
+	fmt.Fprintf(g.w, "        e := Expr{mem: m, group: mgrp.id, op: %s, offset: loc.offset, required: defaultPhysPropsID}\n", opType)
 	fmt.Fprintf(g.w, "        mgrp.logical = m.logPropsFactory.constructProps(&e)\n")
 	fmt.Fprintf(g.w, "      }\n")
 	fmt.Fprintf(g.w, "    } else {\n")

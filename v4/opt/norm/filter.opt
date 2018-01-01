@@ -1,3 +1,6 @@
+[EliminateSelect, Normalize]
+(Select $input:* (True)) => $input
+
 [EliminateFilterList, Normalize]
 (FilterList $items:* && (IsEmptyList $items)) => (True)
 
@@ -23,4 +26,17 @@
 (Select
     $input
     (FlattenFilterCondition $filter)
+)
+
+[MergeJoinSelect, Normalize]
+(Join
+    $left:*
+    $right:(Select $input:* $selectFilter:*) && (HasUnboundCols $right)
+    $filter:*
+)
+=>
+(OpName
+    $left
+    $input
+    (ConcatFilterConditions $filter $selectFilter)
 )

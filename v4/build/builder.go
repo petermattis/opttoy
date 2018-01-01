@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	_ "github.com/cockroachdb/cockroach/pkg/sql/sem/builtins"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/types"
 	"github.com/petermattis/opttoy/v4/cat"
@@ -100,30 +101,104 @@ func (b *Builder) Build() (root opt.GroupID, required *opt.PhysicalProps) {
 }
 
 func (b *Builder) buildStmt(stmt tree.Statement, inScope *scope) (out opt.GroupID, outScope *scope) {
+	// NB: The case statements are sorted lexicographically.
 	switch stmt := stmt.(type) {
-	case *tree.Select:
-		return b.buildSelect(stmt, inScope)
 	case *tree.ParenSelect:
 		return b.buildSelect(stmt.Select, inScope)
+
+	case *tree.Select:
+		return b.buildSelect(stmt, inScope)
+
+		// *tree.AlterSequence
+		// *tree.AlterTable
+		// *tree.AlterUserSetPassword
+		// *tree.Backup
+		// *tree.BeginTransaction
+		// *tree.CancelJob
+		// *tree.CancelQuery
+		// *tree.CommitTransaction
+		// *tree.CopyFrom
+		// *tree.CreateDatabase
+		// *tree.CreateIndex
+		// *tree.CreateSequence
+		// *tree.CreateStats
+		// *tree.CreateTable
+		// *tree.CreateUser
+		// *tree.CreateView
+		// *tree.Deallocate
+		// *tree.Delete
+		// *tree.Discard
+		// *tree.DropDatabase
+		// *tree.DropIndex
+		// *tree.DropSequence
+		// *tree.DropTable
+		// *tree.DropUser
+		// *tree.DropView
+		// *tree.Execute
+		// *tree.Explain
+		// *tree.Grant
+		// *tree.Import
+		// *tree.Insert
+		// *tree.PauseJob
+		// *tree.Prepare
+		// *tree.ReleaseSavepoint
+		// *tree.RenameColumn
+		// *tree.RenameDatabase
+		// *tree.RenameIndex
+		// *tree.RenameTable
+		// *tree.Restore
+		// *tree.ResumeJob
+		// *tree.Revoke
+		// *tree.RollbackToSavepoint
+		// *tree.RollbackTransaction
+		// *tree.Savepoint
+		// *tree.Scatter
+		// *tree.Scrub
+		// *tree.SelectClause
+		// *tree.SetClusterSetting
+		// *tree.SetSessionCharacteristics
+		// *tree.SetTransaction
+		// *tree.SetVar
+		// *tree.SetZoneConfig
+		// *tree.ShowBackup
+		// *tree.ShowClusterSetting
+		// *tree.ShowColumns
+		// *tree.ShowConstraints
+		// *tree.ShowCreateTable
+		// *tree.ShowCreateView
+		// *tree.ShowDatabases
+		// *tree.ShowFingerprints
+		// *tree.ShowGrants
+		// *tree.ShowHistogram
+		// *tree.ShowIndex
+		// *tree.ShowJobs
+		// *tree.ShowQueries
+		// *tree.ShowRanges
+		// *tree.ShowSessions
+		// *tree.ShowTableStats
+		// *tree.ShowTables
+		// *tree.ShowTrace
+		// *tree.ShowTransactionStatus
+		// *tree.ShowUsers
+		// *tree.ShowVar
+		// *tree.ShowZoneConfig
+		// *tree.Split
+		// *tree.TestingRelocate
+		// *tree.Truncate
+		// *tree.UnionClause
+		// *tree.Update
+		// *tree.ValuesClause
+		// tree.SelectStatement
+
 	default:
-		unimplemented("%T", stmt)
+		fatalf("unexpected statement: %T", stmt)
 		return 0, nil
 	}
 }
 
 func (b *Builder) buildTable(texpr tree.TableExpr, inScope *scope) (out opt.GroupID, outScope *scope) {
+	// NB: The case statements are sorted lexicographically.
 	switch source := texpr.(type) {
-	case *tree.NormalizableTableName:
-		tn, err := source.Normalize()
-		if err != nil {
-			fatalf("%s", err)
-		}
-
-		name := cat.TableName(tn.Table())
-		tbl := b.factory.Metadata().Catalog().Table(name)
-
-		return b.buildScan(tbl, inScope)
-
 	case *tree.AliasedTableExpr:
 		out, outScope = b.buildTable(source.Expr, inScope)
 
@@ -143,8 +218,8 @@ func (b *Builder) buildTable(texpr tree.TableExpr, inScope *scope) (out opt.Grou
 
 		return
 
-	case *tree.ParenTableExpr:
-		return b.buildTable(source.Expr, inScope)
+	case *tree.FuncExpr:
+		unimplemented("%T", texpr)
 
 	case *tree.JoinTableExpr:
 		switch cond := source.Cond.(type) {
@@ -162,13 +237,34 @@ func (b *Builder) buildTable(texpr tree.TableExpr, inScope *scope) (out opt.Grou
 			return 0, nil
 		}
 
+	case *tree.NormalizableTableName:
+		tn, err := source.Normalize()
+		if err != nil {
+			fatalf("%s", err)
+		}
+
+		name := cat.TableName(tn.Table())
+		tbl := b.factory.Metadata().Catalog().Table(name)
+
+		return b.buildScan(tbl, inScope)
+
+	case *tree.ParenTableExpr:
+		return b.buildTable(source.Expr, inScope)
+
+	case *tree.StatementSource:
+		unimplemented("%T", texpr)
+
 	case *tree.Subquery:
 		return b.buildStmt(source.Select, inScope)
 
-	default:
+	case *tree.TableRef:
 		unimplemented("%T", texpr)
-		return 0, nil
+
+	default:
+		fatalf("unexpected table expr: %T", texpr)
 	}
+
+	return 0, nil
 }
 
 func (b *Builder) buildScan(tbl *cat.Table, inScope *scope) (out opt.GroupID, outScope *scope) {
@@ -188,9 +284,6 @@ func (b *Builder) buildScan(tbl *cat.Table, inScope *scope) (out opt.GroupID, ou
 		outScope.cols = append(outScope.cols, col)
 	}
 
-	// TODO(peter): the metadata table is used for looking up foreign key
-	// references. Currently, this lookup is global, but it likely needs to be
-	// scoped.
 	return b.factory.ConstructScan(b.factory.InternPrivate(tblIndex)), outScope
 }
 
@@ -299,8 +392,24 @@ func (b *Builder) buildUsingJoinParts(
 
 // buildScalarProjection takes the output of buildScalar and adds it as new
 // columns to the output scope.
-func (b *Builder) buildScalarProjection(scalar tree.TypedExpr, inScope, outScope *scope) opt.GroupID {
-	switch t := scalar.(type) {
+func (b *Builder) buildScalarProjection(texpr tree.TypedExpr, inScope, outScope *scope) opt.GroupID {
+	// NB: The case statements are sorted lexicographically.
+	switch t := texpr.(type) {
+	case *columnProps:
+		colIndex := opt.ColumnIndex(t.index)
+		out := b.factory.ConstructVariable(b.factory.InternPrivate(colIndex))
+		outScope.cols = append(outScope.cols, b.colMap[colIndex])
+		return out
+
+	case *tree.FuncExpr:
+		out, col := b.buildFunction(t, inScope)
+		if col != nil {
+			// Function was mapped to a column reference, such as in the case
+			// of an aggregate.
+			outScope.cols = append(outScope.cols, b.colMap[col.index])
+		}
+		return out
+
 	case *tree.ParenExpr:
 		return b.buildScalarProjection(t.TypedInnerExpr(), inScope, outScope)
 
@@ -309,39 +418,102 @@ func (b *Builder) buildScalarProjection(scalar tree.TypedExpr, inScope, outScope
 		if err != nil {
 			panic(err)
 		}
-
 		return b.buildScalarProjection(vn, inScope, outScope)
 
-	case *tree.IndexedVar:
-		// Directly project columns that are bound to the current scope, but
-		// synthesize a new wrapper column for unbound columns (i.e. columns
-		// bound to an ancestor scope). This ensures that relational expression
-		// inputs always have disjoint output columns. Therefore, different
-		// instances of the same column can have different values, even when
-		// joined.
-		colIndex := opt.ColumnIndex(t.Idx)
-		out := b.factory.ConstructVariable(b.factory.InternPrivate(colIndex))
-
-		col := findColByIndex(inScope.cols, colIndex)
-		if col == nil {
-			// Unbound reference, so project a synthesized wrapper column.
-			label := string(b.colMap[colIndex].name)
-			b.synthesizeColumn(outScope, label, scalar.ResolvedType())
-		} else {
-			outScope.cols = append(outScope.cols, b.colMap[colIndex])
-		}
-
-		return out
-
 	default:
-		out := b.buildScalar(scalar, inScope)
-		b.synthesizeColumn(outScope, "", scalar.ResolvedType())
+		out := b.buildScalar(texpr, inScope)
+		b.synthesizeColumn(outScope, "", texpr.ResolvedType())
 		return out
 	}
 }
 
 func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID {
 	switch t := scalar.(type) {
+	case *columnProps:
+		return b.factory.ConstructVariable(b.factory.InternPrivate(t.index))
+
+	case *tree.AllColumnsSelector:
+		fatalf("unexpected unresolved scalar expr: %T", scalar)
+
+	case *tree.AndExpr:
+		return b.factory.ConstructAnd(b.buildScalar(t.TypedLeft(), inScope), b.buildScalar(t.TypedRight(), inScope))
+
+	case *tree.Array:
+		unimplemented("%T", scalar)
+
+	case *tree.ArrayFlatten:
+		unimplemented("%T", scalar)
+
+	case *tree.BinaryExpr:
+		return binaryOpMap[t.Operator](b.factory,
+			b.buildScalar(t.TypedLeft(), inScope),
+			b.buildScalar(t.TypedRight(), inScope))
+
+	case *tree.CaseExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.CastExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.CoalesceExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.CollateExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.ColumnItem:
+		fatalf("unexpected unresolved scalar expr: %T", scalar)
+
+	case *tree.ComparisonExpr:
+		// TODO(peter): handle t.SubOperator.
+		return comparisonOpMap[t.Operator](b.factory,
+			b.buildScalar(t.TypedLeft(), inScope),
+			b.buildScalar(t.TypedRight(), inScope))
+
+	case tree.DefaultVal:
+		unimplemented("%T", scalar)
+
+	case *tree.ExistsExpr:
+		// TODO(peter): the decorrelation code currently expects the subquery to be
+		// unwrapped for EXISTS expressions.
+		subquery := t.Subquery.(*subquery)
+		return b.factory.ConstructExists(subquery.out)
+
+	case *tree.FuncExpr:
+		out, _ := b.buildFunction(t, inScope)
+		return out
+
+	case *tree.IfExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.IndirectionExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.IsOfTypeExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.NotExpr:
+		return b.factory.ConstructNot(b.buildScalar(t.TypedInnerExpr(), inScope))
+
+	case *tree.NullIfExpr:
+		unimplemented("%T", scalar)
+
+	case *tree.OrExpr:
+		return b.factory.ConstructOr(b.buildScalar(t.TypedLeft(), inScope), b.buildScalar(t.TypedRight(), inScope))
+
+	case *tree.ParenExpr:
+		return b.buildScalar(t.TypedInnerExpr(), inScope)
+
+	case *tree.Placeholder:
+		return b.factory.ConstructPlaceholder(b.factory.InternPrivate(t))
+
+	case *tree.RangeCond:
+		unimplemented("%T", scalar)
+
+	case *subquery:
+		v := b.factory.ConstructVariable(b.factory.InternPrivate(t.cols[0].index))
+		return b.factory.ConstructSubquery(t.out, v)
+
 	case *tree.Tuple:
 		list := make([]opt.GroupID, 0, len(t.Exprs))
 		for i := range t.Exprs {
@@ -350,66 +522,49 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 
 		return b.factory.ConstructOrderedList(b.factory.StoreList(list))
 
-	case *tree.ParenExpr:
-		return b.buildScalar(t.TypedInnerExpr(), inScope)
-
-	case *tree.AndExpr:
-		return b.factory.ConstructAnd(b.buildScalar(t.TypedLeft(), inScope), b.buildScalar(t.TypedRight(), inScope))
-	case *tree.OrExpr:
-		return b.factory.ConstructOr(b.buildScalar(t.TypedLeft(), inScope), b.buildScalar(t.TypedRight(), inScope))
-	case *tree.NotExpr:
-		return b.factory.ConstructNot(b.buildScalar(t.TypedInnerExpr(), inScope))
-
-	case *tree.BinaryExpr:
-		return binaryOpMap[t.Operator](b.factory,
-			b.buildScalar(t.TypedLeft(), inScope),
-			b.buildScalar(t.TypedRight(), inScope))
-	case *tree.ComparisonExpr:
-		return comparisonOpMap[t.Operator](b.factory,
-			b.buildScalar(t.TypedLeft(), inScope),
-			b.buildScalar(t.TypedRight(), inScope))
 	case *tree.UnaryExpr:
 		return unaryOpMap[t.Operator](b.factory, b.buildScalar(t.TypedInnerExpr(), inScope))
 
-	case *tree.IndexedVar:
-		return b.factory.ConstructVariable(b.factory.InternPrivate(opt.ColumnIndex(t.Idx)))
+	case tree.UnqualifiedStar:
+		fatalf("unexpected unresolved scalar expr: %T", scalar)
 
-	case *tree.Placeholder:
-		return b.factory.ConstructPlaceholder(b.factory.InternPrivate(t))
+	case tree.UnresolvedName:
+		fatalf("unexpected unresolved scalar expr: %T", scalar)
 
+		// NB: this is the exception to the sorting of the case statements. The
+		// tree.Datum case needs to occur after *tree.Placeholder which implements
+		// Datum.
 	case tree.Datum:
+		// *DArray
+		// *DBool
+		// *DBytes
+		// *DCollatedString
+		// *DDate
+		// *DDecimal
+		// *DFloat
+		// *DIPAddr
+		// *DInt
+		// *DInterval
+		// *DJSON
+		// *DOid
+		// *DOidWrapper
+		// *DString
+		// *DTable
+		// *DTime
+		// *DTimestamp
+		// *DTimestampTZ
+		// *DTuple
+		// *DUuid
+		// dNull
 		return b.factory.ConstructConst(b.factory.InternPrivate(t))
-
-	case *tree.FuncExpr:
-		return b.buildFunction(t, inScope)
-
-	case *tree.ExistsExpr:
-		out := b.buildScalar(inScope.resolveType(t.Subquery, types.Any), inScope)
-		return b.factory.ConstructExists(out)
-
-	case *subquery:
-		// TODO(peter): a subquery in a scalar context needs to be wrapped with
-		// some sort of scalar expression. For example, `SELECT (SELECT 1)`. The
-		// `SELECT 1` subquery is being used as a projection. We need to wrap the
-		// relational expression in something like a subqueryOp scalar expression
-		// that is typed according to the subquery.
-		v := b.factory.ConstructVariable(b.factory.InternPrivate(t.col.index))
-		return b.factory.ConstructSubquery(t.out, v)
-
-	default:
-		// NB: we can't type assert on tree.dNull because the type is not
-		// exported.
-		if scalar == tree.DNull {
-			return b.factory.ConstructConst(b.factory.InternPrivate(scalar))
-		}
 	}
 
-	unimplemented("%T", scalar)
+	fatalf("unexpected scalar expr: %T", scalar)
 	return 0
 }
 
-func (b *Builder) buildFunction(f *tree.FuncExpr, inScope *scope) opt.GroupID {
-	def, err := f.Func.Resolve(tree.SearchPath{})
+func (b *Builder) buildFunction(f *tree.FuncExpr, inScope *scope) (out opt.GroupID, col *columnProps) {
+	def, err := f.Func.Resolve(b.semaCtx.SearchPath)
 	if err != nil {
 		fatalf("%v", err)
 	}
@@ -432,51 +587,121 @@ func (b *Builder) buildFunction(f *tree.FuncExpr, inScope *scope) opt.GroupID {
 		argList = append(argList, arg)
 	}
 
-	function := b.factory.ConstructFunction(b.factory.StoreList(argList), b.factory.InternPrivate(def))
+	out = b.factory.ConstructFunction(b.factory.StoreList(argList), b.factory.InternPrivate(def))
 
 	if isAgg {
-		refScope := inScope.endAggFunc(function)
+		refScope := inScope.endAggFunc(out)
 
 		// If the aggregate already exists as a column, use that. Otherwise
 		// create a new column and add it the list of aggregates that need to
 		// be computed by the groupby expression.
-		col := refScope.findAggregate(function)
+		// TODO(andy): turns out this doesn't really do anything because the
+		//             list passed to ConstructFunction isn't interned.
+		col = refScope.findAggregate(out)
 		if col == nil {
 			col = b.synthesizeColumn(refScope, "", f.ResolvedType())
 
 			// Add the aggregate to the list of aggregates that need to be computed by
 			// the groupby expression.
-			refScope.groupby.aggs = append(refScope.groupby.aggs, function)
+			refScope.groupby.aggs = append(refScope.groupby.aggs, out)
 		}
 
 		// Replace the function call with a reference to the column.
-		return b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
+		out = b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
 	}
 
-	return function
+	return
 }
 
 func (b *Builder) buildSelect(stmt *tree.Select, inScope *scope) (out opt.GroupID, outScope *scope) {
+	// NB: The case statements are sorted lexicographically.
 	switch t := stmt.Select.(type) {
+	case *tree.ParenSelect:
+		return b.buildSelect(t.Select, inScope)
+
 	case *tree.SelectClause:
 		return b.buildSelectClause(stmt, inScope)
 
 	case *tree.UnionClause:
 		out, outScope = b.buildUnion(t, inScope)
 
-	case *tree.ParenSelect:
-		return b.buildSelect(t.Select, inScope)
-
-	// TODO(peter): case *tree.ValuesClause:
+	case *tree.ValuesClause:
+		return b.buildValuesClause(t, inScope)
 
 	default:
-		unimplemented("%T", stmt.Select)
+		fatalf("unexpected select statement: %T", stmt.Select)
 	}
 
-	// TODO(peter): stmt.Limit
-
 	out, outScope.ordering = b.buildOrderBy(out, stmt.OrderBy, outScope)
+	// TODO(peter): stmt.Limit
 	return
+}
+
+func (b *Builder) buildValuesClause(values *tree.ValuesClause, inScope *scope) (out opt.GroupID, outScope *scope) {
+	// TODO(andy): need to adapt this code
+	return 0, nil
+	/*	var numCols int
+		if len(values.Tuples) > 0 {
+			numCols = len(values.Tuples[0].Exprs)
+		}
+
+		result = &expr{
+			op: valuesOp,
+			props: &relationalProps{
+				columns: make([]columnProps, numCols),
+			},
+		}
+		for i := range result.props.columns {
+			result.props.columns[i].name = columnName(fmt.Sprintf("column%d", i+1))
+		}
+
+		buf := make([]*expr, len(t.Tuples)*(numCols+1))
+		rows := buf[:0:len(t.Tuples)]
+		buf = buf[len(t.Tuples):]
+
+		for _, tuple := range t.Tuples {
+			if numCols != len(tuple.Exprs) {
+				panic(fmt.Errorf(
+					"VALUES lists must all be the same length, expected %d columns, found %d",
+					numCols, len(tuple.Exprs)))
+			}
+
+			row := buf[:numCols:numCols]
+			buf = buf[numCols:]
+
+			for i, expr := range tuple.Exprs {
+				row[i] = buildScalar(scope.resolve(expr, types.Any), scope)
+				typ := row[i].scalarProps.typ
+				if result.props.columns[i].typ == nil || result.props.columns[i].typ == types.Null {
+					result.props.columns[i].typ = typ
+				} else if typ != types.Null && !typ.Equivalent(result.props.columns[i].typ) {
+					panic(fmt.Errorf("VALUES list type mismatch, %s for %s", typ, result.props.columns[i].typ))
+				}
+			}
+
+			rows = append(rows, &expr{
+				op:          tupleOp,
+				children:    row,
+				scalarProps: &scalarProps{},
+			})
+		}
+
+		typ := make(types.TTuple, len(result.props.columns))
+		for i := range result.props.columns {
+			typ[i] = result.props.columns[i].typ
+		}
+		for i := range rows {
+			rows[i].scalarProps.typ = typ
+		}
+
+		// TODO(peter): A VALUES clause can contain subqueries and other
+		// non-trivial expressions. We probably need to store the tuples in an
+		// explicit child of the values node, rather than in private data.
+		result.private = &expr{
+			op:          orderedListOp,
+			children:    rows,
+			scalarProps: &scalarProps{},
+		}*/
 }
 
 // Pass the entire Select statement rather than just the select clause in
@@ -488,26 +713,39 @@ func (b *Builder) buildSelectClause(stmt *tree.Select, inScope *scope) (out opt.
 	var fromScope *scope
 	out, fromScope = b.buildFrom(sel.From, sel.Where, inScope)
 
-	// The "from" columns are visible to the grouping expressions. Even if
-	// there is no group by clause in the expression, buildGroupingList will
-	// still create a scope in order to track aggregate expressions in the
-	// project list, since these cause a group by to be built.
+	// The "from" columns are visible to any grouping expressions.
 	groupings, groupingsScope := b.buildGroupingList(sel.GroupBy, fromScope)
 
-	// Any "grouping" columns are visible to both the "having" and "projection"
-	// expressions. The build has the side effect of extracting aggregations.
-	var having opt.GroupID
+	// Set the grouping scope so that any aggregates will be added to the set
+	// of grouping columns.
 	if groupings == nil {
-		// No groupby clause, so use "from" scope directly.
-		groupingsScope = fromScope
+		// Even though there is no groupby clause, create a grouping scope
+		// anyway, since one or more aggregate functions in the projection list
+		// triggers an implicit groupby.
+		groupingsScope = fromScope.push()
+		fromScope.groupby.groupingsScope = groupingsScope
 	} else {
+		// Add aggregate columns directly to the existing groupings scope.
+		groupingsScope.groupby.groupingsScope = groupingsScope
+	}
+
+	// Any "grouping" columns are visible to both the "having" and "projection"
+	// expressions. The build has the side effect of extracting aggregation
+	// columns.
+	var having opt.GroupID
+	if groupings != nil {
 		having = b.buildScalar(groupingsScope.resolveType(sel.Having.Expr, types.Bool), groupingsScope)
 	}
 
-	// Any grouping columns are visible to the projection expressions. If the
-	// projection is empty or a simple pass-through, then buildProjectionList
-	// will return nil values.
-	projections, projectionsScope := b.buildProjectionList(sel.Exprs, groupingsScope)
+	// If the projection is empty or a simple pass-through, then
+	// buildProjectionList will return nil values.
+	var projections []opt.GroupID
+	var projectionsScope *scope
+	if groupings == nil {
+		projections, projectionsScope = b.buildProjectionList(sel.Exprs, fromScope)
+	} else {
+		projections, projectionsScope = b.buildProjectionList(sel.Exprs, groupingsScope)
+	}
 
 	// Wrap with groupby operator if groupings or aggregates exist.
 	if groupings != nil || len(groupingsScope.groupby.aggs) > 0 {
@@ -528,20 +766,18 @@ func (b *Builder) buildSelectClause(stmt *tree.Select, inScope *scope) (out opt.
 		if having != 0 {
 			out = b.factory.ConstructSelect(out, having)
 		}
-	}
 
-	// Set final output scope.
-	if projections != nil {
-		outScope = projectionsScope
-	} else {
 		outScope = groupingsScope
+	} else {
+		// No aggregates, so current output scope is the "from" scope.
+		outScope = fromScope
 	}
 
 	if stmt.OrderBy != nil {
 		// OrderBy can reference columns from either the from/grouping clause
 		// or the projections clause, so combine them in a single projection.
 		var orderByScope *scope
-		out, orderByScope = b.buildAppendingProject(out, groupingsScope, projections, projectionsScope)
+		out, orderByScope = b.buildAppendingProject(out, outScope, projections, projectionsScope)
 
 		// Wrap with distinct operator if it exists.
 		out = b.buildDistinct(out, sel.Distinct, outScope.cols, orderByScope)
@@ -555,6 +791,7 @@ func (b *Builder) buildSelectClause(stmt *tree.Select, inScope *scope) (out opt.
 	// Wrap with project operator if it exists.
 	if projections != nil {
 		out = b.factory.ConstructProject(out, b.constructProjectionList(projections, projectionsScope.cols))
+		outScope = projectionsScope
 	}
 
 	// Wrap with distinct operator if it exists.
@@ -600,18 +837,11 @@ func (b *Builder) buildFrom(from *tree.From, where *tree.Where, inScope *scope) 
 }
 
 func (b *Builder) buildGroupingList(groupBy tree.GroupBy, inScope *scope) (groupings []opt.GroupID, outScope *scope) {
-	// Create a grouping scope even if there is no explicit groupby in the
-	// query, since one or more aggregate functions in the projection list
-	// triggers an implicit groupby.
-	outScope = inScope.push()
-
-	// Set the grouping scope so that any aggregates will be added to the set
-	// of grouping columns.
-	inScope.groupby.groupingsScope = outScope
-
 	if groupBy == nil {
 		return
 	}
+
+	outScope = inScope.push()
 
 	groupings = make([]opt.GroupID, 0, len(groupBy))
 	for _, e := range groupBy {
@@ -646,6 +876,11 @@ func (b *Builder) buildProjectionList(
 	}
 
 	// Don't add an unnecessary "pass through" project expression.
+	if len(inScope.groupby.groupingsScope.groupby.aggs) > 0 {
+		// If aggregates will be projected, check against them instead.
+		inScope = inScope.groupby.groupingsScope
+	}
+
 	if len(outScope.cols) == len(inScope.cols) {
 		matches := true
 		for i := range inScope.cols {
@@ -664,22 +899,11 @@ func (b *Builder) buildProjectionList(
 }
 
 func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope) (projections []opt.GroupID) {
+	// We only have to handle "*" and "<name>.*" in the switch below. Other names
+	// will be handled by scope.resolve().
+	//
+	// NB: The case statements are sorted lexicographically.
 	switch t := projection.(type) {
-	case tree.UnqualifiedStar:
-		for _, col := range inScope.cols {
-			if !col.hidden {
-				v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
-				projections = append(projections, v)
-				outScope.cols = append(outScope.cols, col)
-			}
-		}
-
-		if len(projections) == 0 {
-			fatalf("failed to expand *")
-		}
-
-		return
-
 	case *tree.AllColumnsSelector:
 		tableName := cat.TableName(t.TableName.Table())
 		for _, col := range inScope.cols {
@@ -689,19 +913,29 @@ func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope
 				outScope.cols = append(outScope.cols, col)
 			}
 		}
-
 		if len(projections) == 0 {
 			fatalf("unknown table %s", t)
 		}
-
 		return projections
+
+	case tree.UnqualifiedStar:
+		for _, col := range inScope.cols {
+			if !col.hidden {
+				v := b.factory.ConstructVariable(b.factory.InternPrivate(col.index))
+				projections = append(projections, v)
+				outScope.cols = append(outScope.cols, col)
+			}
+		}
+		if len(projections) == 0 {
+			fatalf("failed to expand *")
+		}
+		return
 
 	case tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
 		}
-
 		return b.buildProjection(vn, inScope, outScope)
 
 	default:
