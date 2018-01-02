@@ -70,8 +70,8 @@ arrange
                 ├── variable: a.x [unbound=(1)]
                 └── variable: b.x [unbound=(3)]
 
-# TODO(andy): These queries look broken, since columns in "a" should not be in
-#             scope for the right side of the join.
+# TODO(andy): These queries look broken, since columns in "a" are not in scope
+#             for the right side of the join, at least in Postgres and SQLS.
 #
 # normalize
 # SELECT * FROM a, (SELECT * FROM b WHERE a.x = b.x)
