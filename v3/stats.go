@@ -165,7 +165,6 @@ func createHistogram(
 // filterHistogram filters a histogram based on the WHERE clause in the given select
 // statement, and returns the histogram.  It expects a statement of the form:
 //   SELECT * from histogram.table.column WHERE ...
-// Currently the only operators supported in the WHERE clause are <, <=, >, and >=.
 func filterHistogram(catalog map[tableName]*table, stmt *tree.Select) *histogram {
 	sel, ok := stmt.Select.(*tree.SelectClause)
 	if !ok {
@@ -198,47 +197,61 @@ func filterHistogram(catalog map[tableName]*table, stmt *tree.Select) *histogram
 	hist := tab.columns[colIdx].hist
 
 	// Filter the histogram.
-	expr, ok := sel.Where.Expr.(*tree.ComparisonExpr)
-	if !ok {
-		unimplemented("%s", stmt)
-	}
-	op := comparisonOpMap[expr.Operator]
-	var val int64
-	var vals []int64
-	switch v := expr.Right.(type) {
-	case *tree.NumVal:
-		val, err = v.AsInt64()
-		if err != nil {
-			fatalf("unable to cast datum to int64: %v", err)
-		}
-		vals = []int64{val}
-	case *tree.Tuple:
-		for _, elem := range v.Exprs {
-			numVal, ok := elem.(*tree.NumVal)
-			if !ok {
-				unimplemented("%s", stmt)
-			}
-			val, err = numVal.AsInt64()
+	return hist.filterHistogram(sel.Where.Expr)
+}
+
+func (h *histogram) filterHistogram(expr tree.Expr) *histogram {
+	switch e := expr.(type) {
+	case *tree.ComparisonExpr:
+		op := comparisonOpMap[e.Operator]
+		var val int64
+		var vals []int64
+		var err error
+		switch v := e.Right.(type) {
+		case *tree.NumVal:
+			val, err = v.AsInt64()
 			if err != nil {
 				fatalf("unable to cast datum to int64: %v", err)
 			}
-			vals = append(vals, val)
+			vals = []int64{val}
+		case *tree.Tuple:
+			for _, elem := range v.Exprs {
+				numVal, ok := elem.(*tree.NumVal)
+				if !ok {
+					unimplemented("%s", expr)
+				}
+				val, err = numVal.AsInt64()
+				if err != nil {
+					fatalf("unable to cast datum to int64: %v", err)
+				}
+				vals = append(vals, val)
+			}
+		default:
+			unimplemented("%T", v)
 		}
-	default:
-		unimplemented("%T", v)
-	}
 
-	switch op {
-	case ltOp, leOp:
-		return hist.filterHistogramLtOpLeOp(op, val)
-	case gtOp, geOp:
-		return hist.filterHistogramGtOpGeOp(op, val)
-	case eqOp, inOp:
-		return hist.filterHistogramEqOpInOp(vals)
-	case neOp, notInOp:
-		return hist.filterHistogramNeOpNotInOp(vals)
+		switch op {
+		case ltOp, leOp:
+			return h.filterHistogramLtOpLeOp(op, val)
+		case gtOp, geOp:
+			return h.filterHistogramGtOpGeOp(op, val)
+		case eqOp, inOp:
+			return h.filterHistogramEqOpInOp(vals)
+		case neOp, notInOp:
+			return h.filterHistogramNeOpNotInOp(vals)
+		default:
+			unimplemented("%s", expr)
+		}
+	case *tree.AndExpr:
+		left := h.filterHistogram(e.Left)
+		right := h.filterHistogram(e.Right)
+		return left.andHistograms(right)
+	case *tree.OrExpr:
+		left := h.filterHistogram(e.Left)
+		right := h.filterHistogram(e.Right)
+		return left.orHistograms(right)
 	default:
-		unimplemented("%s", stmt)
+		unimplemented("%s", expr)
 	}
 
 	return nil
@@ -368,9 +381,7 @@ func (h *histogram) newHistogram(newBuckets []bucket) *histogram {
 
 	// Estimate the new distinctCount based on the selectivity of this filter.
 	// todo(rytaft): this could be more precise if we take into account the
-	// null count of the original histogram. This could also be more precise for
-	// the operators =, !=, in, and not in, since we know how these operators
-	// should affect the distinct count.
+	// null count of the original histogram.
 	distinctCount := int64(float64(h.distinctCount) * selectivity)
 	if distinctCount == 0 {
 		// There must be at least one distinct value since rowCount > 0.
@@ -548,7 +559,12 @@ func (h *histogram) filterHistogramEqOpInOp(vals []int64) *histogram {
 		lowerBound = upperBound
 	}
 
-	return h.newHistogram(newBuckets)
+	hist := h.newHistogram(newBuckets)
+	// The distinct count cannot be more than the number of values in vals.
+	if hist.distinctCount > int64(len(vals)) {
+		hist.distinctCount = int64(len(vals))
+	}
+	return hist
 }
 
 // filterHistogramNeOpNotInOp applies a filter to the histogram that compares
@@ -595,5 +611,230 @@ func (h *histogram) filterHistogramNeOpNotInOp(vals []int64) *histogram {
 		lowerBound = upperBound
 	}
 
-	return h.newHistogram(newBuckets)
+	hist := h.newHistogram(newBuckets)
+	// The distinct count cannot have decreased by more than the number of values in vals.
+	if hist.distinctCount < h.distinctCount - int64(len(vals)) {
+		hist.distinctCount = h.distinctCount - int64(len(vals))
+	}
+	return hist
+}
+
+func max(x, y int64) int64 {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+func min(x, y int64) int64 {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+// histogramIter is an iterator for stepping through the buckets
+// in a histogram.  It holds useful metadata including the upper and lower
+// bounds of the current histogram bucket.
+type histogramIter struct {
+	h *histogram
+
+	// Current histogram bucket.
+	b bucket
+
+	// Current histogram bucket index.
+	idx int
+
+	// Upper bound of the current bucket.
+	ub int64
+
+	// Lower bound of the current bucket.
+	lb int64
+
+	done bool
+}
+
+// newHistogramIter returns a new histogramIter for histogram
+// h, initialized at the first bucket.
+func newHistogramIter(h *histogram) *histogramIter {
+	if len(h.buckets) == 0 {
+		return &histogramIter{done: true}
+	}
+
+	buc := h.buckets[0]
+	return &histogramIter{
+		h:    h,
+		idx:  0,
+		b:    buc,
+		lb:   h.getLowerBound(),
+		ub:   (int64)(*buc.upperBound.(*tree.DInt)),
+		done: false,
+	}
+}
+
+// next causes w to move to the next histogram bucket if there are any
+// remaining buckets.  Otherwise, it sets w.done = true.
+func (w *histogramIter) next() {
+	if w.done {
+		return
+	}
+
+	if w.idx+1 >= len(w.h.buckets) {
+		w.done = true
+		return
+	}
+
+	w.idx++
+	w.b = w.h.buckets[w.idx]
+	w.lb = w.ub
+	w.ub = (int64)(*w.b.upperBound.(*tree.DInt))
+}
+
+// getOverlappingBuckets finds the overlapping buckets of the histogramIters
+// w and other, merges them using the provided mergeBuckets function, and
+// returns the merged buckets. Buckets may only be merged if they have the same
+// upper and lower bound, so some of the overlapping buckets may need to be
+// split.
+//
+// For example, consider the following two sets of buckets:
+//       |____|_______|___|______|__|
+//       |___|_____|______|__|
+//
+// The merged buckets will have the following form:
+//       |___||____|__|___|__|
+//
+// The function assumes that both histogramIters initially point to buckets
+// which have the same lower bound.
+func (w *histogramIter) getOverlappingBuckets(
+	other *histogramIter,
+	mergeBuckets func(bucket, bucket, int64) bucket,
+) []bucket {
+	var buckets []bucket
+	splitAndMergeBuckets := func(wA, wB *histogramIter) {
+		var newBuc bucket
+		newBuc, wA.b = wA.b.splitBucket(wB.ub, wA.lb)
+		newBuc = mergeBuckets(newBuc, wB.b, wB.ub)
+		buckets = append(buckets, newBuc)
+		wA.lb = wB.ub
+		wB.next()
+	}
+	for !w.done && !other.done {
+		if other.ub < w.ub {
+			splitAndMergeBuckets(w, other)
+		} else if w.ub < other.ub {
+			splitAndMergeBuckets(other, w)
+		} else { // wThis.ub == wOther.ub
+			newBuc := mergeBuckets(w.b, other.b, w.ub)
+			buckets = append(buckets, newBuc)
+			w.next()
+			other.next()
+		}
+	}
+
+	return buckets
+}
+
+// orHistograms combines two histograms using an orOp (e.g., x < 3 OR x > 5).
+// Returns an updated histogram including all the values that satisfy the predicate.
+//
+// Currently only works for integer valued columns. This will need to be altered
+// for floating point columns and other types.
+func (h *histogram) orHistograms(other *histogram) *histogram {
+	var buckets []bucket
+	wThis := newHistogramIter(h)
+	wOther := newHistogramIter(other)
+
+	// If one histogram has lower buckets than the other, add those buckets first.
+	addLeadingBuckets := func(wA, wB *histogramIter) {
+		for wA.lb < wB.lb && !wA.done {
+			if wB.lb < wA.ub {
+				var newBuc bucket
+				newBuc, wA.b = wA.b.splitBucket(wB.lb, wA.lb)
+				buckets = append(buckets, newBuc)
+				wA.lb = wB.lb
+			} else {
+				buckets = append(buckets, wA.b)
+				wA.next()
+			}
+		}
+	}
+	addLeadingBuckets(wThis, wOther)
+	addLeadingBuckets(wOther, wThis)
+
+	// Add the buckets from the two histograms that overlap each other.
+	mergeBuckets := func(bucA, bucB bucket, upperBound int64) bucket {
+		// When merging buckets, we take the maximum of the two bucket counts
+		// for the OR operator.
+		return newBucket(upperBound, max(bucA.numRange, bucB.numRange), max(bucA.numEq, bucB.numEq))
+	}
+	buckets = append(buckets, wThis.getOverlappingBuckets(wOther, mergeBuckets) ...)
+
+	// Add any remaining non-overlapping buckets.
+	addTrailingBuckets := func(w *histogramIter) {
+		for !w.done {
+			buckets = append(buckets, w.b)
+			w.next()
+		}
+	}
+	addTrailingBuckets(wThis)
+	addTrailingBuckets(wOther)
+
+	hist := h.newHistogram(buckets)
+	// Calculate the distinct count. If the original two histograms are
+	// completely disjoint, the combined distinct count is equal to the sum
+	// of the original distinct counts.  Otherwise, the distinct count is
+	// scaled by the amount of overlap.
+	selectivity := float64(hist.rowCount) / float64(h.rowCount+other.rowCount)
+	hist.distinctCount = int64(float64(h.distinctCount+other.distinctCount) * selectivity)
+	if hist.distinctCount == 0 && hist.rowCount > 0 {
+		// There must be at least one distinct value since rowCount > 0.
+		hist.distinctCount++
+	}
+	return hist
+}
+
+// andHistograms combines two histograms using an andOp (e.g., x > 3 AND x < 5).
+// Returns an updated histogram including all the values that satisfy the predicate.
+//
+// Currently only works for integer valued columns. This will need to be altered
+// for floating point columns and other types.
+func (h *histogram) andHistograms(other *histogram) *histogram {
+	var buckets []bucket
+	wThis := newHistogramIter(h)
+	wOther := newHistogramIter(other)
+
+	// If one histogram has lower buckets than the other, skip those buckets.
+	skipLeadingBuckets := func(wA, wB *histogramIter) {
+		for wA.lb < wB.lb && !wA.done {
+			if wB.lb < wA.ub {
+				_, wA.b = wA.b.splitBucket(wB.lb, wA.lb)
+				wA.lb = wB.lb
+			} else {
+				wA.next()
+			}
+		}
+	}
+	skipLeadingBuckets(wThis, wOther)
+	skipLeadingBuckets(wOther, wThis)
+
+	// Add the buckets from the two histograms that overlap each other.
+	mergeBuckets := func(bucA, bucB bucket, upperBound int64) bucket {
+		// When merging buckets, we take the minimum of the two bucket counts
+		// for the AND operator.
+		return newBucket(upperBound, min(bucA.numRange, bucB.numRange), min(bucA.numEq, bucB.numEq))
+	}
+	buckets = append(buckets, wThis.getOverlappingBuckets(wOther, mergeBuckets) ...)
+
+	hist := h.newHistogram(buckets)
+	// Calculate the distinct count. If one of the original histograms
+	// completely contains the other, the combined distinct count is equal to
+	// the minimum of the original distinct counts.  Otherwise, the distinct
+	// count is scaled by the amount of overlap.
+	selectivity := float64(hist.rowCount) / float64(min(h.rowCount, other.rowCount))
+	hist.distinctCount = int64(float64(min(h.distinctCount, other.distinctCount)) * selectivity)
+	if hist.distinctCount == 0 && hist.rowCount > 0 {
+		// There must be at least one distinct value since rowCount > 0.
+		hist.distinctCount++
+	}
+	return hist
 }

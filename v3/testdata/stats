@@ -85,7 +85,7 @@ exec
 SELECT * FROM histogram.a.x WHERE x != 4
 ----
 rows:       988
-distinct:   98
+distinct:   99
 nulls:      0
 buckets:    0:0,0 2:3,3 4:5,0 100:976,1
 
@@ -133,7 +133,7 @@ exec
 SELECT * FROM histogram.a.x WHERE x != 50
 ----
 rows:       979
-distinct:   97
+distinct:   99
 nulls:      0
 buckets:    0:0,0 2:3,3 4:5,2 50:462,0 100:503,1
 
@@ -176,3 +176,67 @@ rows:       966
 distinct:   96
 nulls:      0
 buckets:    0:0,0 2:3,3 4:5,0 50:462,0 75:246,0 100:246,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x < 4 OR x > 50
+----
+rows:       515
+distinct:   51
+nulls:      0
+buckets:    0:0,0 2:3,3 4:5,0 50:0,0 100:503,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x < 4 AND x > 50
+----
+rows:       0
+distinct:   0
+nulls:      0
+buckets:    none
+
+exec
+SELECT * FROM histogram.a.x WHERE x > 4 AND x < 50
+----
+rows:       462
+distinct:   45
+nulls:      0
+buckets:    4:0,0 50:462,0
+
+exec
+SELECT * FROM histogram.a.x WHERE x > 4 OR x < 50
+----
+rows:       989
+distinct:   98
+nulls:      0
+buckets:    0:0,0 2:3,3 3:0,5 4:0,2 50:462,10 100:503,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x not in (0, 4, 50, 75, 101) AND x > 10
+----
+rows:       892
+distinct:   88
+nulls:      0
+buckets:    10:0,0 50:399,0 75:246,0 100:246,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x not in (0, 4, 50, 75, 101) OR x > 10
+----
+rows:       985
+distinct:   97
+nulls:      0
+buckets:    0:0,0 2:3,3 4:5,0 9:41,10 10:0,10 50:400,10 75:246,10 100:246,1
+
+exec
+SELECT * FROM histogram.a.x WHERE x in (0, 4, 50, 75, 101) AND x < 10
+----
+rows:       2
+distinct:   1
+nulls:      0
+buckets:    0:0,0 2:0,0 4:0,2 10:0,0
+
+exec
+SELECT * FROM histogram.a.x WHERE x in (0, 4, 50, 75, 101) OR x < 10
+----
+rows:       84
+distinct:   7
+nulls:      0
+buckets:    0:0,0 2:3,3 4:5,2 10:51,0 50:0,10 75:0,10
