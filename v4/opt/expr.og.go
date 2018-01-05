@@ -47,10 +47,10 @@ var childCountLookup = []childCountLookupFunc{
 		return 0 + int(orderedListExpr.items.len)
 	},
 
-	// FilterListOp
+	// FiltersOp
 	func(e *Expr) int {
-		filterListExpr := (*filterListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(filterListExpr.conditions.len)
+		filtersExpr := (*filtersExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return 0 + int(filtersExpr.conditions.len)
 	},
 
 	// ProjectionsOp
@@ -470,13 +470,13 @@ var childGroupLookup = []childGroupLookupFunc{
 		}
 	},
 
-	// FilterListOp
+	// FiltersOp
 	func(e *Expr, n int) GroupID {
-		filterListExpr := (*filterListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		filtersExpr := (*filtersExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(filterListExpr.conditions)
+			list := e.mem.lookupList(filtersExpr.conditions)
 			return list[n-0]
 		}
 	},
@@ -1481,7 +1481,7 @@ var privateLookup = []privateLookupFunc{
 		return 0
 	},
 
-	// FilterListOp
+	// FiltersOp
 	func(e *Expr) PrivateID {
 		return 0
 	},
@@ -1855,7 +1855,7 @@ var isScalarLookup = []bool{
 	true,  // PlaceholderOp
 	true,  // ListOp
 	true,  // OrderedListOp
-	true,  // FilterListOp
+	true,  // FiltersOp
 	true,  // ProjectionsOp
 	true,  // ExistsOp
 	true,  // AndOp
@@ -1938,7 +1938,7 @@ var isRelationalLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
-	false, // FilterListOp
+	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -2021,7 +2021,7 @@ var isJoinLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
-	false, // FilterListOp
+	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -2104,7 +2104,7 @@ var isJoinApplyLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
-	false, // FilterListOp
+	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -2187,7 +2187,7 @@ var isEnforcerLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
-	false, // FilterListOp
+	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
 	false, // AndOp
@@ -2682,14 +2682,14 @@ func (m *memo) memoizeOrderedList(expr *orderedListExpr) GroupID {
 	return loc.group
 }
 
-type filterListExpr struct {
+type filtersExpr struct {
 	memoExpr
 	conditions ListID
 }
 
-func (e *filterListExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(filterListExpr{})
-	const offset = unsafe.Offsetof(filterListExpr{}.op)
+func (e *filtersExpr) fingerprint() (f fingerprint) {
+	const size = unsafe.Sizeof(filtersExpr{})
+	const offset = unsafe.Offsetof(filtersExpr{}.op)
 
 	b := *(*[size]byte)(unsafe.Pointer(e))
 
@@ -2702,17 +2702,17 @@ func (e *filterListExpr) fingerprint() (f fingerprint) {
 	return
 }
 
-func (m *memoExpr) asFilterList() *filterListExpr {
-	if m.op != FilterListOp {
+func (m *memoExpr) asFilters() *filtersExpr {
+	if m.op != FiltersOp {
 		return nil
 	}
 
-	return (*filterListExpr)(unsafe.Pointer(m))
+	return (*filtersExpr)(unsafe.Pointer(m))
 }
 
-func (m *memo) memoizeFilterList(expr *filterListExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(filterListExpr{}))
-	const align = uint32(unsafe.Alignof(filterListExpr{}))
+func (m *memo) memoizeFilters(expr *filtersExpr) GroupID {
+	const size = uint32(unsafe.Sizeof(filtersExpr{}))
+	const align = uint32(unsafe.Alignof(filtersExpr{}))
 
 	if expr.conditions == UndefinedList {
 		panic("conditions child cannot be undefined")
@@ -2722,17 +2722,17 @@ func (m *memo) memoizeFilterList(expr *filterListExpr) GroupID {
 	loc := m.exprMap[fingerprint]
 	if loc.offset == 0 {
 		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*filterListExpr)(m.arena.getPointer(uint32(loc.offset)))
+		p := (*filtersExpr)(m.arena.getPointer(uint32(loc.offset)))
 		*p = *expr
 
 		if loc.group == 0 {
 			if expr.group != 0 {
 				loc.group = expr.group
 			} else {
-				mgrp := m.newGroup(FilterListOp, loc.offset)
+				mgrp := m.newGroup(FiltersOp, loc.offset)
 				p.group = mgrp.id
 				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FilterListOp, offset: loc.offset, required: defaultPhysPropsID}
+				e := Expr{mem: m, group: mgrp.id, op: FiltersOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {

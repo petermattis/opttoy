@@ -19,6 +19,7 @@ const (
 	IDENT
 	STRING
 	WHITESPACE
+	COMMENT
 	LPAREN
 	RPAREN
 	LBRACKET
@@ -30,7 +31,7 @@ const (
 	ASTERISK
 	EQUALS
 	ARROW
-	AMPERSANDS
+	AMPERSAND
 	COMMA
 	CARET
 	ELLIPSES
@@ -151,13 +152,7 @@ func (s *Scanner) Scan() Token {
 		s.lit = "|"
 
 	case '&':
-		if s.read() == '&' {
-			s.tok = AMPERSANDS
-			s.lit = "&&"
-			break
-		}
-
-		s.tok = ILLEGAL
+		s.tok = AMPERSAND
 		s.lit = "&"
 
 	case '=':
@@ -171,10 +166,6 @@ func (s *Scanner) Scan() Token {
 		s.tok = EQUALS
 		s.lit = "="
 
-	case '"':
-		s.unread()
-		return s.scanStringLiteral()
-
 	case '.':
 		if s.read() == '.' && s.read() == '.' {
 			s.tok = ELLIPSES
@@ -184,6 +175,14 @@ func (s *Scanner) Scan() Token {
 
 		s.tok = ILLEGAL
 		s.lit = "."
+
+	case '"':
+		s.unread()
+		return s.scanStringLiteral()
+
+	case '#':
+		s.unread()
+		return s.scanComment()
 
 	default:
 		s.tok = ILLEGAL
@@ -239,14 +238,17 @@ func (s *Scanner) scanWhitespace() Token {
 	// Read every subsequent whitespace character into the buffer.
 	// Non-whitespace characters and EOF will cause the loop to exit.
 	for {
-		if ch := s.read(); ch == rune(0) {
+		ch := s.read()
+		if ch == rune(0) {
 			break
-		} else if !unicode.IsSpace(ch) {
+		}
+
+		if !unicode.IsSpace(ch) {
 			s.unread()
 			break
-		} else {
-			buf.WriteRune(ch)
 		}
+
+		buf.WriteRune(ch)
 	}
 
 	s.tok = WHITESPACE
@@ -314,4 +316,31 @@ func (s *Scanner) scanStringLiteral() Token {
 
 	s.lit = buf.String()
 	return s.tok
+}
+
+// scanComment consumes the current rune and all characters until newline.
+func (s *Scanner) scanComment() Token {
+	// Create a buffer and read the current character into it.
+	var buf bytes.Buffer
+	buf.WriteRune(s.read())
+
+	// Read every subsequent character into the buffer until either
+	// newline or EOF is encountered.
+	for {
+		ch := s.read()
+		if ch == rune(0) {
+			break
+		}
+
+		if ch == rune(0) || ch == '\n' {
+			s.unread()
+			break
+		}
+
+		buf.WriteRune(ch)
+	}
+
+	s.tok = COMMENT
+	s.lit = buf.String()
+	return COMMENT
 }

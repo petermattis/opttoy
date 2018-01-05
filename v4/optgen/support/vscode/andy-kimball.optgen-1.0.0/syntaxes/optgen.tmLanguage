@@ -26,9 +26,27 @@
 			<key>include</key>
 			<string>#variable</string>
 		</dict>
+		<dict>
+			<key>include</key>
+			<string>#comment</string>
+		</dict>
 	</array>
 	<key>repository</key>
 	<dict>
+		<key>comment</key>
+		<dict>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>begin</key>
+					<string>#</string>
+					<key>end</key>
+					<string>\n</string>
+					<key>name</key>
+					<string>comment.line.number-sign.optgen</string>
+				</dict>
+			</array>
+		</dict>
 		<key>define</key>
 		<dict>
 			<key>patterns</key>
@@ -91,7 +109,7 @@
 						Placeholder | 
 						List | 
 						OrderedList | 
-						FilterList | 
+						Filters | 
 						Projections | 
 						Exists | 
 						And | 
@@ -196,6 +214,10 @@
 						<dict>
 							<key>include</key>
 							<string>#variable</string>
+						</dict>
+						<dict>
+							<key>include</key>
+							<string>#comment</string>
 						</dict>
 					</array>
 				</dict>

@@ -11,7 +11,7 @@ const (
 	PlaceholderOp
 	ListOp
 	OrderedListOp
-	FilterListOp
+	FiltersOp
 	ProjectionsOp
 	ExistsOp
 	AndOp
@@ -85,6 +85,6 @@ const (
 	ArrangeOp
 )
 
-const opNames = "unknownsubqueryvariableconstplaceholderlistordered-listfilter-listprojectionsexistsandornoteqltgtlegeneinnot-inlikenot-likei-likenot-i-likesimilar-tonot-similar-toreg-matchnot-reg-matchreg-i-matchnot-reg-i-matchis-distinct-fromis-not-distinct-fromisis-notanysomeallbitandbitorbitxorplusminusmultdivfloor-divmodpowconcatl-shiftr-shiftunary-plusunary-minusunary-complementfunctiontruefalsescanvaluesselectprojectinner-joinleft-joinright-joinfull-joinsemi-joinanti-joininner-join-applyleft-join-applyright-join-applyfull-join-applysemi-join-applyanti-join-applygroup-byunionintersectexceptsortarrange"
+const opNames = "unknownsubqueryvariableconstplaceholderlistordered-listfiltersprojectionsexistsandornoteqltgtlegeneinnot-inlikenot-likei-likenot-i-likesimilar-tonot-similar-toreg-matchnot-reg-matchreg-i-matchnot-reg-i-matchis-distinct-fromis-not-distinct-fromisis-notanysomeallbitandbitorbitxorplusminusmultdivfloor-divmodpowconcatl-shiftr-shiftunary-plusunary-minusunary-complementfunctiontruefalsescanvaluesselectprojectinner-joinleft-joinright-joinfull-joinsemi-joinanti-joininner-join-applyleft-join-applyright-join-applyfull-join-applysemi-join-applyanti-join-applygroup-byunionintersectexceptsortarrange"
 
-var opIndexes = [...]uint32{0, 7, 15, 23, 28, 39, 43, 55, 66, 77, 83, 86, 88, 91, 93, 95, 97, 99, 101, 103, 105, 111, 115, 123, 129, 139, 149, 163, 172, 185, 196, 211, 227, 247, 249, 255, 258, 262, 265, 271, 276, 282, 286, 291, 295, 298, 307, 310, 313, 319, 326, 333, 343, 354, 370, 378, 382, 387, 391, 397, 403, 410, 420, 429, 439, 448, 457, 466, 482, 497, 513, 528, 543, 558, 566, 571, 580, 586, 590, 597}
+var opIndexes = [...]uint32{0, 7, 15, 23, 28, 39, 43, 55, 62, 73, 79, 82, 84, 87, 89, 91, 93, 95, 97, 99, 101, 107, 111, 119, 125, 135, 145, 159, 168, 181, 192, 207, 223, 243, 245, 251, 254, 258, 261, 267, 272, 278, 282, 287, 291, 294, 303, 306, 309, 315, 322, 329, 339, 350, 366, 374, 378, 383, 387, 393, 399, 406, 416, 425, 435, 444, 453, 462, 478, 493, 509, 524, 539, 554, 562, 567, 576, 582, 586, 593}

@@ -259,7 +259,7 @@ func (f *logicalPropsFactory) addEquivProperties(props *LogicalProps, filter *Ex
 			props.addEquivColumns(cols)
 		}
 
-	case FilterListOp:
+	case FiltersOp:
 		for i := 0; i < filter.ChildCount(); i++ {
 			child := filter.Child(i)
 			copyOnWrite = f.addEquivProperties(props, &child, copyOnWrite)

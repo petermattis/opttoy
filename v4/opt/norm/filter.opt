@@ -1,42 +1,50 @@
+# =============================================================================
+# filter.opt contains patterns which normalize select and join filters. Since
+# both (and only) these operators allow filters, often patterns need to be
+# duplicated for each case.
+#
+# In order to make filter matching easier, filters create a Filters operator
+# to wrap the boolean filter expression (except when it's True or False). The
+# filter list expands its operand into a list of AND'd. The OptGen list
+# matching operator can then easily hoist or rewrite items in the list.
+# =============================================================================
+
+
+# EliminateSelect discards the unnecessary select operator in the case where
+# its filter is always true.
 [EliminateSelect, Normalize]
 (Select $input:* (True)) => $input
 
-[EliminateFilterList, Normalize]
-(FilterList $items:* && (IsEmptyList $items)) => (True)
+# EliminateFilters maps an empty filter list to True.
+[EliminateFilters, Normalize]
+(Filters $items:* & (IsEmptyList $items)) => (True)
 
-[EnsureJoinFilterList, Normalize]
+# EnsureSelectFilters adds a Filters operator to the select operator's filter
+# operand if it does not already exist. This allows upstream patterns to rely
+# upon the presence of the Filters when matching.
+[EnsureSelectFilters, Normalize]
+(Select
+    $input:*
+    $filter:^(Filters) & (UseFilters $filter)
+)
+=>
+(Select
+    $input
+    (FlattenFilterCondition $filter)
+)
+
+# EnsureJoinFilters adds a Filters operator to the join operator's filter
+# operand if it does not already exist. This allows upstream patterns to rely
+# upon the presence of the Filters when matching.
+[EnsureJoinFilters, Normalize]
 (Join
     $left:*
     $right:*
-    $filter:^(FilterList) && (UseFilterList $filter)
+    $filter:^(Filters) & (UseFilters $filter)
 )
 =>
 (OpName
     $left
     $right
     (FlattenFilterCondition $filter)
-)
-
-[EnsureSelectFilterList, Normalize]
-(Select
-    $input:*
-    $filter:^(FilterList) && (UseFilterList $filter)
-)
-=>
-(Select
-    $input
-    (FlattenFilterCondition $filter)
-)
-
-[MergeJoinSelect, Normalize]
-(Join
-    $left:*
-    $right:(Select $input:* $selectFilter:*) && (HasUnboundCols $right)
-    $filter:*
-)
-=>
-(OpName
-    $left
-    $input
-    (ConcatFilterConditions $filter $selectFilter)
 )

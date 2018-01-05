@@ -1,2 +1,0 @@
-[EliminateProject, Normalize]
-(Project $input:* $projections:* && (ProjectsSameCols $projections $input)) => $input

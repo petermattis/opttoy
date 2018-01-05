@@ -1,6 +1,6 @@
 package opt
 
-//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/decorrelate.opt norm/filter.opt norm/project.opt
+//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/filter.opt norm/decorrelate.opt
 
 type Factory struct {
 	mem      *memo
@@ -36,10 +36,14 @@ func (f *Factory) normalizeManually(group GroupID) GroupID {
 
 	e := makeExpr(f.mem, group, defaultPhysPropsID)
 
-	if e.IsScalar() && e.Operator() != FilterListOp {
+	// [HoistScalarSubquery]
+	// (Scalar (SubqueryOp $input:* $projection:*) ...)
+	// =>
+	// (SubqueryOp $input (Scalar $projection ...))
+	if e.IsScalar() && e.Operator() != FiltersOp && e.Operator() != ProjectionsOp {
 		// Hoist subqueries above scalar expressions. This needs to happen for
 		// every input of every scalar expression, so it's easier to do this
-		// manually.
+		// in code rather than the OptGen language.
 		for i := 0; i < e.ChildCount(); i++ {
 			child := e.Child(i)
 			if child.Operator() == SubqueryOp && f.hasUnboundCols(child.group) {
@@ -79,14 +83,14 @@ func (f *Factory) concatFilterConditions(filterLeft, filterRight GroupID) GroupI
 		return filterRight
 	}
 
-	leftConditions := leftExpr.asFilterList().conditions
-	rightConditions := rightExpr.asFilterList().conditions
+	leftConditions := leftExpr.asFilters().conditions
+	rightConditions := rightExpr.asFilters().conditions
 
 	items := make([]GroupID, leftConditions.len, leftConditions.len+rightConditions.len)
 	copy(items, f.mem.lookupList(leftConditions))
 	items = append(items, f.mem.lookupList(rightConditions)...)
 
-	return f.ConstructFilterList(f.StoreList(items))
+	return f.ConstructFilters(f.StoreList(items))
 }
 
 func (f *Factory) flattenFilterCondition(filter GroupID) GroupID {
@@ -119,7 +123,7 @@ func (f *Factory) flattenFilterCondition(filter GroupID) GroupID {
 		items = []GroupID{filter}
 	}
 
-	return f.ConstructFilterList(f.StoreList(items))
+	return f.ConstructFilters(f.StoreList(items))
 }
 
 func (f *Factory) isLowerExpr(left, right GroupID) bool {
@@ -157,7 +161,7 @@ func (f *Factory) replaceListItem(list ListID, search, replace GroupID) ListID {
 	return f.mem.storeList(newList)
 }
 
-func (f *Factory) useFilterList(filter GroupID) bool {
+func (f *Factory) useFiltersOp(filter GroupID) bool {
 	switch f.mem.lookupNormExpr(filter).op {
 	case TrueOp, FalseOp:
 		return false
@@ -186,7 +190,7 @@ func (f *Factory) singleColIndex(rel GroupID) PrivateID {
 	return f.mem.internPrivate(ColumnIndex(index))
 }
 
-func (f *Factory) nonJoinApply(op Operator, left, right, filter GroupID) GroupID {
+func (f *Factory) removeApply(op Operator, left, right, filter GroupID) GroupID {
 	switch op {
 	case InnerJoinApplyOp:
 		return f.ConstructInnerJoin(left, right, filter)

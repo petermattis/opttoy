@@ -143,7 +143,7 @@ func (p *Parser) parseMatchTemplate() ParsedExpr {
 
 	templateNames := NewMatchTemplateNamesExpr()
 	for {
-		templateNames.Add(NewStringExpr(p.s.Literal()))
+        templateNames.Add(NewStringExpr(p.s.Literal()))
 
 		if p.scan() != PIPE {
 			p.unscan()
@@ -151,12 +151,11 @@ func (p *Parser) parseMatchTemplate() ParsedExpr {
 		}
 
 		if !p.scanToken(IDENT) {
-			return nil
+        	return nil
 		}
 	}
 
 	template := NewMatchTemplateExpr(templateNames)
-
 	for {
 		if p.scan() == RPAREN {
 			return template
@@ -209,7 +208,7 @@ func (p *Parser) parseMatchFieldsArg() ParsedExpr {
 		match = p.parseMatchExpr()
 	}
 
-	if p.scan() != AMPERSANDS {
+	if p.scan() != AMPERSAND {
 		p.unscan()
 		return match
 	}
@@ -267,7 +266,7 @@ func (p *Parser) parseMatchBind() *BindExpr {
 func (p *Parser) parseMatchAndExpr() ParsedExpr {
 	match := p.parseMatchNotExpr()
 
-	if p.scan() != AMPERSANDS {
+	if p.scan() != AMPERSAND {
 		p.unscan()
 		return match
 	}
@@ -509,8 +508,8 @@ func (p *Parser) scanToken(expected Token) bool {
 	return true
 }
 
-// scan returns the next non-whitespace token from the underlying scanner. If
-// a token has been unscanned then read that instead.
+// scan returns the next non-whitespace, non-comment token from the underlying
+// scanner. If a token has been unscanned then read that instead.
 func (p *Parser) scan() Token {
 	// If we have a token on the buffer, then return it.
 	if p.unscanned {
@@ -522,7 +521,7 @@ func (p *Parser) scan() Token {
 	for {
 		tok := p.s.Scan()
 
-		if tok != WHITESPACE {
+		if tok != WHITESPACE && tok != COMMENT {
 			return tok
 		}
 	}

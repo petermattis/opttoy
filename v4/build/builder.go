@@ -387,7 +387,7 @@ func (b *Builder) buildUsingJoinParts(
 		outScope.cols = append(outScope.cols, col)
 	}
 
-	return b.factory.ConstructFilterList(b.factory.StoreList(conditions)), outScope
+	return b.factory.ConstructFilters(b.factory.StoreList(conditions)), outScope
 }
 
 // buildScalarProjection takes the output of buildScalar and adds it as new
