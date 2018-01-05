@@ -1,0 +1,7 @@
+[PushDownSelectJoin]
+(Select
+    $input:(Join $left:* $right:* $joinFilter:*)
+    $filter:*
+)
+=>
+(Join $left $right (ConcatFilterConditions $joinFilter $filter))
