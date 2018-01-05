@@ -1,15 +1,30 @@
+# =============================================================================
+# norm.opt contains patterns, in addition to those contained elsewhere, that
+# transform the expression tree into a normalized, canonical form.
+# =============================================================================
+
+
+# NormalizeVar ensures that variable references are on the left side of
+# equality and inequality operators.
 [NormalizeVar, Normalize]
-(Eq
+(Eq | Ne
     $left:^(Variable)
     $right:(Variable)
 )
 =>
-(Eq $right $left)
+(OpName $right $left)
 
-[NormalizeVarEq, Normalize]
-(Eq
+# NormalizeVarOrder establishes an arbitrary, but canonical ordering of
+# equality and inequality operators where both operands are variables.
+[NormalizeVarOrder, Normalize]
+(Eq | Ne
     $left:(Variable)
-    $right:(Variable) && (IsLowerExpr $right $left)
+    $right:(Variable) & (IsLowerExpr $right $left)
 )
 =>
-(Eq $right $left)
+(OpName $right $left)
+
+# EliminateProject discards the unnecessary project operator in the case where
+# the projected columns are the same as the input operand's columns.
+[EliminateProject, Normalize]
+(Project $input:* $projections:* & (ProjectsSameCols $projections $input)) => $input

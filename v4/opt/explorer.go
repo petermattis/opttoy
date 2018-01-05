@@ -94,10 +94,10 @@ func (_e *explorer) exploreInnerJoin(_root *innerJoinExpr, pass optimizePass, pa
 	//	    (InnerJoin
 	//	        $r
 	//      	$t
-	//	        (FilterList [$newLowerFilter $newLowerFilter2])
+	//	        (Filters [$newLowerFilter $newLowerFilter2])
 	//      )
 	//	    $s
-	//	    (FilterList [$newUpperFilter $newUpperFilter2])
+	//	    (Filters [$newUpperFilter $newUpperFilter2])
 	//  )
 	/*	{
 		t := _root.right
@@ -118,9 +118,9 @@ func (_e *explorer) exploreInnerJoin(_root *innerJoinExpr, pass optimizePass, pa
 					newLowerFilter, newUpperFilter := _e.splitByColUsage(upperFilter, s)
 					newLowerFilter2, newUpperFilter2 := _e.splitByColUsage(lowerFilter, s)
 
-					_filter := _e.factory.ConstructFilterList(newLowerFilter, newLowerFilter2)
+					_filter := _e.factory.ConstructFilters(newLowerFilter, newLowerFilter2)
 					_innerJoin := _e.factory.ConstructInnerJoin(r, t, _and)
-					_filter2 := _e.factory.ConstructFilterList(newUpperFilter, newUpperFilter2)
+					_filter2 := _e.factory.ConstructFilters(newUpperFilter, newUpperFilter2)
 					_innerJoinExpr2 := innerJoinExpr{memoExpr: memoExpr{op: InnerJoinOp, group: _root.group}, left: _innerJoin, right: s, filter: _and2}
 					_e.mem.memoizeInnerJoin(&_innerJoinExpr2)
 				}

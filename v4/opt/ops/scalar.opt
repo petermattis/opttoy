@@ -30,7 +30,7 @@ define OrderedList {
 }
 
 [Scalar]
-define FilterList {
+define Filters {
     Conditions ExprList
 }
 
