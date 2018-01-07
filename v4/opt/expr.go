@@ -143,23 +143,28 @@ func (e *Expr) formatRelational(tp treeprinter.Node) {
 	tp = tp.Child(buf.String())
 
 	buf.Reset()
-	buf.WriteString("columns:")
 
 	// Write the output columns.
 	if requiredProps.Projection.Defined() {
-		// Write columns in required order, with required names.
-		for _, col := range requiredProps.Projection.Columns {
-			e.formatCol(&buf, col.Label, col.Index, logicalProps.Relational.NotNullCols)
+		if len(requiredProps.Projection.Columns) > 0 {
+			// Write columns in required order, with required names.
+			buf.WriteString("columns:")
+			for _, col := range requiredProps.Projection.Columns {
+				e.formatCol(&buf, col.Label, col.Index, logicalProps.Relational.NotNullCols)
+			}
+			tp.Child(buf.String())
 		}
 	} else {
-		// Fall back to writing output columns in column index order, with best
-		// guess label.
-		logicalProps.Relational.OutputCols.ForEach(func(i int) {
-			e.formatCol(&buf, "", ColumnIndex(i), logicalProps.Relational.NotNullCols)
-		})
+		if !logicalProps.Relational.OutputCols.Empty() {
+			// Fall back to writing output columns in column index order, with best
+			// guess label.
+			buf.WriteString("columns:")
+			logicalProps.Relational.OutputCols.ForEach(func(i int) {
+				e.formatCol(&buf, "", ColumnIndex(i), logicalProps.Relational.NotNullCols)
+			})
+			tp.Child(buf.String())
+		}
 	}
-
-	tp.Child(buf.String())
 
 	// Write keys.
 	for _, key := range logicalProps.Relational.WeakKeys {

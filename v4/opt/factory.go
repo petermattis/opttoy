@@ -46,7 +46,7 @@ func (f *Factory) normalizeManually(group GroupID) GroupID {
 		// in code rather than the OptGen language.
 		for i := 0; i < e.ChildCount(); i++ {
 			child := e.Child(i)
-			if child.Operator() == SubqueryOp && f.hasUnboundCols(child.group) {
+			if child.Operator() == SubqueryOp {
 				f.maxSteps--
 
 				// Replace input with the subquery projection child.
@@ -161,7 +161,7 @@ func (f *Factory) replaceListItem(list ListID, search, replace GroupID) ListID {
 	return f.mem.storeList(newList)
 }
 
-func (f *Factory) useFiltersOp(filter GroupID) bool {
+func (f *Factory) useFilters(filter GroupID) bool {
 	switch f.mem.lookupNormExpr(filter).op {
 	case TrueOp, FalseOp:
 		return false

@@ -28,3 +28,7 @@ func (p *Planner) Optimize(root GroupID, required *PhysicalProps) Expr {
 	requiredID := p.mem.internPhysicalProps(required)
 	return o.optimize(root, requiredID)
 }
+
+func (p *Planner) MemoString() string {
+	return p.mem.String()
+}

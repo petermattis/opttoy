@@ -30,6 +30,11 @@ define OrderedList {
 }
 
 [Scalar]
+define Tuple {
+    Elems ExprList
+}
+
+[Scalar]
 define Filters {
     Conditions ExprList
 }

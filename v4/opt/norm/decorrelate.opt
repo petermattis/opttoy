@@ -29,9 +29,9 @@
 
 
 # DecorrelateJoin maps an apply join into the corresponding join without an
-# apply in the case where the right side of the join is not correlated with
-# the left side. This allows the optimizer to consider additional physical
-# join operators that are unable to handle correlated inputs.
+# apply if the right side of the join is not correlated the left side. This
+# allows the optimizer to consider additional physical join operators that are
+# unable to handle correlated inputs.
 #
 # NOTE: Keep this before other decorrelation patterns, as if the correlated
 #       join can be removed first, it avoids unnecessarily matching other
@@ -40,10 +40,10 @@
 (JoinApply
     $left:*
     $right:* & ^(IsCorrelated $right $left)
-    $filter:*
+    $on:*
 )
 =>
-(RemoveApply $optype $left $right $filter)
+(RemoveApply (OpName) $left $right $on)
 
 # HoistSelectExists extracts existential subqueries from Select filters,
 # turning them into semi-joins. This eliminates the subquery, which is often
@@ -108,13 +108,13 @@
     )
 )
 =>
-(InnerJoinApply
-    (OpName
-        $left
+((OpName)
+    $left
+    (InnerJoinApply
         $right
+        $subqueryInput
         (True)
     )
-    $subqueryInput
     (Filters (ReplaceListItem $list $subquery $projection))
 )
 
@@ -124,23 +124,24 @@
 # other unnecessary correlation. Eventually, the hope is to trigger the
 # DecorrelateJoin pattern to turn the JoinApply operator into a JoinNoApply
 # operator.
+# TODO(andy): Add a pattern for outer apply joins.
 [TryDecorrelateProject, Normalize]
-(JoinApply
+(InnerJoinApply
     $left:*
     $right:(Project $input:* $projections:*)
-    $filter:*
+    $on:*
 )
 =>
 (Select
     (Project
-        (OpName
+        ((OpName)
             $left
             $input
             (True)
         )
         (AppendColumnProjections $projections $left)
     )
-    $filter
+    $on
 )
 
 # TryDecorrelateSelect "pushes down" the join apply into the select operator,
@@ -152,14 +153,14 @@
 [TryDecorrelateSelect, Normalize]
 (JoinApply
     $left:*
-    $right:(Select $input:* $selectFilter:*)
-    $filter:*
+    $right:(Select $input:* $filter:*)
+    $on:*
 )
 =>
-(OpName
+((OpName)
     $left
     $input
-    (ConcatFilterConditions $filter $selectFilter)
+    (ConcatFilterConditions $on $filter)
 )
 
 # TryDecorrelateScalarGroupBy "pushes down" the join apply into the scalar
@@ -170,15 +171,16 @@
 # of the original join even when $left doesn't have $input matches. Eventually,
 # the hope is to trigger the DecorrelateJoin pattern to turn the JoinApply
 # operator into a JoinNoApply operator.
+# TODO(andy): think about outer apply join cases.
 [TryDecorrelateScalarGroupBy, Normalize]
-(JoinApply
+(InnerJoinApply | SemiJoinApply
     $left:*
     $right:(GroupBy
         $input:*
         (Projections $items:* & (IsEmptyList $items))
         $aggregations:*
     )
-    $filter:*
+    $on:*
 )
 =>
 (Select
@@ -191,5 +193,5 @@
         (ColumnProjections $left)
         $aggregations
     )
-    $filter
+    $on
 )

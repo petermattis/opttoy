@@ -39,7 +39,7 @@ func (c *physicalPropsFactory) canProvideOrdering(e *Expr) bool {
 			ordering := c.mem.metadata.Table(tblIndex).Ordering
 			return ordering.Provides(requiredProps.Ordering)
 
-		case ValuesOp, SelectOp:
+		case SelectOp:
 			// Ordering is pass through property for these operators.
 			return true
 
@@ -96,6 +96,10 @@ func (c *physicalPropsFactory) constructChildProps(e *Expr, nth int) (required p
 
 		case ArrangeOp:
 			return c.constructArrangeChildProps(e, nth)
+
+		case ValuesOp:
+			// Values rows are scalar tuple operators.
+			return defaultPhysPropsID
 		}
 
 		fatalf("unrecognized relational expression type: %v", e.op)

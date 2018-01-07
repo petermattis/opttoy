@@ -40,11 +40,11 @@
 (Join
     $left:*
     $right:*
-    $filter:^(Filters) & (UseFilters $filter)
+    $on:^(Filters) & (UseFilters $on)
 )
 =>
-(OpName
+((OpName)
     $left
     $right
-    (FlattenFilterCondition $filter)
+    (FlattenFilterCondition $on)
 )

@@ -1,4 +1,4 @@
-package main
+package optgen
 
 import (
 	"bytes"
@@ -40,9 +40,10 @@ func (c *compiledExpr) LookupDefine(opName string) *DefineExpr {
 
 func (c *compiledExpr) String() string {
 	var buf bytes.Buffer
-	buf.WriteString("(Compiled")
+	buf.WriteString("(Compiled\n")
+	writeIndent(&buf, 1)
 	c.root.Format(&buf, 1)
-	buf.WriteByte(')')
+	buf.WriteString("\n)")
 	return buf.String()
 }
 
@@ -134,57 +135,123 @@ func (c *Compiler) compileDefines() bool {
 
 func (c *Compiler) compileRules() bool {
 	for _, elem := range c.compiled.root.Rules().All() {
-		rule := elem.(*RuleExpr)
-		if !c.compileRuleMatchExpr(rule.Match()) {
+		var ruleCompiler ruleCompiler
+		c.err = ruleCompiler.compile(c.compiled, elem.(*RuleExpr))
+		if c.err != nil {
 			return false
 		}
+	}
+	return true
+}
 
-		// Expand rule templates into one or more field match expressions.
-		template := rule.Match().(*MatchTemplateExpr)
-		for _, elem2 := range template.Names().Children() {
-			name := elem2.(*StringExpr).ValueAsString()
+type ruleCompiler struct {
+	compiled *compiledExpr
+	rule     *RuleExpr
+	template *MatchTemplateExpr
+	opName   string
+	err      error
+}
 
-			def := c.compiled.LookupDefine(name)
-			if def != nil {
-				// Name is an op name, so create a rule for the op.
-				c.expandTemplate(rule, template, name)
-			} else {
-				// Name must be a tag name, so find all defines with that tag.
-				found := false
-				for _, define := range c.compiled.Defines() {
-					if define.HasTag(name) {
-						c.expandTemplate(rule, template, define.Name())
-						found = true
+func (c *ruleCompiler) compile(compiled *compiledExpr, rule *RuleExpr) error {
+	c.compiled = compiled
+	c.rule = rule
+	c.template = c.rule.Match().(*MatchTemplateExpr)
+
+	// Expand rule templates into one or more field match expressions.
+	for _, elem2 := range c.template.Names().All() {
+		name := elem2.(*StringExpr).ValueAsString()
+
+		def := c.compiled.LookupDefine(name)
+		if def != nil {
+			// Name is an op name, so create a rule for the op.
+			if !c.expandTemplate(name) {
+				return c.err
+			}
+		} else {
+			// Name must be a tag name, so find all defines with that tag.
+			found := false
+			for _, define := range c.compiled.Defines() {
+				if define.HasTag(name) {
+					if !c.expandTemplate(define.Name()) {
+						return c.err
 					}
+					found = true
 				}
+			}
 
-				if !found {
-					c.err = fmt.Errorf("unrecognized match name '%s'", name)
-					return false
-				}
+			if !found {
+				return fmt.Errorf("unrecognized match name '%s'", name)
 			}
 		}
 	}
 
-	return true
+	return nil
 }
 
-func (c *Compiler) expandTemplate(rule *RuleExpr, template *MatchTemplateExpr, opName string) {
+func (c *ruleCompiler) expandTemplate(opName string) bool {
+	c.opName = opName
+
 	matchFields := NewMatchFieldsExpr(opName)
-	for _, match := range template.Fields() {
+	for _, match := range c.template.Fields() {
 		matchFields.Add(match)
 	}
 
-	newRule := NewRuleExpr(rule.Header(), matchFields, rule.Replace())
+	match := matchFields.Visit(c.acceptRuleMatchExpr)
+	replace := c.rule.Replace().Visit(c.acceptRuleReplaceExpr)
+
+	newRule := NewRuleExpr(c.rule.Header(), match, replace)
 	c.compiled.rules = append(c.compiled.rules, newRule)
+
+	return c.err == nil
 }
 
-func (c *Compiler) compileRuleMatchExpr(expr ParsedExpr) bool {
-	for _, child := range expr.Children() {
-		if !c.compileRuleMatchExpr(child) {
-			return false
+func (c *ruleCompiler) acceptRuleMatchExpr(expr Expr) Expr {
+	return expr
+}
+
+func (c *ruleCompiler) acceptRuleReplaceExpr(expr Expr) Expr {
+	if construct, ok := expr.(*ConstructExpr); ok {
+		// Handle built-in OpName function.
+		if strName, ok := construct.OpName().(*StringExpr); ok && strName.ValueAsString() == "OpName" {
+			if len(construct.Args()) > 1 {
+				c.err = fmt.Errorf("too many arguments to OpName function: %v", strName)
+				return nil
+			}
+
+			if len(construct.Args()) == 0 {
+				// No args to OpName function refers to top-level match operator.
+				return NewOpNameExpr(c.opName + "Op")
+			}
+
+			// Otherwise except a single variable reference argument.
+			ref, ok := construct.Args()[0].(*RefExpr)
+			if !ok {
+				c.err = fmt.Errorf("invalid argument to OpName function: %v", construct.Args()[0])
+			}
+			return NewOpNameExpr(c.resolveOpName(c.template, ref.Label()+"Op"))
 		}
 	}
 
-	return true
+	return expr
+}
+
+func (c *ruleCompiler) resolveOpName(expr Expr, label string) string {
+	if bind, ok := expr.(*BindExpr); ok {
+		if bind.Label() == label {
+			if matchFields, ok := bind.Target().(*MatchFieldsExpr); ok {
+				return matchFields.OpName()
+			}
+
+			c.err = fmt.Errorf("invalid OpName parameter: $%s must be bound to a match expression with a constant name", label)
+			return ""
+		}
+	}
+
+	for _, child := range expr.Children() {
+		if name := c.resolveOpName(child, label); name != "" {
+			return name
+		}
+	}
+
+	return ""
 }

@@ -1,4 +1,4 @@
-package main
+package optgen
 
 import (
 	"bytes"
@@ -7,10 +7,10 @@ import (
 	"unicode"
 )
 
-type opsGen struct {
+type OpsGen struct {
 }
 
-func (g *opsGen) generate(compiled CompiledExpr, w io.Writer) {
+func (g *OpsGen) Generate(compiled CompiledExpr, w io.Writer) {
 	fmt.Fprintf(w, "const (\n")
 	fmt.Fprintf(w, "  UnknownOp Operator = iota\n\n")
 

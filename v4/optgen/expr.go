@@ -1,4 +1,4 @@
-package main
+package optgen
 
 import (
 	"bytes"
@@ -6,28 +6,31 @@ import (
 	"strings"
 )
 
-type ParsedExpr interface {
-	Op() operator
-	Children() []ParsedExpr
+type AcceptFunc func(expr Expr) Expr
+
+type Expr interface {
+	Op() Operator
+	Children() []Expr
 	ChildName(pos int) string
 	Value() interface{}
+	Visit(accept AcceptFunc) Expr
 
 	String() string
 	Format(buf *bytes.Buffer, level int)
 }
 
 type expr struct {
-	op       operator
-	children []ParsedExpr
-	names    map[int]string
+	op       Operator
+	children []Expr
 	value    interface{}
+	names    map[int]string
 }
 
-func (e *expr) Op() operator {
+func (e *expr) Op() Operator {
 	return e.op
 }
 
-func (e *expr) Children() []ParsedExpr {
+func (e *expr) Children() []Expr {
 	return e.children
 }
 
@@ -39,6 +42,26 @@ func (e *expr) Value() interface{} {
 	return e.value
 }
 
+func (e *expr) visitChildren(accept AcceptFunc) (children []Expr, replaced bool) {
+	for i, child := range e.children {
+		newChild := child.Visit(accept)
+		if child != newChild {
+			if children == nil {
+				children = make([]Expr, len(e.children))
+				copy(children, e.children)
+			}
+			children[i] = newChild
+		}
+	}
+
+	if children == nil {
+		children = e.children
+	} else {
+		replaced = true
+	}
+	return
+}
+
 func (e *expr) String() string {
 	var buf bytes.Buffer
 	e.Format(&buf, 0)
@@ -47,9 +70,9 @@ func (e *expr) String() string {
 
 func (e *expr) Format(buf *bytes.Buffer, level int) {
 	if e.value != nil {
-		if s, ok := e.value.(string); ok {
+		if e.op == StringOp {
 			buf.WriteByte('"')
-			buf.WriteString(s)
+			buf.WriteString(e.value.(string))
 			buf.WriteByte('"')
 		} else {
 			buf.WriteString(fmt.Sprintf("%v", e.value))
@@ -116,19 +139,17 @@ func (e *expr) Format(buf *bytes.Buffer, level int) {
 	}
 }
 
-type RootExpr struct {
-	expr
-}
+type RootExpr struct{ expr }
 
 func NewRootExpr() *RootExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewDefineSetExpr(),
 		NewRuleSetExpr(),
 	}
 
 	names := map[int]string{0: "Defines", 1: "Rules"}
 
-	return &RootExpr{expr{op: rootOp, children: children, names: names}}
+	return &RootExpr{expr{op: RootOp, children: children, names: names}}
 }
 
 func (e *RootExpr) Defines() *DefineSetExpr {
@@ -139,15 +160,20 @@ func (e *RootExpr) Rules() *RuleSetExpr {
 	return e.children[1].(*RuleSetExpr)
 }
 
-type DefineSetExpr struct {
-	expr
+func (e *RootExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&RootExpr{expr{op: RootOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
+
+type DefineSetExpr struct{ expr }
 
 func NewDefineSetExpr() *DefineSetExpr {
-	return &DefineSetExpr{expr{op: defineSetOp}}
+	return &DefineSetExpr{expr{op: DefineSetOp}}
 }
 
-func (e *DefineSetExpr) All() []ParsedExpr {
+func (e *DefineSetExpr) All() []Expr {
 	return e.children
 }
 
@@ -155,19 +181,24 @@ func (e *DefineSetExpr) Add(define *DefineExpr) {
 	e.children = append(e.children, define)
 }
 
-type DefineExpr struct {
-	expr
+func (e *DefineSetExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&DefineSetExpr{expr{op: DefineSetOp, children: children}})
+	}
+	return accept(e)
 }
 
+type DefineExpr struct{ expr }
+
 func NewDefineExpr(name string, tags []string) *DefineExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(name),
 		NewTagsExpr(tags),
 	}
 
 	names := map[int]string{0: "Name", 1: "Tags"}
 
-	return &DefineExpr{expr{op: defineOp, children: children, names: names}}
+	return &DefineExpr{expr{op: DefineOp, children: children, names: names}}
 }
 
 func (e *DefineExpr) Name() string {
@@ -213,7 +244,7 @@ func (e *DefineExpr) PrivateField() *DefineFieldExpr {
 	return nil
 }
 
-func (e *DefineExpr) Fields() []ParsedExpr {
+func (e *DefineExpr) Fields() []Expr {
 	return e.children[2:]
 }
 
@@ -232,19 +263,24 @@ func (e *DefineExpr) HasTag(tag string) bool {
 	return false
 }
 
-type DefineFieldExpr struct {
-	expr
+func (e *DefineExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&DefineExpr{expr{op: DefineOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type DefineFieldExpr struct{ expr }
+
 func NewDefineFieldExpr(name, typ string) *DefineFieldExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(name),
 		NewStringExpr(typ),
 	}
 
 	names := map[int]string{0: "Name", 1: "Type"}
 
-	return &DefineFieldExpr{expr{op: defineFieldOp, children: children, names: names}}
+	return &DefineFieldExpr{expr{op: DefineFieldOp, children: children, names: names}}
 }
 
 func (e *DefineFieldExpr) Name() string {
@@ -268,15 +304,20 @@ func (e *DefineFieldExpr) IsPrivateType() bool {
 	return typ != "Expr" && typ != "ExprList"
 }
 
-type RuleSetExpr struct {
-	expr
+func (e *DefineFieldExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&DefineFieldExpr{expr{op: DefineFieldOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
+
+type RuleSetExpr struct{ expr }
 
 func NewRuleSetExpr() *RuleSetExpr {
-	return &RuleSetExpr{expr{op: ruleSetOp}}
+	return &RuleSetExpr{expr{op: RuleSetOp}}
 }
 
-func (e *RuleSetExpr) All() []ParsedExpr {
+func (e *RuleSetExpr) All() []Expr {
 	return e.children
 }
 
@@ -284,12 +325,17 @@ func (e *RuleSetExpr) Add(rule *RuleExpr) {
 	e.children = append(e.children, rule)
 }
 
-type RuleExpr struct {
-	expr
+func (e *RuleSetExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&RuleSetExpr{expr{op: RuleSetOp, children: children}})
+	}
+	return accept(e)
 }
 
-func NewRuleExpr(header *RuleHeaderExpr, match ParsedExpr, replace ParsedExpr) *RuleExpr {
-	children := []ParsedExpr{
+type RuleExpr struct{ expr }
+
+func NewRuleExpr(header *RuleHeaderExpr, match Expr, replace Expr) *RuleExpr {
+	children := []Expr{
 		header,
 		match,
 		replace,
@@ -297,34 +343,39 @@ func NewRuleExpr(header *RuleHeaderExpr, match ParsedExpr, replace ParsedExpr) *
 
 	names := map[int]string{0: "Header", 1: "Match", 2: "Replace"}
 
-	return &RuleExpr{expr{op: ruleOp, children: children, names: names}}
+	return &RuleExpr{expr{op: RuleOp, children: children, names: names}}
 }
 
 func (e *RuleExpr) Header() *RuleHeaderExpr {
 	return e.children[0].(*RuleHeaderExpr)
 }
 
-func (e *RuleExpr) Match() ParsedExpr {
+func (e *RuleExpr) Match() Expr {
 	return e.children[1]
 }
 
-func (e *RuleExpr) Replace() ParsedExpr {
+func (e *RuleExpr) Replace() Expr {
 	return e.children[2]
 }
 
-type RuleHeaderExpr struct {
-	expr
+func (e *RuleExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&RuleExpr{expr{op: RuleOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type RuleHeaderExpr struct{ expr }
+
 func NewRuleHeaderExpr(name string, tags []string) *RuleHeaderExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(name),
 		NewTagsExpr(tags),
 	}
 
 	names := map[int]string{0: "Name", 1: "Tags"}
 
-	return &RuleHeaderExpr{expr{op: ruleHeaderOp, children: children, names: names}}
+	return &RuleHeaderExpr{expr{op: RuleHeaderOp, children: children, names: names}}
 }
 
 func (e *RuleHeaderExpr) Name() string {
@@ -335,247 +386,318 @@ func (e *RuleHeaderExpr) Tags() *TagsExpr {
 	return e.children[1].(*TagsExpr)
 }
 
-type BindExpr struct {
-	expr
+func (e *RuleHeaderExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&RuleHeaderExpr{expr{op: RuleHeaderOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
-func NewBindExpr(label string, target ParsedExpr) *BindExpr {
-	children := []ParsedExpr{
+type BindExpr struct{ expr }
+
+func NewBindExpr(label string, target Expr) *BindExpr {
+	children := []Expr{
 		NewStringExpr(label),
 		target,
 	}
 
 	names := map[int]string{0: "Label", 1: "Target"}
 
-	return &BindExpr{expr{op: bindOp, children: children, names: names}}
+	return &BindExpr{expr{op: BindOp, children: children, names: names}}
 }
 
 func (e *BindExpr) Label() string {
 	return e.children[0].(*StringExpr).ValueAsString()
 }
 
-func (e *BindExpr) Target() ParsedExpr {
+func (e *BindExpr) Target() Expr {
 	return e.children[1]
 }
 
-type RefExpr struct {
-	expr
+func (e *BindExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&BindExpr{expr{op: BindOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type RefExpr struct{ expr }
+
 func NewRefExpr(label string) *RefExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(label),
 	}
 
 	names := map[int]string{0: "Label"}
 
-	return &RefExpr{expr{op: refOp, children: children, names: names}}
+	return &RefExpr{expr{op: RefOp, children: children, names: names}}
 }
 
 func (e *RefExpr) Label() string {
 	return e.children[0].(*StringExpr).ValueAsString()
 }
 
-type MatchTemplateExpr struct {
-	expr
+func (e *RefExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&RefExpr{expr{op: RefOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type MatchTemplateExpr struct{ expr }
+
 func NewMatchTemplateExpr(opNames *MatchTemplateNamesExpr) *MatchTemplateExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		opNames,
 	}
 
 	names := map[int]string{0: "Names"}
 
-	return &MatchTemplateExpr{expr{op: matchTemplateOp, children: children, names: names}}
+	return &MatchTemplateExpr{expr{op: MatchTemplateOp, children: children, names: names}}
 }
 
 func (e *MatchTemplateExpr) Names() *MatchTemplateNamesExpr {
 	return e.children[0].(*MatchTemplateNamesExpr)
 }
 
-func (e *MatchTemplateExpr) Fields() []ParsedExpr {
+func (e *MatchTemplateExpr) Fields() []Expr {
 	return e.children[1:]
 }
 
-func (e *MatchTemplateExpr) Add(match ParsedExpr) {
+func (e *MatchTemplateExpr) Add(match Expr) {
 	e.children = append(e.children, match)
 }
 
-type MatchTemplateNamesExpr struct {
-	expr
+func (e *MatchTemplateExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchTemplateExpr{expr{op: MatchTemplateOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type MatchTemplateNamesExpr struct{ expr }
+
 func NewMatchTemplateNamesExpr() *MatchTemplateNamesExpr {
-	return &MatchTemplateNamesExpr{expr{op: matchTemplateNamesOp}}
+	return &MatchTemplateNamesExpr{expr{op: MatchTemplateNamesOp}}
+}
+
+func (e *MatchTemplateNamesExpr) All() []Expr {
+	return e.children
 }
 
 func (e *MatchTemplateNamesExpr) Add(name *StringExpr) {
 	e.children = append(e.children, name)
 }
 
-type MatchAndExpr struct {
-	expr
+func (e *MatchTemplateNamesExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchTemplateNamesExpr{expr{op: MatchTemplateNamesOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
-func NewMatchAndExpr(left, right ParsedExpr) *MatchAndExpr {
-	return &MatchAndExpr{expr{op: matchAndOp, children: []ParsedExpr{left, right}}}
+type MatchAndExpr struct{ expr }
+
+func NewMatchAndExpr(left, right Expr) *MatchAndExpr {
+	return &MatchAndExpr{expr{op: MatchAndOp, children: []Expr{left, right}}}
 }
 
-func (e *MatchAndExpr) Left() ParsedExpr {
+func (e *MatchAndExpr) Left() Expr {
 	return e.children[0]
 }
 
-func (e *MatchAndExpr) Right() ParsedExpr {
+func (e *MatchAndExpr) Right() Expr {
 	return e.children[1]
 }
 
-type MatchInvokeExpr struct {
-	expr
+func (e *MatchAndExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchAndExpr{expr{op: MatchAndOp, children: children}})
+	}
+	return accept(e)
 }
 
+type MatchInvokeExpr struct{ expr }
+
 func NewMatchInvokeExpr(funcName string) *MatchInvokeExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(funcName),
 	}
 
 	names := map[int]string{0: "FuncName"}
 
-	return &MatchInvokeExpr{expr{op: matchInvokeOp, children: children, names: names}}
+	return &MatchInvokeExpr{expr{op: MatchInvokeOp, children: children, names: names}}
 }
 
 func (e *MatchInvokeExpr) FuncName() string {
 	return e.children[0].(*StringExpr).ValueAsString()
 }
 
-func (e *MatchInvokeExpr) Args() []ParsedExpr {
+func (e *MatchInvokeExpr) Args() []Expr {
 	return e.children[1:]
 }
 
-func (e *MatchInvokeExpr) Add(match ParsedExpr) {
+func (e *MatchInvokeExpr) Add(match Expr) {
 	e.children = append(e.children, match)
 }
 
-type MatchFieldsExpr struct {
-	expr
+func (e *MatchInvokeExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchInvokeExpr{expr{op: MatchInvokeOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type MatchFieldsExpr struct{ expr }
+
 func NewMatchFieldsExpr(opName string) *MatchFieldsExpr {
-	children := []ParsedExpr{
+	children := []Expr{
 		NewStringExpr(opName),
 	}
 
 	names := map[int]string{0: "OpName"}
 
-	return &MatchFieldsExpr{expr{op: matchFieldsOp, children: children, names: names}}
+	return &MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: names}}
 }
 
 func (e *MatchFieldsExpr) OpName() string {
 	return e.children[0].(*StringExpr).ValueAsString()
 }
 
-func (e *MatchFieldsExpr) Fields() []ParsedExpr {
+func (e *MatchFieldsExpr) Fields() []Expr {
 	return e.children[1:]
 }
 
-func (e *MatchFieldsExpr) Add(match ParsedExpr) {
+func (e *MatchFieldsExpr) Add(match Expr) {
 	e.children = append(e.children, match)
 }
 
-type MatchNotExpr struct {
-	expr
+func (e *MatchFieldsExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
-func NewMatchNotExpr(input ParsedExpr) *MatchNotExpr {
-	return &MatchNotExpr{expr{op: matchNotOp, children: []ParsedExpr{input}}}
+type MatchNotExpr struct{ expr }
+
+func NewMatchNotExpr(input Expr) *MatchNotExpr {
+	return &MatchNotExpr{expr{op: MatchNotOp, children: []Expr{input}}}
 }
 
-func (e *MatchNotExpr) Input() ParsedExpr {
+func (e *MatchNotExpr) Input() Expr {
 	return e.children[0]
 }
 
-type MatchAnyExpr struct {
-	expr
+func (e *MatchNotExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchNotExpr{expr{op: MatchNotOp, children: children}})
+	}
+	return accept(e)
 }
 
-var matchAnySingleton = &MatchAnyExpr{expr{op: matchAnyOp}}
+type MatchAnyExpr struct{ expr }
+
+var matchAnySingleton = &MatchAnyExpr{expr{op: MatchAnyOp}}
 
 func NewMatchAnyExpr() *MatchAnyExpr {
 	return matchAnySingleton
 }
 
-type MatchListExpr struct {
-	expr
+func (e *MatchAnyExpr) Visit(accept AcceptFunc) Expr {
+	return accept(e)
 }
 
-func NewMatchListExpr(matchItem ParsedExpr) *MatchListExpr {
-	return &MatchListExpr{expr{op: matchListOp, children: []ParsedExpr{matchItem}}}
+type MatchListExpr struct{ expr }
+
+func NewMatchListExpr(matchItem Expr) *MatchListExpr {
+	return &MatchListExpr{expr{op: MatchListOp, children: []Expr{matchItem}}}
 }
 
-func (e *MatchListExpr) MatchItem() ParsedExpr {
+func (e *MatchListExpr) MatchItem() Expr {
 	return e.children[0]
 }
 
-type ReplaceListExpr struct {
-	expr
+func (e *MatchListExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&MatchListExpr{expr{op: MatchListOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
-func NewReplaceRootExpr() *ReplaceListExpr {
-	return &ReplaceListExpr{expr{op: replaceRootOp}}
+type ReplaceRootExpr struct{ expr }
+
+func NewReplaceRootExpr() *ReplaceRootExpr {
+	return &ReplaceRootExpr{expr{op: ReplaceRootOp}}
 }
 
-func (e *ReplaceListExpr) All() []ParsedExpr {
+func (e *ReplaceRootExpr) All() []Expr {
 	return e.children
 }
 
-func (e *ReplaceListExpr) Add(replace ParsedExpr) {
+func (e *ReplaceRootExpr) Add(replace Expr) {
 	e.children = append(e.children, replace)
 }
 
-type ConstructExpr struct {
-	expr
+func (e *ReplaceRootExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&ReplaceRootExpr{expr{op: ReplaceRootOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
-func NewConstructExpr(op string) *ConstructExpr {
-	children := []ParsedExpr{
-		NewStringExpr(op),
+type ConstructExpr struct{ expr }
+
+func NewConstructExpr(opName Expr) *ConstructExpr {
+	children := []Expr{
+		opName,
 	}
 
-	names := map[int]string{0: "Name"}
+	names := map[int]string{0: "OpName"}
 
-	return &ConstructExpr{expr{op: constructOp, children: children, names: names}}
+	return &ConstructExpr{expr{op: ConstructOp, children: children, names: names}}
 }
 
-func (e *ConstructExpr) Name() string {
-	return e.children[0].(*StringExpr).ValueAsString()
+func (e *ConstructExpr) OpName() Expr {
+	return e.children[0]
 }
 
-func (e *ConstructExpr) All() []ParsedExpr {
+func (e *ConstructExpr) Args() []Expr {
 	return e.children[1:]
 }
 
-func (e *ConstructExpr) Add(replace ParsedExpr) {
-	e.children = append(e.children, replace)
+func (e *ConstructExpr) Add(arg Expr) {
+	e.children = append(e.children, arg)
 }
 
-type ConstructListExpr struct {
-	expr
+func (e *ConstructExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&ConstructExpr{expr{op: ConstructOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
+
+type ConstructListExpr struct{ expr }
 
 func NewConstructListExpr() *ConstructListExpr {
-	return &ConstructListExpr{expr{op: constructListOp}}
+	return &ConstructListExpr{expr{op: ConstructListOp}}
 }
 
-func (e *ConstructListExpr) Add(item ParsedExpr) {
+func (e *ConstructListExpr) Add(item Expr) {
 	e.children = append(e.children, item)
 }
 
-type TagsExpr struct {
-	expr
+func (e *ConstructListExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&ConstructListExpr{expr{op: ConstructListOp, children: children, names: e.names}})
+	}
+	return accept(e)
 }
 
+type TagsExpr struct{ expr }
+
 func NewTagsExpr(tags []string) *TagsExpr {
-	e := &TagsExpr{expr{op: tagsOp}}
+	e := &TagsExpr{expr{op: TagsOp}}
 
 	for _, tag := range tags {
 		e.children = append(e.children, NewStringExpr(tag))
@@ -584,7 +706,7 @@ func NewTagsExpr(tags []string) *TagsExpr {
 	return e
 }
 
-func (e *TagsExpr) All() []ParsedExpr {
+func (e *TagsExpr) All() []Expr {
 	return e.children
 }
 
@@ -599,16 +721,45 @@ func (e *TagsExpr) Contains(tag string) bool {
 	return false
 }
 
-type StringExpr struct {
-	expr
+func (e *TagsExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&TagsExpr{expr{op: TagsOp, children: children}})
+	}
+	return accept(e)
 }
 
+type StringExpr struct{ expr }
+
 func NewStringExpr(s string) *StringExpr {
-	return &StringExpr{expr{op: stringOp, value: s}}
+	return &StringExpr{expr{op: StringOp, value: s}}
 }
 
 func (e *StringExpr) ValueAsString() string {
 	return e.value.(string)
+}
+
+func (e *StringExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&StringExpr{expr{op: StringOp, children: children}})
+	}
+	return accept(e)
+}
+
+type OpNameExpr struct{ expr }
+
+func NewOpNameExpr(opName string) *OpNameExpr {
+	return &OpNameExpr{expr{op: OpNameOp, value: opName}}
+}
+
+func (e *OpNameExpr) ValueAsOpName() string {
+	return e.value.(string)
+}
+
+func (e *OpNameExpr) Visit(accept AcceptFunc) Expr {
+	if children, replaced := e.visitChildren(accept); replaced {
+		return accept(&OpNameExpr{expr{op: OpNameOp, children: children}})
+	}
+	return accept(e)
 }
 
 func writeIndent(buf *bytes.Buffer, level int) {

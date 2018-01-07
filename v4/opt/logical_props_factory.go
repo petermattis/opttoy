@@ -138,9 +138,15 @@ func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
 	rightProps := f.mem.lookupGroup(e.ChildGroup(1)).logical
 	filterProps := f.mem.lookupGroup(e.ChildGroup(2)).logical
 
-	// Output columns are union of columns from left and right inputs.
+	// Output columns are union of columns from left and right inputs, except
+	// in case of semi-joins, which only project the left columns.
 	props.Relational.OutputCols.UnionWith(leftProps.Relational.OutputCols)
-	props.Relational.OutputCols.UnionWith(rightProps.Relational.OutputCols)
+	switch e.Operator() {
+	case SemiJoinOp, AntiJoinOp, SemiJoinApplyOp, AntiJoinApplyOp:
+
+	default:
+		props.Relational.OutputCols.UnionWith(rightProps.Relational.OutputCols)
+	}
 
 	// Left/full outer joins can result in right columns becoming null.
 	// Otherwise, propagate not null setting from right child.
@@ -165,11 +171,16 @@ func (f *logicalPropsFactory) constructJoinProps(e *Expr) *LogicalProps {
 	props.UnboundCols = filterProps.UnboundCols.Copy()
 	props.UnboundCols.UnionWith(leftProps.UnboundCols)
 	props.UnboundCols.UnionWith(rightProps.UnboundCols)
-	props.UnboundCols.DifferenceWith(props.Relational.OutputCols)
+	props.UnboundCols.DifferenceWith(leftProps.Relational.OutputCols.Union(rightProps.Relational.OutputCols))
 
 	// Union equivalent columns from inputs (these never overlap).
 	props.Relational.EquivCols = append(props.Relational.EquivCols, leftProps.Relational.EquivCols...)
-	props.Relational.EquivCols = append(props.Relational.EquivCols, rightProps.Relational.EquivCols...)
+	switch e.Operator() {
+	case SemiJoinOp, AntiJoinOp, SemiJoinApplyOp, AntiJoinApplyOp:
+
+	default:
+		props.Relational.EquivCols = append(props.Relational.EquivCols, rightProps.Relational.EquivCols...)
+	}
 
 	// Set additional properties according to the join filter.
 	filter := e.Child(2)
@@ -226,6 +237,20 @@ func (f *logicalPropsFactory) constructSetProps(e *Expr) *LogicalProps {
 
 	// Unbound columns from either side are unbound in result.
 	props.UnboundCols = leftProps.UnboundCols.Union(rightProps.UnboundCols)
+
+	return &props
+}
+
+func (f *logicalPropsFactory) constructValuesProps(e *Expr) *LogicalProps {
+	var props LogicalProps
+
+	rowsProps := f.mem.lookupGroup(e.ChildGroup(0)).logical
+
+	// Use output columns that are attached to the values op.
+	props.Relational.OutputCols = *e.Private().(*ColSet)
+
+	// Inherit unbound columns from rows expression.
+	props.UnboundCols = rowsProps.UnboundCols
 
 	return &props
 }

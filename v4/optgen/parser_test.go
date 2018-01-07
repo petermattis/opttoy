@@ -1,16 +1,14 @@
-package main
+package optgen
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 var _ = fmt.Println
 
-func TestCompiler(t *testing.T) {
+func TestParser(t *testing.T) {
 	s := `
 		define Lt {
 			Left  expr
@@ -27,7 +25,7 @@ func TestCompiler(t *testing.T) {
 		(Gt $right $left)
 
 		[NormalizeJoin]
-		(Join $r:* $s:* && (IsLower $s $r))
+		(Join $r:* $s:* & (IsLower $s $r))
 		=>
 		(Join $s $r)
 
@@ -36,9 +34,11 @@ func TestCompiler(t *testing.T) {
 	`
 
 	r := strings.NewReader(s)
-	c := NewParser(r)
-	root, err := c.Parse()
-	require.NoError(t, err)
+	p := NewParser(r)
+	root, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	fmt.Printf("%v\n", root)
 }

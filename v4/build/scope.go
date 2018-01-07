@@ -51,6 +51,11 @@ type scope struct {
 	cols     []columnProps
 	ordering opt.Ordering
 	groupby  groupby
+
+	// Desired number of columns for subqueries found during name resolution and
+	// type checking. This only applies to the top-level subqueries that are
+	// anchored directly to a relational expression.
+	columns int
 }
 
 func (s *scope) push() *scope {
@@ -171,10 +176,11 @@ func (s *scope) endAggFunc(agg opt.GroupID) (refScope *scope) {
 }
 
 func (s *scope) resolveType(expr tree.Expr, desired types.T) tree.TypedExpr {
-	// TODO(peter): The caller should specify the desired number of columns.
-	// This is needed when a subquery is used by an UPDATE statement.
-	// TODO(andy): v3 does this with a scope.columns variable, but shouldn't it
-	// be part of the desired type rather than yet another parameter?
+	// TODO(peter): The caller should specify the desired number of columns. This
+	// is needed when a subquery is used by an UPDATE statement.
+	// TODO(andy): shouldn't this be part of the desired type rather than yet
+	// another parameter?
+	s.columns = 1
 
 	expr, _ = tree.WalkExpr(s, expr)
 	texpr, err := tree.TypeCheck(expr, &s.builder.semaCtx, desired)
@@ -278,9 +284,12 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 		}
 
 	case *tree.Subquery:
-		expr = s.replaceSubquery(t, false /* multi-row */, 1 /* desired-columns */)
+		expr = s.replaceSubquery(t, false /* multi-row */, s.columns /* desired-columns */)
 	}
 
+	// Reset the desired number of columns since if the subquery is a child of
+	// any other expression, type checking will verify the number of columns.
+	s.columns = -1
 	return true, expr
 }
 

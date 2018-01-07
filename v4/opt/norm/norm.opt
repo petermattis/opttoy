@@ -12,7 +12,7 @@
     $right:(Variable)
 )
 =>
-(OpName $right $left)
+((OpName) $right $left)
 
 # NormalizeVarOrder establishes an arbitrary, but canonical ordering of
 # equality and inequality operators where both operands are variables.
@@ -22,9 +22,21 @@
     $right:(Variable) & (IsLowerExpr $right $left)
 )
 =>
-(OpName $right $left)
+((OpName) $right $left)
 
-# EliminateProject discards the unnecessary project operator in the case where
-# the projected columns are the same as the input operand's columns.
+# EliminateProject discards the unnecessary project operator when the projected
+# columns are the same as the input operand's columns.
 [EliminateProject, Normalize]
 (Project $input:* $projections:* & (ProjectsSameCols $projections $input)) => $input
+
+# EliminateSemiAntiJoinProject discards the unnecessary project operator in the
+# right side of a semi/anti join, since those operators do not project columns
+# on that side of the join.
+[EliminateSemiAntiJoinProject, Normalize]
+(SemiJoinApply | AntiJoinApply
+    $left:*
+    $right:(Project $input:* *)
+    $on:(True)
+)
+=>
+((OpName) $left $input (True))

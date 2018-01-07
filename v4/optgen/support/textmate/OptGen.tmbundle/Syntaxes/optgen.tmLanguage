@@ -180,7 +180,8 @@
 						Intersect | 
 						Except | 
 						Sort | 
-						Arrange)\b</string>
+						Arrange |
+						OpName)\b</string>
 					<key>name</key>
 					<string>keyword.other.optgen</string>
 				</dict>

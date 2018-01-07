@@ -35,8 +35,6 @@ var comparisonOpMap = [...]binaryFactoryFunc{
 	tree.NotRegIMatch:      (*opt.Factory).ConstructNotRegIMatch,
 	tree.IsDistinctFrom:    (*opt.Factory).ConstructIsDistinctFrom,
 	tree.IsNotDistinctFrom: (*opt.Factory).ConstructIsNotDistinctFrom,
-	tree.Is:                (*opt.Factory).ConstructIs,
-	tree.IsNot:             (*opt.Factory).ConstructIsNot,
 	tree.Any:               (*opt.Factory).ConstructAny,
 	tree.Some:              (*opt.Factory).ConstructSome,
 	tree.All:               (*opt.Factory).ConstructAll,
@@ -515,12 +513,11 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 		return b.factory.ConstructSubquery(t.out, v)
 
 	case *tree.Tuple:
-		list := make([]opt.GroupID, 0, len(t.Exprs))
+		list := make([]opt.GroupID, len(t.Exprs))
 		for i := range t.Exprs {
 			list[i] = b.buildScalar(t.Exprs[i].(tree.TypedExpr), inScope)
 		}
-
-		return b.factory.ConstructOrderedList(b.factory.StoreList(list))
+		return b.factory.ConstructTuple(b.factory.StoreList(list))
 
 	case *tree.UnaryExpr:
 		return unaryOpMap[t.Operator](b.factory, b.buildScalar(t.TypedInnerExpr(), inScope))
@@ -638,70 +635,46 @@ func (b *Builder) buildSelect(stmt *tree.Select, inScope *scope) (out opt.GroupI
 }
 
 func (b *Builder) buildValuesClause(values *tree.ValuesClause, inScope *scope) (out opt.GroupID, outScope *scope) {
-	// TODO(andy): need to adapt this code
-	return 0, nil
-	/*	var numCols int
-		if len(values.Tuples) > 0 {
-			numCols = len(values.Tuples[0].Exprs)
+	var numCols int
+	if len(values.Tuples) > 0 {
+		numCols = len(values.Tuples[0].Exprs)
+	}
+
+	// Synthesize right number of null-typed columns.
+	outScope = inScope.push()
+	for i := 0; i < numCols; i++ {
+		b.synthesizeColumn(outScope, "", types.Null)
+	}
+
+	rows := make([]opt.GroupID, 0, len(values.Tuples))
+
+	for _, tuple := range values.Tuples {
+		if numCols != len(tuple.Exprs) {
+			panic(fmt.Errorf(
+				"VALUES lists must all be the same length, expected %d columns, found %d",
+				numCols, len(tuple.Exprs)))
 		}
 
-		result = &expr{
-			op: valuesOp,
-			props: &relationalProps{
-				columns: make([]columnProps, numCols),
-			},
-		}
-		for i := range result.props.columns {
-			result.props.columns[i].name = columnName(fmt.Sprintf("column%d", i+1))
-		}
+		elems := make([]opt.GroupID, numCols)
 
-		buf := make([]*expr, len(t.Tuples)*(numCols+1))
-		rows := buf[:0:len(t.Tuples)]
-		buf = buf[len(t.Tuples):]
+		for i, expr := range tuple.Exprs {
+			texpr := inScope.resolveType(expr, types.Any)
+			typ := texpr.ResolvedType()
+			elems[i] = b.buildScalar(texpr, inScope)
 
-		for _, tuple := range t.Tuples {
-			if numCols != len(tuple.Exprs) {
-				panic(fmt.Errorf(
-					"VALUES lists must all be the same length, expected %d columns, found %d",
-					numCols, len(tuple.Exprs)))
+			// Verify that types of each tuple match one another.
+			if outScope.cols[i].typ == types.Null {
+				outScope.cols[i].typ = typ
+			} else if typ != types.Null && !typ.Equivalent(outScope.cols[i].typ) {
+				panic(fmt.Errorf("VALUES list type mismatch, %s for %s", typ, outScope.cols[i].typ))
 			}
-
-			row := buf[:numCols:numCols]
-			buf = buf[numCols:]
-
-			for i, expr := range tuple.Exprs {
-				row[i] = buildScalar(scope.resolve(expr, types.Any), scope)
-				typ := row[i].scalarProps.typ
-				if result.props.columns[i].typ == nil || result.props.columns[i].typ == types.Null {
-					result.props.columns[i].typ = typ
-				} else if typ != types.Null && !typ.Equivalent(result.props.columns[i].typ) {
-					panic(fmt.Errorf("VALUES list type mismatch, %s for %s", typ, result.props.columns[i].typ))
-				}
-			}
-
-			rows = append(rows, &expr{
-				op:          tupleOp,
-				children:    row,
-				scalarProps: &scalarProps{},
-			})
 		}
 
-		typ := make(types.TTuple, len(result.props.columns))
-		for i := range result.props.columns {
-			typ[i] = result.props.columns[i].typ
-		}
-		for i := range rows {
-			rows[i].scalarProps.typ = typ
-		}
+		rows = append(rows, b.factory.ConstructTuple(b.factory.StoreList(elems)))
+	}
 
-		// TODO(peter): A VALUES clause can contain subqueries and other
-		// non-trivial expressions. We probably need to store the tuples in an
-		// explicit child of the values node, rather than in private data.
-		result.private = &expr{
-			op:          orderedListOp,
-			children:    rows,
-			scalarProps: &scalarProps{},
-		}*/
+	out = b.factory.ConstructValues(b.factory.StoreList(rows), b.factory.InternPrivate(makeColSet(outScope.cols)))
+	return
 }
 
 // Pass the entire Select statement rather than just the select clause in
@@ -733,7 +706,7 @@ func (b *Builder) buildSelectClause(stmt *tree.Select, inScope *scope) (out opt.
 	// expressions. The build has the side effect of extracting aggregation
 	// columns.
 	var having opt.GroupID
-	if groupings != nil {
+	if sel.Having != nil {
 		having = b.buildScalar(groupingsScope.resolveType(sel.Having.Expr, types.Bool), groupingsScope)
 	}
 
@@ -820,7 +793,8 @@ func (b *Builder) buildFrom(from *tree.From, where *tree.Where, inScope *scope) 
 	if left == 0 {
 		// TODO(peter): This should be a table with 1 row and 0 columns to match
 		// current cockroach behavior.
-		out = b.factory.ConstructValues()
+		rows := []opt.GroupID{b.factory.ConstructTuple(b.factory.StoreList(nil))}
+		out = b.factory.ConstructValues(b.factory.StoreList(rows), b.factory.InternPrivate(&opt.ColSet{}))
 		outScope = inScope
 	} else {
 		out = left
@@ -956,8 +930,9 @@ func (b *Builder) buildDistinct(in opt.GroupID, distinct bool, byCols []columnPr
 		groupings = append(groupings, v)
 	}
 
-	list := b.factory.ConstructOrderedList(b.factory.StoreList(groupings))
-	return b.factory.ConstructGroupBy(in, list, 0)
+	groupingList := b.constructProjectionList(groupings, byCols)
+	aggList := b.constructProjectionList(nil, nil)
+	return b.factory.ConstructGroupBy(in, groupingList, aggList)
 }
 
 func (b *Builder) buildOrderBy(
@@ -1087,13 +1062,7 @@ func (b *Builder) constructJoin(joinType string, left, right, filter opt.GroupID
 }
 
 func (b *Builder) constructProjectionList(items []opt.GroupID, cols []columnProps) opt.GroupID {
-	// Create column index list parameter to the ProjectionList op.
-	var colSet opt.ColSet
-	for i := range cols {
-		colSet.Add(int(cols[i].index))
-	}
-
-	return b.factory.ConstructProjections(b.factory.StoreList(items), b.factory.InternPrivate(&colSet))
+	return b.factory.ConstructProjections(b.factory.StoreList(items), b.factory.InternPrivate(makeColSet(cols)))
 }
 
 func (b *Builder) IndexedVarEval(idx int, ctx *tree.EvalContext) (tree.Datum, error) {
@@ -1117,6 +1086,15 @@ func isAggregate(def *tree.FunctionDefinition) bool {
 		strings.EqualFold(def.Name, "max") ||
 		strings.EqualFold(def.Name, "sum") ||
 		strings.EqualFold(def.Name, "avg")
+}
+
+func makeColSet(cols []columnProps) *opt.ColSet {
+	// Create column index list parameter to the ProjectionList op.
+	var colSet opt.ColSet
+	for i := range cols {
+		colSet.Add(int(cols[i].index))
+	}
+	return &colSet
 }
 
 func findColByName(cols []columnProps, name cat.ColumnName) *columnProps {
