@@ -200,7 +200,8 @@ func TestLogic(t *testing.T) {
 				}
 
 				var maxSteps int
-				if d.cmd == "normalize" {
+				switch d.cmd {
+				case "normalize", "memo":
 					// Complete all normalization steps.
 					maxSteps = int(math.MaxInt32)
 				}
@@ -209,6 +210,10 @@ func TestLogic(t *testing.T) {
 				b := build.NewBuilder(p.Factory(), d.stmt)
 				root, required := b.Build()
 				e := p.Optimize(root, required)
+
+				if d.cmd == "memo" {
+					return p.MemoString()
+				}
 
 				return e.String()
 			})

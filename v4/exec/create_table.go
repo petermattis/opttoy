@@ -77,7 +77,7 @@ func (ct *createTable) addColumn(def *tree.ColumnTableDef) {
 
 		var refCols []cat.ColumnOrdinal
 		if def.References.Col != "" {
-			refCols = []cat.ColumnOrdinal{ct.tbl.ColumnOrdinal(cat.ColumnName(def.References.Col))}
+			refCols = []cat.ColumnOrdinal{ref.ColumnOrdinal(cat.ColumnName(def.References.Col))}
 		} else {
 			for _, key := range ref.Keys {
 				if key.Primary {
@@ -149,7 +149,7 @@ func (ct *createTable) addTableForeignKey(def *tree.ForeignKeyConstraintTableDef
 			fatalf("%s does not contain a primary key", ref.Name)
 		}
 	} else {
-		toCols = ct.extractNames(def.ToCols)
+		toCols = extractNames(ref, def.ToCols)
 	}
 
 	if len(def.FromCols) != len(toCols) {
@@ -157,7 +157,7 @@ func (ct *createTable) addTableForeignKey(def *tree.ForeignKeyConstraintTableDef
 			ct.tbl.Name, def.FromCols, ref.Name, def.ToCols)
 	}
 
-	ct.addForeignKey(ref, ct.extractNames(def.FromCols), toCols)
+	ct.addForeignKey(ref, extractNames(ct.tbl, def.FromCols), toCols)
 }
 
 func (ct *createTable) addKey(key *cat.TableKey) *cat.TableKey {
@@ -174,8 +174,7 @@ func (ct *createTable) addKey(key *cat.TableKey) *cat.TableKey {
 		key.NotNull = key.NotNull && ct.tbl.Columns[i].NotNull
 	}
 
-	ct.tbl.AddKey(key)
-	return key
+	return ct.tbl.AddKey(key)
 }
 
 func (ct *createTable) getKey(key *cat.TableKey) *cat.TableKey {
@@ -189,7 +188,7 @@ func (ct *createTable) getKey(key *cat.TableKey) *cat.TableKey {
 	return nil
 }
 
-func (ct *createTable) addForeignKey(dest *cat.Table, srcColumns, destColumns []cat.ColumnOrdinal) {
+func (ct *createTable) addForeignKey(dst *cat.Table, srcColumns, dstColumns []cat.ColumnOrdinal) {
 	srcKey := ct.addKey(&cat.TableKey{Columns: srcColumns})
 
 	if srcKey.Fkey != nil {
@@ -197,8 +196,8 @@ func (ct *createTable) addForeignKey(dest *cat.Table, srcColumns, destColumns []
 	}
 
 	srcKey.Fkey = &cat.ForeignKey{
-		Referenced: dest,
-		Columns:    destColumns,
+		Referenced: dst,
+		Columns:    dstColumns,
 	}
 }
 
@@ -207,15 +206,13 @@ func (ct *createTable) extractColumns(def *tree.IndexTableDef) []cat.ColumnOrdin
 	for i, col := range def.Columns {
 		res[i] = ct.tbl.ColumnOrdinal(cat.ColumnName(col.Column))
 	}
-
 	return res
 }
 
-func (ct *createTable) extractNames(names tree.NameList) []cat.ColumnOrdinal {
+func extractNames(tbl *cat.Table, names tree.NameList) []cat.ColumnOrdinal {
 	res := make([]cat.ColumnOrdinal, len(names))
 	for i, name := range names {
-		res[i] = ct.tbl.ColumnOrdinal(cat.ColumnName(name))
+		res[i] = tbl.ColumnOrdinal(cat.ColumnName(name))
 	}
-
 	return res
 }

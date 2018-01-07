@@ -1,0 +1,36 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+memo
+SELECT y FROM a
+----
+4: [project [1 3]]
+3: [projections [2]]
+2: [variable a.y]
+1: [scan a]
+
+memo
+SELECT a.y, b.z FROM a NATURAL JOIN b
+----
+11: [project [7 10]]
+10: [projections [8 9]]
+9: [variable b.z]
+8: [variable a.y]
+7: [inner-join [1 2 6]]
+6: [filters [5]]
+5: [eq [3 4]]
+4: [variable b.x]
+3: [variable a.x]
+2: [scan b]
+1: [scan a]

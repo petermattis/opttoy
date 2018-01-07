@@ -1,16 +1,16 @@
-package main
+package optgen
 
 import (
 	"fmt"
 	"io"
 )
 
-type exprsGen struct {
+type ExprsGen struct {
 	compiled CompiledExpr
 	w        io.Writer
 }
 
-func (g *exprsGen) generate(compiled CompiledExpr, w io.Writer) {
+func (g *ExprsGen) Generate(compiled CompiledExpr, w io.Writer) {
 	g.compiled = compiled
 	g.w = w
 
@@ -36,7 +36,7 @@ func (g *exprsGen) generate(compiled CompiledExpr, w io.Writer) {
 	}
 }
 
-func (g *exprsGen) genChildCountLookup() {
+func (g *ExprsGen) genChildCountLookup() {
 	// Generate child count lookup table.
 	fmt.Fprintf(g.w, "type childCountLookupFunc func(e *Expr) int\n")
 
@@ -72,7 +72,7 @@ func (g *exprsGen) genChildCountLookup() {
 	fmt.Fprintf(g.w, "}\n\n")
 }
 
-func (g *exprsGen) genChildGroupLookup() {
+func (g *ExprsGen) genChildGroupLookup() {
 	// Generate child group lookup table.
 	fmt.Fprintf(g.w, "type childGroupLookupFunc func(e *Expr, n int) GroupID\n")
 
@@ -146,7 +146,7 @@ func (g *exprsGen) genChildGroupLookup() {
 	fmt.Fprintf(g.w, "}\n\n")
 }
 
-func (g *exprsGen) genPrivateFieldLookup() {
+func (g *ExprsGen) genPrivateFieldLookup() {
 	// Generate private field lookup table.
 	fmt.Fprintf(g.w, "type privateLookupFunc func(e *Expr) PrivateID\n")
 
@@ -177,7 +177,7 @@ func (g *exprsGen) genPrivateFieldLookup() {
 	fmt.Fprintf(g.w, "}\n\n")
 }
 
-func (g *exprsGen) genTagLookup() {
+func (g *ExprsGen) genTagLookup() {
 	// Generate lookup tables that indicate whether an expression is associated
 	// with a particular tag.
 	for _, tag := range g.compiled.DefineTags() {
@@ -197,7 +197,7 @@ func (g *exprsGen) genTagLookup() {
 	}
 }
 
-func (g *exprsGen) genIsTag() {
+func (g *ExprsGen) genIsTag() {
 	// Add isXXX() tag methods on expr for each definition tag.
 	for _, tag := range g.compiled.DefineTags() {
 		if tag == "Custom" {
@@ -211,7 +211,7 @@ func (g *exprsGen) genIsTag() {
 	}
 }
 
-func (g *exprsGen) genExprFuncs(define *DefineExpr) {
+func (g *ExprsGen) genExprFuncs(define *DefineExpr) {
 	exprType := fmt.Sprintf("%sExpr", unTitle(define.Name()))
 
 	// Generate the expression struct.
@@ -245,7 +245,7 @@ func (g *exprsGen) genExprFuncs(define *DefineExpr) {
 	fmt.Fprintf(g.w, "}\n\n")
 }
 
-func (g *exprsGen) genMemoFuncs(define *DefineExpr) {
+func (g *ExprsGen) genMemoFuncs(define *DefineExpr) {
 	opType := fmt.Sprintf("%sOp", define.Name())
 	exprType := fmt.Sprintf("%sExpr", unTitle(define.Name()))
 

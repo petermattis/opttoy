@@ -47,6 +47,12 @@ var childCountLookup = []childCountLookupFunc{
 		return 0 + int(orderedListExpr.items.len)
 	},
 
+	// TupleOp
+	func(e *Expr) int {
+		tupleExpr := (*tupleExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return 0 + int(tupleExpr.elems.len)
+	},
+
 	// FiltersOp
 	func(e *Expr) int {
 		filtersExpr := (*filtersExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
@@ -307,7 +313,8 @@ var childCountLookup = []childCountLookupFunc{
 
 	// ValuesOp
 	func(e *Expr) int {
-		return 0
+		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return 0 + int(valuesExpr.rows.len)
 	},
 
 	// SelectOp
@@ -466,6 +473,17 @@ var childGroupLookup = []childGroupLookupFunc{
 		switch n {
 		default:
 			list := e.mem.lookupList(orderedListExpr.items)
+			return list[n-0]
+		}
+	},
+
+	// TupleOp
+	func(e *Expr, n int) GroupID {
+		tupleExpr := (*tupleExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+
+		switch n {
+		default:
+			list := e.mem.lookupList(tupleExpr.elems)
 			return list[n-0]
 		}
 	},
@@ -1140,7 +1158,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ValuesOp
 	func(e *Expr, n int) GroupID {
-		panic("child index out of range")
+		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+
+		switch n {
+		default:
+			list := e.mem.lookupList(valuesExpr.rows)
+			return list[n-0]
+		}
 	},
 
 	// SelectOp
@@ -1181,7 +1205,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return innerJoinExpr.right
 		case 2:
-			return innerJoinExpr.filter
+			return innerJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1197,7 +1221,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return leftJoinExpr.right
 		case 2:
-			return leftJoinExpr.filter
+			return leftJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1213,7 +1237,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return rightJoinExpr.right
 		case 2:
-			return rightJoinExpr.filter
+			return rightJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1229,7 +1253,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return fullJoinExpr.right
 		case 2:
-			return fullJoinExpr.filter
+			return fullJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1245,7 +1269,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return semiJoinExpr.right
 		case 2:
-			return semiJoinExpr.filter
+			return semiJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1261,7 +1285,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return antiJoinExpr.right
 		case 2:
-			return antiJoinExpr.filter
+			return antiJoinExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1277,7 +1301,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return innerJoinApplyExpr.right
 		case 2:
-			return innerJoinApplyExpr.filter
+			return innerJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1293,7 +1317,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return leftJoinApplyExpr.right
 		case 2:
-			return leftJoinApplyExpr.filter
+			return leftJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1309,7 +1333,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return rightJoinApplyExpr.right
 		case 2:
-			return rightJoinApplyExpr.filter
+			return rightJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1325,7 +1349,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return fullJoinApplyExpr.right
 		case 2:
-			return fullJoinApplyExpr.filter
+			return fullJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1341,7 +1365,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return semiJoinApplyExpr.right
 		case 2:
-			return semiJoinApplyExpr.filter
+			return semiJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1357,7 +1381,7 @@ var childGroupLookup = []childGroupLookupFunc{
 		case 1:
 			return antiJoinApplyExpr.right
 		case 2:
-			return antiJoinApplyExpr.filter
+			return antiJoinApplyExpr.on
 		default:
 			panic("child index out of range")
 		}
@@ -1477,6 +1501,11 @@ var privateLookup = []privateLookupFunc{
 	},
 
 	// OrderedListOp
+	func(e *Expr) PrivateID {
+		return 0
+	},
+
+	// TupleOp
 	func(e *Expr) PrivateID {
 		return 0
 	},
@@ -1741,7 +1770,8 @@ var privateLookup = []privateLookupFunc{
 
 	// ValuesOp
 	func(e *Expr) PrivateID {
-		return 0
+		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		return valuesExpr.cols
 	},
 
 	// SelectOp
@@ -1855,6 +1885,7 @@ var isScalarLookup = []bool{
 	true,  // PlaceholderOp
 	true,  // ListOp
 	true,  // OrderedListOp
+	true,  // TupleOp
 	true,  // FiltersOp
 	true,  // ProjectionsOp
 	true,  // ExistsOp
@@ -1938,6 +1969,7 @@ var isRelationalLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // TupleOp
 	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
@@ -2021,6 +2053,7 @@ var isJoinLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // TupleOp
 	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
@@ -2104,6 +2137,7 @@ var isJoinApplyLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // TupleOp
 	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
@@ -2187,6 +2221,7 @@ var isEnforcerLookup = []bool{
 	false, // PlaceholderOp
 	false, // ListOp
 	false, // OrderedListOp
+	false, // TupleOp
 	false, // FiltersOp
 	false, // ProjectionsOp
 	false, // ExistsOp
@@ -2667,6 +2702,72 @@ func (m *memo) memoizeOrderedList(expr *orderedListExpr) GroupID {
 				p.group = mgrp.id
 				loc.group = mgrp.id
 				e := Expr{mem: m, group: mgrp.id, op: OrderedListOp, offset: loc.offset, required: defaultPhysPropsID}
+				mgrp.logical = m.logPropsFactory.constructProps(&e)
+			}
+		} else {
+			if expr.group != loc.group {
+				panic("denormalized expression's group doesn't match fingerprint group")
+			}
+		}
+
+		m.lookupGroup(loc.group).addExpr(loc.offset)
+		m.exprMap[fingerprint] = loc
+	}
+
+	return loc.group
+}
+
+type tupleExpr struct {
+	memoExpr
+	elems ListID
+}
+
+func (e *tupleExpr) fingerprint() (f fingerprint) {
+	const size = unsafe.Sizeof(tupleExpr{})
+	const offset = unsafe.Offsetof(tupleExpr{}.op)
+
+	b := *(*[size]byte)(unsafe.Pointer(e))
+
+	if size-offset <= unsafe.Sizeof(f) {
+		copy(f[:], b[offset:])
+	} else {
+		f = fingerprint(md5.Sum(b[offset:]))
+	}
+
+	return
+}
+
+func (m *memoExpr) asTuple() *tupleExpr {
+	if m.op != TupleOp {
+		return nil
+	}
+
+	return (*tupleExpr)(unsafe.Pointer(m))
+}
+
+func (m *memo) memoizeTuple(expr *tupleExpr) GroupID {
+	const size = uint32(unsafe.Sizeof(tupleExpr{}))
+	const align = uint32(unsafe.Alignof(tupleExpr{}))
+
+	if expr.elems == UndefinedList {
+		panic("elems child cannot be undefined")
+	}
+
+	fingerprint := expr.fingerprint()
+	loc := m.exprMap[fingerprint]
+	if loc.offset == 0 {
+		loc.offset = exprOffset(m.arena.alloc(size, align))
+		p := (*tupleExpr)(m.arena.getPointer(uint32(loc.offset)))
+		*p = *expr
+
+		if loc.group == 0 {
+			if expr.group != 0 {
+				loc.group = expr.group
+			} else {
+				mgrp := m.newGroup(TupleOp, loc.offset)
+				p.group = mgrp.id
+				loc.group = mgrp.id
+				e := Expr{mem: m, group: mgrp.id, op: TupleOp, offset: loc.offset, required: defaultPhysPropsID}
 				mgrp.logical = m.logPropsFactory.constructProps(&e)
 			}
 		} else {
@@ -6250,6 +6351,8 @@ func (m *memo) memoizeScan(expr *scanExpr) GroupID {
 
 type valuesExpr struct {
 	memoExpr
+	rows ListID
+	cols PrivateID
 }
 
 func (e *valuesExpr) fingerprint() (f fingerprint) {
@@ -6278,6 +6381,14 @@ func (m *memoExpr) asValues() *valuesExpr {
 func (m *memo) memoizeValues(expr *valuesExpr) GroupID {
 	const size = uint32(unsafe.Sizeof(valuesExpr{}))
 	const align = uint32(unsafe.Alignof(valuesExpr{}))
+
+	if expr.rows == UndefinedList {
+		panic("rows child cannot be undefined")
+	}
+
+	if expr.cols == 0 {
+		panic("cols child cannot be undefined")
+	}
 
 	fingerprint := expr.fingerprint()
 	loc := m.exprMap[fingerprint]
@@ -6453,9 +6564,9 @@ func (m *memo) memoizeProject(expr *projectExpr) GroupID {
 
 type innerJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *innerJoinExpr) fingerprint() (f fingerprint) {
@@ -6493,8 +6604,8 @@ func (m *memo) memoizeInnerJoin(expr *innerJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6529,9 +6640,9 @@ func (m *memo) memoizeInnerJoin(expr *innerJoinExpr) GroupID {
 
 type leftJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *leftJoinExpr) fingerprint() (f fingerprint) {
@@ -6569,8 +6680,8 @@ func (m *memo) memoizeLeftJoin(expr *leftJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6605,9 +6716,9 @@ func (m *memo) memoizeLeftJoin(expr *leftJoinExpr) GroupID {
 
 type rightJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *rightJoinExpr) fingerprint() (f fingerprint) {
@@ -6645,8 +6756,8 @@ func (m *memo) memoizeRightJoin(expr *rightJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6681,9 +6792,9 @@ func (m *memo) memoizeRightJoin(expr *rightJoinExpr) GroupID {
 
 type fullJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *fullJoinExpr) fingerprint() (f fingerprint) {
@@ -6721,8 +6832,8 @@ func (m *memo) memoizeFullJoin(expr *fullJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6757,9 +6868,9 @@ func (m *memo) memoizeFullJoin(expr *fullJoinExpr) GroupID {
 
 type semiJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *semiJoinExpr) fingerprint() (f fingerprint) {
@@ -6797,8 +6908,8 @@ func (m *memo) memoizeSemiJoin(expr *semiJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6833,9 +6944,9 @@ func (m *memo) memoizeSemiJoin(expr *semiJoinExpr) GroupID {
 
 type antiJoinExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *antiJoinExpr) fingerprint() (f fingerprint) {
@@ -6873,8 +6984,8 @@ func (m *memo) memoizeAntiJoin(expr *antiJoinExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6909,9 +7020,9 @@ func (m *memo) memoizeAntiJoin(expr *antiJoinExpr) GroupID {
 
 type innerJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *innerJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -6949,8 +7060,8 @@ func (m *memo) memoizeInnerJoinApply(expr *innerJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -6985,9 +7096,9 @@ func (m *memo) memoizeInnerJoinApply(expr *innerJoinApplyExpr) GroupID {
 
 type leftJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *leftJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -7025,8 +7136,8 @@ func (m *memo) memoizeLeftJoinApply(expr *leftJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -7061,9 +7172,9 @@ func (m *memo) memoizeLeftJoinApply(expr *leftJoinApplyExpr) GroupID {
 
 type rightJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *rightJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -7101,8 +7212,8 @@ func (m *memo) memoizeRightJoinApply(expr *rightJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -7137,9 +7248,9 @@ func (m *memo) memoizeRightJoinApply(expr *rightJoinApplyExpr) GroupID {
 
 type fullJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *fullJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -7177,8 +7288,8 @@ func (m *memo) memoizeFullJoinApply(expr *fullJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -7213,9 +7324,9 @@ func (m *memo) memoizeFullJoinApply(expr *fullJoinApplyExpr) GroupID {
 
 type semiJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *semiJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -7253,8 +7364,8 @@ func (m *memo) memoizeSemiJoinApply(expr *semiJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()
@@ -7289,9 +7400,9 @@ func (m *memo) memoizeSemiJoinApply(expr *semiJoinApplyExpr) GroupID {
 
 type antiJoinApplyExpr struct {
 	memoExpr
-	left   GroupID
-	right  GroupID
-	filter GroupID
+	left  GroupID
+	right GroupID
+	on    GroupID
 }
 
 func (e *antiJoinApplyExpr) fingerprint() (f fingerprint) {
@@ -7329,8 +7440,8 @@ func (m *memo) memoizeAntiJoinApply(expr *antiJoinApplyExpr) GroupID {
 		panic("right child cannot be undefined")
 	}
 
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
+	if expr.on == 0 {
+		panic("on child cannot be undefined")
 	}
 
 	fingerprint := expr.fingerprint()

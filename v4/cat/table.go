@@ -35,7 +35,7 @@ func (t *Table) AddColumn(col *Column) ColumnOrdinal {
 	return ord
 }
 
-func (t *Table) AddKey(key *TableKey) {
+func (t *Table) AddKey(key *TableKey) *TableKey {
 	for i := range t.Keys {
 		existing := &t.Keys[i]
 		if existing.Name == key.Name {
@@ -44,6 +44,7 @@ func (t *Table) AddKey(key *TableKey) {
 	}
 
 	t.Keys = append(t.Keys, *key)
+	return &t.Keys[len(t.Keys)-1]
 }
 
 func (t *Table) Column(name ColumnName) *Column {

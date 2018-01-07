@@ -1,7 +1,9 @@
 package opt
 
 import (
+	"bytes"
 	"crypto/md5"
+	"fmt"
 
 	"github.com/petermattis/opttoy/v4/cat"
 )
@@ -218,4 +220,16 @@ func (m *memo) lookupPhysicalProps(id physicalPropsID) *PhysicalProps {
 	return &m.physProps[id]
 }
 
-// TODO: Add string representations.
+func (m *memo) String() string {
+	var buf bytes.Buffer
+	for i := len(m.groups) - 1; i > 0; i-- {
+		mgrp := &m.groups[i]
+		fmt.Fprintf(&buf, "%d:", i)
+		for _, offset := range mgrp.exprs {
+			mexpr := m.lookupExpr(offset)
+			fmt.Fprintf(&buf, " %s", mexpr.MemoString(m))
+		}
+		fmt.Fprintf(&buf, "\n")
+	}
+	return buf.String()
+}

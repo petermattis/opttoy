@@ -1,4 +1,4 @@
-package main
+package optgen
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ type xformRule struct {
 	name    string
 	tags    tagList
 	match   *MatchFieldsExpr
-	replace ParsedExpr
+	replace Expr
 }
 
 func (x *xformGen) init(compiled CompiledExpr, w io.Writer, ruleType string) {
@@ -49,11 +49,15 @@ func (x *xformGen) init(compiled CompiledExpr, w io.Writer, ruleType string) {
 	x.unique = make(map[string]bool)
 }
 
+func (x *xformGen) resetUnique() {
+	x.unique = make(map[string]bool)
+}
+
 func (x *xformGen) genVarDefs(rule *xformRule, excludeTopLevel bool) {
-	var traverse func(match ParsedExpr, fieldType, excludeFieldName string)
+	var traverse func(match Expr, fieldType, excludeFieldName string)
 
 	hasVarDef := false
-	traverse = func(match ParsedExpr, fieldType, excludeFieldName string) {
+	traverse = func(match Expr, fieldType, excludeFieldName string) {
 		if matchFields, ok := match.(*MatchFieldsExpr); ok {
 			for index, matchField := range matchFields.Fields() {
 				fieldDef := x.lookupFieldDef(matchFields, index)

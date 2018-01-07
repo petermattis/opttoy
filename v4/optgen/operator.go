@@ -1,36 +1,37 @@
-package main
+package optgen
 
-//go:generate stringer -type=operator operator.go
-type operator int
+//go:generate stringer -type=Operator operator.go
+type Operator int
 
 const (
-	unknownOp operator = iota
+	UnknownOp Operator = iota
 
-	rootOp
+	RootOp
 
-	defineSetOp
-	defineOp
-	defineFieldOp
+	DefineSetOp
+	DefineOp
+	DefineFieldOp
 
-	ruleSetOp
-	ruleHeaderOp
-	ruleOp
-	bindOp
-	refOp
+	RuleSetOp
+	RuleHeaderOp
+	RuleOp
+	BindOp
+	RefOp
 
-	matchTemplateOp
-	matchTemplateNamesOp
-	matchInvokeOp
-	matchFieldsOp
-	matchAndOp
-	matchNotOp
-	matchAnyOp
-	matchListOp
+	MatchTemplateOp
+	MatchTemplateNamesOp
+	MatchInvokeOp
+	MatchFieldsOp
+	MatchAndOp
+	MatchNotOp
+	MatchAnyOp
+	MatchListOp
 
-	replaceRootOp
-	constructOp
-	constructListOp
+	ReplaceRootOp
+	ConstructOp
+	ConstructListOp
 
-	tagsOp
-	stringOp
+	TagsOp
+	StringOp
+	OpNameOp
 )

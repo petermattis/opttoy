@@ -1,18 +1,20 @@
-package main
+package optgen
 
 import (
 	"fmt"
 	"io"
 )
 
-type factoryGen struct {
+type FactoryGen struct {
 	xformGen
 }
 
-func (g *factoryGen) generate(compiled CompiledExpr, w io.Writer) {
+func (g *FactoryGen) Generate(compiled CompiledExpr, w io.Writer) {
 	g.init(compiled, w, "Normalize")
 
 	for _, define := range g.defines {
+		g.resetUnique()
+
 		g.w.writeIndent("func (_f *Factory) Construct%s(\n", define.name)
 
 		for _, field := range define.fields {
@@ -55,7 +57,7 @@ func (g *factoryGen) generate(compiled CompiledExpr, w io.Writer) {
 	g.genDynamicConstructLookup()
 }
 
-func (g *factoryGen) genRule(rule *xformRule) {
+func (g *FactoryGen) genRule(rule *xformRule) {
 	g.w.writeIndent("// [%s]\n", rule.name)
 	g.w.nest("{\n")
 
@@ -80,7 +82,7 @@ func (g *factoryGen) genRule(rule *xformRule) {
 	g.w.writeIndent("\n")
 }
 
-func (g *factoryGen) genMatch(match ParsedExpr, fieldName string, negate bool) {
+func (g *FactoryGen) genMatch(match Expr, fieldName string, negate bool) {
 	if matchFields, ok := match.(*MatchFieldsExpr); ok {
 		g.genMatchField(matchFields, fieldName, negate)
 		return
@@ -140,7 +142,7 @@ func (g *factoryGen) genMatch(match ParsedExpr, fieldName string, negate bool) {
 	panic(fmt.Sprintf("unrecognized match expression: %v", match))
 }
 
-func (g *factoryGen) genMatchField(matchFields *MatchFieldsExpr, fieldName string, negate bool) {
+func (g *FactoryGen) genMatchField(matchFields *MatchFieldsExpr, fieldName string, negate bool) {
 	opName := matchFields.OpName()
 	numFields := len(matchFields.Fields())
 	varName := g.makeUnique(fmt.Sprintf("_%s", unTitle(opName)))
@@ -172,7 +174,7 @@ func (g *factoryGen) genMatchField(matchFields *MatchFieldsExpr, fieldName strin
 	}
 }
 
-func (g *factoryGen) genMatchInvoke(matchInvoke *MatchInvokeExpr, negate bool) {
+func (g *FactoryGen) genMatchInvoke(matchInvoke *MatchInvokeExpr, negate bool) {
 	funcName := unTitle(matchInvoke.FuncName())
 
 	if negate {
@@ -194,22 +196,26 @@ func (g *factoryGen) genMatchInvoke(matchInvoke *MatchInvokeExpr, negate bool) {
 	g.w.write(") {\n")
 }
 
-func (g *factoryGen) genReplace(rule *xformRule, replace ParsedExpr) {
+func (g *FactoryGen) genReplace(rule *xformRule, replace Expr) {
 	if construct, ok := replace.(*ConstructExpr); ok {
-		define := g.compiled.LookupDefine(construct.Name())
-		if define != nil {
-			// Standard op construction function.
-			g.w.write("_f.Construct%s(", construct.Name())
-		} else if construct.Name() == "OpName" {
-			// Built-in function that constructs an op of the same type as the
-			// root match op.
-			g.w.write("_f.Construct%s(", rule.match.OpName())
-		} else {
-			// Custom function.
-			g.w.write("_f.%s(", unTitle(construct.Name()))
+		if strName, ok := construct.OpName().(*StringExpr); ok {
+			name := strName.ValueAsString()
+			define := g.compiled.LookupDefine(name)
+			if define != nil {
+				// Standard op construction function.
+				g.w.write("_f.Construct%s(", name)
+			} else {
+				// Custom function.
+				g.w.write("_f.%s(", unTitle(name))
+			}
 		}
 
-		for index, elem := range construct.All() {
+		if opName, ok := construct.OpName().(*OpNameExpr); ok {
+			name := opName.ValueAsOpName()
+			g.w.write("_f.Construct%s(", name[:len(name)-2])
+		}
+
+		for index, elem := range construct.Args() {
 			if index != 0 {
 				g.w.write(", ")
 			}
@@ -237,12 +243,7 @@ func (g *factoryGen) genReplace(rule *xformRule, replace ParsedExpr) {
 	}
 
 	if ref, ok := replace.(*RefExpr); ok {
-		if ref.Label() == "optype" {
-			// Builtin ref that resolves to the current optype.
-			g.w.write(rule.define.opType)
-		} else {
-			g.w.write(ref.Label())
-		}
+		g.w.write(ref.Label())
 		return
 	}
 
@@ -251,10 +252,15 @@ func (g *factoryGen) genReplace(rule *xformRule, replace ParsedExpr) {
 		return
 	}
 
+	if opName, ok := replace.(*OpNameExpr); ok {
+		g.w.write(opName.ValueAsOpName())
+		return
+	}
+
 	panic(fmt.Sprintf("unrecognized replace expression: %v", replace))
 }
 
-func (g *factoryGen) genDynamicConstructLookup() {
+func (g *FactoryGen) genDynamicConstructLookup() {
 	// Generate dynamic construct lookup table.
 	g.w.writeIndent("type dynConstructLookupFunc func(f *Factory, children []GroupID, private PrivateID) GroupID\n")
 

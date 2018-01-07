@@ -1,4 +1,4 @@
-package main
+package optgen
 
 import (
 	"fmt"
@@ -92,7 +92,11 @@ func (p *Parser) parseDefine(tags []string) *DefineExpr {
 		}
 
 		p.unscan()
-		define.Add(p.parseDefineField())
+		defineField := p.parseDefineField()
+		if defineField == nil {
+			return nil
+		}
+		define.Add(defineField)
 	}
 }
 
@@ -132,7 +136,7 @@ func (p *Parser) parseRule(tags []string) *RuleExpr {
 	return NewRuleExpr(ruleHeader, match, replace)
 }
 
-func (p *Parser) parseMatchTemplate() ParsedExpr {
+func (p *Parser) parseMatchTemplate() Expr {
 	if !p.scanToken(LPAREN) {
 		return nil
 	}
@@ -143,7 +147,7 @@ func (p *Parser) parseMatchTemplate() ParsedExpr {
 
 	templateNames := NewMatchTemplateNamesExpr()
 	for {
-        templateNames.Add(NewStringExpr(p.s.Literal()))
+		templateNames.Add(NewStringExpr(p.s.Literal()))
 
 		if p.scan() != PIPE {
 			p.unscan()
@@ -151,7 +155,7 @@ func (p *Parser) parseMatchTemplate() ParsedExpr {
 		}
 
 		if !p.scanToken(IDENT) {
-        	return nil
+			return nil
 		}
 	}
 
@@ -197,15 +201,19 @@ func (p *Parser) parseMatchFields() *MatchFieldsExpr {
 	}
 }
 
-func (p *Parser) parseMatchFieldsArg() ParsedExpr {
+func (p *Parser) parseMatchFieldsArg() Expr {
 	tok := p.scan()
 	p.unscan()
 
-	var match ParsedExpr
+	var match Expr
 	if tok == DOLLAR {
 		match = p.parseMatchBind()
 	} else {
 		match = p.parseMatchExpr()
+	}
+
+	if match == nil {
+		return nil
 	}
 
 	if p.scan() != AMPERSAND {
@@ -213,10 +221,15 @@ func (p *Parser) parseMatchFieldsArg() ParsedExpr {
 		return match
 	}
 
-	return NewMatchAndExpr(match, p.parseMatchAndExpr())
+	and := p.parseMatchAndExpr()
+	if and == nil {
+		return nil
+	}
+
+	return NewMatchAndExpr(match, and)
 }
 
-func (p *Parser) parseMatchExpr() ParsedExpr {
+func (p *Parser) parseMatchExpr() Expr {
 	switch p.scan() {
 	case LPAREN:
 		p.unscan()
@@ -259,22 +272,32 @@ func (p *Parser) parseMatchBind() *BindExpr {
 	}
 
 	target := p.parseMatchExpr()
+	if target == nil {
+		return nil
+	}
 
 	return NewBindExpr(label, target)
 }
 
-func (p *Parser) parseMatchAndExpr() ParsedExpr {
-	match := p.parseMatchNotExpr()
+func (p *Parser) parseMatchAndExpr() Expr {
+	left := p.parseMatchNotExpr()
+	if left == nil {
+		return nil
+	}
 
 	if p.scan() != AMPERSAND {
 		p.unscan()
-		return match
+		return left
 	}
 
-	return NewMatchAndExpr(match, p.parseMatchAndExpr())
+	right := p.parseMatchAndExpr()
+	if right == nil {
+		return nil
+	}
+	return NewMatchAndExpr(left, right)
 }
 
-func (p *Parser) parseMatchNotExpr() ParsedExpr {
+func (p *Parser) parseMatchNotExpr() Expr {
 	switch p.scan() {
 	case LPAREN:
 		p.unscan()
@@ -282,6 +305,9 @@ func (p *Parser) parseMatchNotExpr() ParsedExpr {
 
 	case CARET:
 		input := p.parseMatchNotExpr()
+		if input == nil {
+			return nil
+		}
 		return NewMatchNotExpr(input)
 
 	default:
@@ -322,7 +348,7 @@ func (p *Parser) parseMatchInvoke() *MatchInvokeExpr {
 	}
 }
 
-func (p *Parser) parseMatchListExpr() ParsedExpr {
+func (p *Parser) parseMatchListExpr() Expr {
 	if !p.scanToken(LBRACKET) {
 		return nil
 	}
@@ -332,6 +358,9 @@ func (p *Parser) parseMatchListExpr() ParsedExpr {
 	}
 
 	matchItem := p.parseMatchBind()
+	if matchItem == nil {
+		return nil
+	}
 
 	if !p.scanToken(ELLIPSES) {
 		return nil
@@ -344,7 +373,7 @@ func (p *Parser) parseMatchListExpr() ParsedExpr {
 	return NewMatchListExpr(matchItem)
 }
 
-func (p *Parser) parseReplace() ParsedExpr {
+func (p *Parser) parseReplace() Expr {
 	replaceRoot := NewReplaceRootExpr()
 
 	for {
@@ -358,6 +387,9 @@ func (p *Parser) parseReplace() ParsedExpr {
 		case DOLLAR:
 			p.unscan()
 			replace := p.parseReplaceItem()
+			if replace == nil {
+				return nil
+			}
 			replaceRoot.Add(replace)
 
 		default:
@@ -377,7 +409,7 @@ func (p *Parser) parseReplace() ParsedExpr {
 	}
 }
 
-func (p *Parser) parseReplaceItem() ParsedExpr {
+func (p *Parser) parseReplaceItem() Expr {
 	switch p.scan() {
 	case LPAREN:
 		p.unscan()
@@ -406,12 +438,12 @@ func (p *Parser) parseConstruct() *ConstructExpr {
 		return nil
 	}
 
-	if !p.scanToken(IDENT) {
+	name := p.parseConstructName()
+	if name == nil {
 		return nil
 	}
 
-	replaceResult := NewConstructExpr(p.s.Literal())
-
+	replaceResult := NewConstructExpr(name)
 	for {
 		if p.scan() == RPAREN {
 			return replaceResult
@@ -425,6 +457,21 @@ func (p *Parser) parseConstruct() *ConstructExpr {
 
 		replaceResult.Add(item)
 	}
+}
+
+func (p *Parser) parseConstructName() Expr {
+	switch p.scan() {
+	case IDENT:
+		return NewStringExpr(p.s.Literal())
+
+	case LPAREN:
+		// Constructed name.
+		p.unscan()
+		return p.parseConstruct()
+	}
+
+	p.setTokenErr(p.s.Literal())
+	return nil
 }
 
 func (p *Parser) parseConstructList() *ConstructListExpr {
