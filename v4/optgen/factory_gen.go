@@ -1,6 +1,7 @@
 package optgen
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 )
@@ -61,13 +62,8 @@ func (g *FactoryGen) genRule(rule *xformRule) {
 	g.w.writeIndent("// [%s]\n", rule.name)
 	g.w.nest("{\n")
 
-	// Do initial pass over rule match parse tree, and generate all
-	// variable declarations. These need to be done at the top level
-	// so that they're accessible to the generated replace code.
-	g.genVarDefs(rule, true)
-
 	for index, matchField := range rule.match.Fields() {
-		fieldName := g.lookupFieldName(rule.match, index)
+		fieldName := g.lookupFieldName(rule.match.Names().(*OpNameExpr).ValueAsName(), index)
 		g.genMatch(matchField, fieldName, false)
 	}
 
@@ -82,9 +78,9 @@ func (g *FactoryGen) genRule(rule *xformRule) {
 	g.w.writeIndent("\n")
 }
 
-func (g *FactoryGen) genMatch(match Expr, fieldName string, negate bool) {
+func (g *FactoryGen) genMatch(match Expr, contextName string, negate bool) {
 	if matchFields, ok := match.(*MatchFieldsExpr); ok {
-		g.genMatchField(matchFields, fieldName, negate)
+		g.genMatchField(matchFields, contextName, negate)
 		return
 	}
 
@@ -98,30 +94,30 @@ func (g *FactoryGen) genMatch(match Expr, fieldName string, negate bool) {
 			panic("negate is not yet supported by the and match op")
 		}
 
-		g.genMatch(matchAnd.Left(), fieldName, negate)
-		g.genMatch(matchAnd.Right(), fieldName, negate)
+		g.genMatch(matchAnd.Left(), contextName, negate)
+		g.genMatch(matchAnd.Right(), contextName, negate)
 		return
 	}
 
 	if not, ok := match.(*MatchNotExpr); ok {
-		g.genMatch(not.Input(), fieldName, !negate)
+		g.genMatch(not.Input(), contextName, !negate)
 		return
 	}
 
 	if bind, ok := match.(*BindExpr); ok {
-		if bind.Label() != fieldName {
-			g.w.writeIndent("%s = %s\n", bind.Label(), fieldName)
+		if bind.Label() != contextName {
+			g.w.writeIndent("%s := %s\n", bind.Label(), contextName)
 		}
 
-		g.genMatch(bind.Target(), fieldName, negate)
+		g.genMatch(bind.Target(), contextName, negate)
 		return
 	}
 
 	if str, ok := match.(*StringExpr); ok {
 		if negate {
-			g.w.nest("if %s != m.mem.internPrivate(\"%s\") {\n", fieldName, str.Value())
+			g.w.nest("if %s != m.mem.internPrivate(\"%s\") {\n", contextName, str.Value())
 		} else {
-			g.w.nest("if %s == m.mem.internPrivate(\"%s\") {\n", fieldName, str.Value())
+			g.w.nest("if %s == m.mem.internPrivate(\"%s\") {\n", contextName, str.Value())
 		}
 		return
 	}
@@ -134,7 +130,7 @@ func (g *FactoryGen) genMatch(match Expr, fieldName string, negate bool) {
 	}
 
 	if matchList, ok := match.(*MatchListExpr); ok {
-		g.w.nest("for _, _item := range _f.mem.lookupList(%s) {\n", fieldName)
+		g.w.nest("for _, _item := range _f.mem.lookupList(%s) {\n", contextName)
 		g.genMatch(matchList.MatchItem(), "_item", negate)
 		return
 	}
@@ -142,28 +138,22 @@ func (g *FactoryGen) genMatch(match Expr, fieldName string, negate bool) {
 	panic(fmt.Sprintf("unrecognized match expression: %v", match))
 }
 
-func (g *FactoryGen) genMatchField(matchFields *MatchFieldsExpr, fieldName string, negate bool) {
-	opName := matchFields.OpName()
+func (g *FactoryGen) genMatchField(matchFields *MatchFieldsExpr, contextName string, negate bool) {
+	names := matchFields.Names()
 	numFields := len(matchFields.Fields())
-	varName := g.makeUnique(fmt.Sprintf("_%s", unTitle(opName)))
 
 	if negate && numFields != 0 {
 		g.w.writeIndent("_match := false\n")
 	}
 
+	// Save current nesting level, so that negation case can close the right
+	// number of levels.
 	nesting := g.w.nesting
 
-	g.w.writeIndent("%s := _f.mem.lookupNormExpr(%s).as%s()\n", varName, fieldName, opName)
-
-	if negate && numFields == 0 {
-		g.w.nest("if %s == nil {\n", varName)
+	if opName, ok := names.(*OpNameExpr); ok {
+		g.genConstantMatchField(matchFields, opName.ValueAsName(), contextName, negate)
 	} else {
-		g.w.nest("if %s != nil {\n", varName)
-	}
-
-	for index, matchField := range matchFields.Fields() {
-		fieldName := g.lookupFieldName(matchFields, index)
-		g.genMatch(matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
+		g.genDynamicMatchField(matchFields, names.(*MatchNamesExpr), contextName, negate)
 	}
 
 	if negate && numFields != 0 {
@@ -171,6 +161,61 @@ func (g *FactoryGen) genMatchField(matchFields *MatchFieldsExpr, fieldName strin
 		g.w.unnest(g.w.nesting-nesting, "}\n")
 		g.w.writeIndent("\n")
 		g.w.nest("if !_match {\n")
+	}
+}
+
+func (g *FactoryGen) genConstantMatchField(matchFields *MatchFieldsExpr, opName string, contextName string, negate bool) {
+	varName := g.makeUnique(fmt.Sprintf("_%s", unTitle(opName)))
+
+	g.w.writeIndent("%s := _f.mem.lookupNormExpr(%s).as%s()\n", varName, contextName, opName)
+
+	if negate && len(matchFields.Fields()) == 0 {
+		g.w.nest("if %s == nil {\n", varName)
+	} else {
+		g.w.nest("if %s != nil {\n", varName)
+	}
+
+	for index, matchField := range matchFields.Fields() {
+		fieldName := g.lookupFieldName(opName, index)
+		g.genMatch(matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
+	}
+}
+
+func (g *FactoryGen) genDynamicMatchField(matchFields *MatchFieldsExpr, names *MatchNamesExpr, contextName string, negate bool) {
+	normName := g.makeUnique("_norm")
+	g.w.writeIndent("%s := _f.mem.lookupNormExpr(%s)\n", normName, contextName)
+
+	var buf bytes.Buffer
+	for i, elem := range names.All() {
+		if i != 0 {
+			buf.WriteString(" || ")
+		}
+
+		name := elem.(*StringExpr).ValueAsString()
+		define := g.compiled.LookupDefine(name)
+		if define != nil {
+			// Match operator name.
+			fmt.Fprintf(&buf, "%s.op == %sOp", normName, name)
+		} else {
+			// Match tag name.
+			fmt.Fprintf(&buf, "is%sLookup[%s.op]", name, normName)
+		}
+	}
+
+	if negate && len(matchFields.Fields()) == 0 {
+		g.w.nest("if !(%s) {\n", buf.String())
+	} else {
+		g.w.nest("if %s {\n", buf.String())
+	}
+
+	if len(matchFields.Fields()) > 0 {
+		// Construct an Expr to use for matching children.
+		exprName := g.makeUnique("_e")
+		g.w.writeIndent("%s := makeExpr(_f.mem, %s, defaultPhysPropsID)\n", exprName, contextName)
+
+		for index, matchField := range matchFields.Fields() {
+			g.genMatch(matchField, fmt.Sprintf("%s.ChildGroup(%d)", exprName, index), false)
+		}
 	}
 }
 
@@ -211,8 +256,13 @@ func (g *FactoryGen) genReplace(rule *xformRule, replace Expr) {
 		}
 
 		if opName, ok := construct.OpName().(*OpNameExpr); ok {
-			name := opName.ValueAsOpName()
-			g.w.write("_f.Construct%s(", name[:len(name)-2])
+			g.w.write("_f.Construct%s(", opName.ValueAsName())
+		}
+
+		if opNameConstruct, ok := construct.OpName().(*ConstructExpr); ok {
+			// Must be the OpName function.
+			ref := opNameConstruct.Args()[0].(*RefExpr)
+			g.w.write("_f.DynamicConstruct(_f.mem.lookupNormExpr(%s).op, []GroupID{", ref.Label())
 		}
 
 		for index, elem := range construct.Args() {
@@ -223,7 +273,12 @@ func (g *FactoryGen) genReplace(rule *xformRule, replace Expr) {
 			g.genReplace(rule, elem)
 		}
 
-		g.w.write(")")
+		if construct.OpName().Op() == ConstructOp {
+			g.w.write("}, 0)")
+		} else {
+			g.w.write(")")
+		}
+
 		return
 	}
 
@@ -253,7 +308,7 @@ func (g *FactoryGen) genReplace(rule *xformRule, replace Expr) {
 	}
 
 	if opName, ok := replace.(*OpNameExpr); ok {
-		g.w.write(opName.ValueAsOpName())
+		g.w.write(opName.ValueAsName() + "Op")
 		return
 	}
 
@@ -264,15 +319,17 @@ func (g *FactoryGen) genDynamicConstructLookup() {
 	// Generate dynamic construct lookup table.
 	g.w.writeIndent("type dynConstructLookupFunc func(f *Factory, children []GroupID, private PrivateID) GroupID\n")
 
-	g.w.nest("var dynConstructLookup = []dynConstructLookupFunc{\n")
+	g.w.writeIndent("var dynConstructLookup [%d]dynConstructLookupFunc\n\n", len(g.defines)+1)
+
+	g.w.nest("func init() {\n")
 	g.w.writeIndent("// UnknownOp\n")
-	g.w.writeIndent("func(f *Factory, children []GroupID, private PrivateID) GroupID {\n")
+	g.w.nest("dynConstructLookup[UnknownOp] = func(f *Factory, children []GroupID, private PrivateID) GroupID {\n")
 	g.w.writeIndent("  panic(\"op type not initialized\")\n")
-	g.w.writeIndent("},\n\n")
+	g.w.unnest(1, "}\n\n")
 
 	for _, define := range g.defines {
 		g.w.writeIndent("// %sOp\n", define.name)
-		g.w.nest("func(f *Factory, children []GroupID, private PrivateID) GroupID {\n")
+		g.w.nest("dynConstructLookup[%sOp] = func(f *Factory, children []GroupID, private PrivateID) GroupID {\n", define.name)
 
 		g.w.writeIndent("return f.Construct%s(", define.name)
 		for i, field := range define.fields {
@@ -294,12 +351,12 @@ func (g *FactoryGen) genDynamicConstructLookup() {
 		}
 		g.w.write(")\n")
 
-		g.w.unnest(1, "},\n\n")
+		g.w.unnest(1, "}\n\n")
 	}
 
 	g.w.unnest(1, "}\n\n")
 
-	g.w.nest("func (f *Factory) dynamicConstruct(op Operator, children []GroupID, private PrivateID) GroupID {\n")
+	g.w.nest("func (f *Factory) DynamicConstruct(op Operator, children []GroupID, private PrivateID) GroupID {\n")
 	g.w.writeIndent("return dynConstructLookup[op](f, children, private)\n")
 	g.w.unnest(1, "}\n")
 }

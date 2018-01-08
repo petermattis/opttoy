@@ -119,7 +119,7 @@ func (p *Parser) parseDefineField() *DefineFieldExpr {
 func (p *Parser) parseRule(tags []string) *RuleExpr {
 	ruleHeader := NewRuleHeaderExpr(tags[0], tags[1:])
 
-	match := p.parseMatchTemplate()
+	match := p.parseMatchFields()
 	if match == nil {
 		return nil
 	}
@@ -136,56 +136,17 @@ func (p *Parser) parseRule(tags []string) *RuleExpr {
 	return NewRuleExpr(ruleHeader, match, replace)
 }
 
-func (p *Parser) parseMatchTemplate() Expr {
-	if !p.scanToken(LPAREN) {
-		return nil
-	}
-
-	if !p.scanToken(IDENT) {
-		return nil
-	}
-
-	templateNames := NewMatchTemplateNamesExpr()
-	for {
-		templateNames.Add(NewStringExpr(p.s.Literal()))
-
-		if p.scan() != PIPE {
-			p.unscan()
-			break
-		}
-
-		if !p.scanToken(IDENT) {
-			return nil
-		}
-	}
-
-	template := NewMatchTemplateExpr(templateNames)
-	for {
-		if p.scan() == RPAREN {
-			return template
-		}
-
-		p.unscan()
-		match := p.parseMatchFieldsArg()
-		if match == nil {
-			return nil
-		}
-
-		template.Add(match)
-	}
-}
-
 func (p *Parser) parseMatchFields() *MatchFieldsExpr {
 	if !p.scanToken(LPAREN) {
 		return nil
 	}
 
-	if !p.scanToken(IDENT) {
+	names := p.parseMatchNames()
+	if names == nil {
 		return nil
 	}
 
-	matchFields := NewMatchFieldsExpr(p.s.Literal())
-
+	matchFields := NewMatchFieldsExpr(names)
 	for {
 		if p.scan() == RPAREN {
 			return matchFields
@@ -198,6 +159,22 @@ func (p *Parser) parseMatchFields() *MatchFieldsExpr {
 		}
 
 		matchFields.Add(match)
+	}
+}
+
+func (p *Parser) parseMatchNames() *MatchNamesExpr {
+	names := NewMatchNamesExpr()
+	for {
+		if !p.scanToken(IDENT) {
+			return nil
+		}
+
+		names.Add(NewStringExpr(p.s.Literal()))
+
+		if p.scan() != PIPE {
+			p.unscan()
+			return names
+		}
 	}
 }
 

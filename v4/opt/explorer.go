@@ -85,7 +85,7 @@ func (_e *explorer) exploreInnerJoin(_root *innerJoinExpr, pass optimizePass, pa
 	//	(InnerJoin
 	//	    (InnerJoin $r:* $s:* $lowerFilter:*)
 	//	    $t:*
-	//	    $upperFilter:* && (CanBeSplitByColUsage $upperFilter $s)
+	//	    $upperOn:* && (CanBeSplitByColUsage $upperFilter $s)
 	//  )
 	//	=>
 	//	($newLowerFilter, $newUpperFilter):(SplitByColUsage $upperFilter $s)

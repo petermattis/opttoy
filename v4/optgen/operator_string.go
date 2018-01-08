@@ -4,9 +4,9 @@ package optgen
 
 import "strconv"
 
-const _Operator_name = "UnknownOpRootOpDefineSetOpDefineOpDefineFieldOpRuleSetOpRuleHeaderOpRuleOpBindOpRefOpMatchTemplateOpMatchTemplateNamesOpMatchInvokeOpMatchFieldsOpMatchAndOpMatchNotOpMatchAnyOpMatchListOpReplaceRootOpConstructOpConstructListOpTagsOpStringOpOpNameOp"
+const _Operator_name = "UnknownOpRootOpDefineSetOpDefineOpDefineFieldOpRuleSetOpRuleHeaderOpRuleOpBindOpRefOpMatchNamesOpMatchInvokeOpMatchFieldsOpMatchAndOpMatchNotOpMatchAnyOpMatchListOpReplaceRootOpConstructOpConstructListOpTagsOpStringOpOpNameOp"
 
-var _Operator_index = [...]uint8{0, 9, 15, 26, 34, 47, 56, 68, 74, 80, 85, 100, 120, 133, 146, 156, 166, 176, 187, 200, 211, 226, 232, 240, 248}
+var _Operator_index = [...]uint8{0, 9, 15, 26, 34, 47, 56, 68, 74, 80, 85, 97, 110, 123, 133, 143, 153, 164, 177, 188, 203, 209, 217, 225}
 
 func (i Operator) String() string {
 	if i < 0 || i >= Operator(len(_Operator_index)-1) {

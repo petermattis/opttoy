@@ -444,54 +444,58 @@ func (e *RefExpr) Visit(accept AcceptFunc) Expr {
 	return accept(e)
 }
 
-type MatchTemplateExpr struct{ expr }
+type MatchNamesExpr struct{ expr }
 
-func NewMatchTemplateExpr(opNames *MatchTemplateNamesExpr) *MatchTemplateExpr {
-	children := []Expr{
-		opNames,
-	}
-
-	names := map[int]string{0: "Names"}
-
-	return &MatchTemplateExpr{expr{op: MatchTemplateOp, children: children, names: names}}
+func NewMatchNamesExpr() *MatchNamesExpr {
+	return &MatchNamesExpr{expr{op: MatchNamesOp}}
 }
 
-func (e *MatchTemplateExpr) Names() *MatchTemplateNamesExpr {
-	return e.children[0].(*MatchTemplateNamesExpr)
+func (e *MatchNamesExpr) All() []Expr {
+	return e.children
 }
 
-func (e *MatchTemplateExpr) Fields() []Expr {
-	return e.children[1:]
+func (e *MatchNamesExpr) Name(index int) string {
+	return e.children[index].(*StringExpr).ValueAsString()
 }
 
-func (e *MatchTemplateExpr) Add(match Expr) {
-	e.children = append(e.children, match)
+func (e *MatchNamesExpr) Add(name *StringExpr) {
+	e.children = append(e.children, name)
 }
 
-func (e *MatchTemplateExpr) Visit(accept AcceptFunc) Expr {
+func (e *MatchNamesExpr) Visit(accept AcceptFunc) Expr {
 	if children, replaced := e.visitChildren(accept); replaced {
-		return accept(&MatchTemplateExpr{expr{op: MatchTemplateOp, children: children, names: e.names}})
+		return accept(&MatchNamesExpr{expr{op: MatchNamesOp, children: children, names: e.names}})
 	}
 	return accept(e)
 }
 
-type MatchTemplateNamesExpr struct{ expr }
+type MatchFieldsExpr struct{ expr }
 
-func NewMatchTemplateNamesExpr() *MatchTemplateNamesExpr {
-	return &MatchTemplateNamesExpr{expr{op: MatchTemplateNamesOp}}
+func NewMatchFieldsExpr(names Expr) *MatchFieldsExpr {
+	children := []Expr{
+		names,
+	}
+
+	namesMap := map[int]string{0: "Names"}
+
+	return &MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: namesMap}}
 }
 
-func (e *MatchTemplateNamesExpr) All() []Expr {
-	return e.children
+func (e *MatchFieldsExpr) Names() Expr {
+	return e.children[0]
 }
 
-func (e *MatchTemplateNamesExpr) Add(name *StringExpr) {
-	e.children = append(e.children, name)
+func (e *MatchFieldsExpr) Fields() []Expr {
+	return e.children[1:]
 }
 
-func (e *MatchTemplateNamesExpr) Visit(accept AcceptFunc) Expr {
+func (e *MatchFieldsExpr) Add(match Expr) {
+	e.children = append(e.children, match)
+}
+
+func (e *MatchFieldsExpr) Visit(accept AcceptFunc) Expr {
 	if children, replaced := e.visitChildren(accept); replaced {
-		return accept(&MatchTemplateNamesExpr{expr{op: MatchTemplateNamesOp, children: children, names: e.names}})
+		return accept(&MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: e.names}})
 	}
 	return accept(e)
 }
@@ -544,37 +548,6 @@ func (e *MatchInvokeExpr) Add(match Expr) {
 func (e *MatchInvokeExpr) Visit(accept AcceptFunc) Expr {
 	if children, replaced := e.visitChildren(accept); replaced {
 		return accept(&MatchInvokeExpr{expr{op: MatchInvokeOp, children: children, names: e.names}})
-	}
-	return accept(e)
-}
-
-type MatchFieldsExpr struct{ expr }
-
-func NewMatchFieldsExpr(opName string) *MatchFieldsExpr {
-	children := []Expr{
-		NewStringExpr(opName),
-	}
-
-	names := map[int]string{0: "OpName"}
-
-	return &MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: names}}
-}
-
-func (e *MatchFieldsExpr) OpName() string {
-	return e.children[0].(*StringExpr).ValueAsString()
-}
-
-func (e *MatchFieldsExpr) Fields() []Expr {
-	return e.children[1:]
-}
-
-func (e *MatchFieldsExpr) Add(match Expr) {
-	e.children = append(e.children, match)
-}
-
-func (e *MatchFieldsExpr) Visit(accept AcceptFunc) Expr {
-	if children, replaced := e.visitChildren(accept); replaced {
-		return accept(&MatchFieldsExpr{expr{op: MatchFieldsOp, children: children, names: e.names}})
 	}
 	return accept(e)
 }
@@ -747,11 +720,11 @@ func (e *StringExpr) Visit(accept AcceptFunc) Expr {
 
 type OpNameExpr struct{ expr }
 
-func NewOpNameExpr(opName string) *OpNameExpr {
-	return &OpNameExpr{expr{op: OpNameOp, value: opName}}
+func NewOpNameExpr(name string) *OpNameExpr {
+	return &OpNameExpr{expr{op: OpNameOp, value: name}}
 }
 
-func (e *OpNameExpr) ValueAsOpName() string {
+func (e *OpNameExpr) ValueAsName() string {
 	return e.value.(string)
 }
 
