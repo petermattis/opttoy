@@ -53,51 +53,6 @@ func (x *xformGen) resetUnique() {
 	x.unique = make(map[string]bool)
 }
 
-func (x *xformGen) genVarDefs(rule *xformRule, excludeTopLevel bool) {
-	var traverse func(match Expr, fieldType, excludeFieldName string)
-
-	hasVarDef := false
-	traverse = func(match Expr, fieldType, excludeFieldName string) {
-		if matchFields, ok := match.(*MatchFieldsExpr); ok {
-			for index, matchField := range matchFields.Fields() {
-				fieldDef := x.lookupFieldDef(matchFields, index)
-				traverse(matchField, fieldDef.Type(), "")
-			}
-			return
-		}
-
-		if _, ok := match.(*MatchListExpr); ok {
-			// MatchList matches items in a list rather than fields in a struct.
-			fieldType = "Expr"
-			excludeFieldName = ""
-		}
-
-		if bind, ok := match.(*BindExpr); ok {
-			if bind.Label() != excludeFieldName {
-				x.w.writeIndent("var %s %s\n", bind.Label(), mapType(fieldType))
-				hasVarDef = true
-			}
-		}
-
-		for _, child := range match.Children() {
-			traverse(child, fieldType, excludeFieldName)
-		}
-	}
-
-	for index, matchField := range rule.match.Fields() {
-		fieldDef := x.lookupFieldDef(rule.match, index)
-		if excludeTopLevel {
-			traverse(matchField, fieldDef.Type(), unTitle(fieldDef.Name()))
-		} else {
-			traverse(matchField, fieldDef.Type(), "")
-		}
-	}
-
-	if hasVarDef {
-		x.w.write("\n")
-	}
-}
-
 func (x *xformGen) makeUnique(s string) string {
 	try := s
 	for i := 2; ; i++ {
@@ -111,13 +66,19 @@ func (x *xformGen) makeUnique(s string) string {
 	}
 }
 
-func (x *xformGen) lookupFieldDef(matchFields *MatchFieldsExpr, index int) *DefineFieldExpr {
-	define := x.compiled.LookupDefine(matchFields.OpName())
+func (x *xformGen) lookupFieldDef(opName string, index int) *DefineFieldExpr {
+	define := x.compiled.LookupDefine(opName)
+	if define == nil {
+		panic(fmt.Sprintf("cannot find match opname: %s", opName))
+	}
+	if index >= len(define.Fields()) {
+		panic(fmt.Sprintf("operator %s does not have %d arguments", opName, index+1))
+	}
 	return define.Fields()[index].(*DefineFieldExpr)
 }
 
-func (x *xformGen) lookupFieldName(matchFields *MatchFieldsExpr, index int) string {
-	return unTitle(x.lookupFieldDef(matchFields, index).Name())
+func (x *xformGen) lookupFieldName(opName string, index int) string {
+	return unTitle(x.lookupFieldDef(opName, index).Name())
 }
 
 func (x *xformGen) createRules(ruleType string) []*xformRule {
@@ -184,7 +145,7 @@ func (x *xformGen) createDefines() []*xformDefine {
 		// with a matching opname.
 		var xrulesList []*xformRule
 		for _, rule := range x.rules {
-			if rule.match.OpName() == define.Name() {
+			if rule.match.Names().(*OpNameExpr).ValueAsName() == define.Name() {
 				xrulesList = append(xrulesList, rule)
 				rule.define = &xdefine
 			}

@@ -1,7 +1,42 @@
-#[PushDownSelectJoin]
-#(Select
-#    $input:(Join $left:* $right:* $joinFilter:*)
-#    $filter:*
-#)
-#=>
-#((OpName $input) $left $right (ConcatFilterConditions $joinFilter $filter))
+[PushDownSelectJoinLeft, Normalize]
+(Select
+    $input:(Join $left:* $right:* $on:*)
+    (Filters $list:[ ... $condition:* ... ] & ^(IsCorrelated $condition $right))
+)
+=>
+(Select
+    ((OpName $input)
+        (Select $left $condition)
+        $right
+        $on
+    )
+    (Filters (RemoveListItem $list $condition))
+)
+
+[PushDownSelectJoinRight, Normalize]
+(Select
+    $input:(InnerJoin|InnerJoinApply $left:* $right:* $on:*)
+    (Filters $list:[ ... $condition:* ... ] & ^(IsCorrelated $condition $left))
+)
+=>
+(Select
+    ((OpName $input)
+        $left
+        (Select $right $condition)
+        $on
+    )
+    (Filters (RemoveListItem $list $condition))
+)
+
+[PushDownJoinFilter, Normalize]
+(Join
+    $left:*
+    $right:*
+    (Filters $list:[ ... $condition:* ... ] & ^(IsCorrelated $condition $right))
+)
+=>
+((OpName)
+    (Select $left $condition)
+    $right
+    (Filters (RemoveListItem $list $condition))
+)

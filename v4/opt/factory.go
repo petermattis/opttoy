@@ -1,19 +1,14 @@
 package opt
 
-//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/filter.opt norm/decorrelate.opt
+//go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/filter.opt norm/push_down.opt norm/decorrelate.opt
 
 type Factory struct {
 	mem      *memo
 	maxSteps int
-
-	// The customNormalize function cannot be directly invoked in generated
-	// code due to golang initialization loop rules, so do it indirectly.
-	onConstruct func(group GroupID) GroupID
 }
 
 func newFactory(mem *memo, maxSteps int) *Factory {
 	f := &Factory{mem: mem, maxSteps: maxSteps}
-	f.onConstruct = f.normalizeManually
 	return f
 }
 
@@ -29,7 +24,7 @@ func (f *Factory) InternPrivate(private interface{}) PrivateID {
 	return f.mem.internPrivate(private)
 }
 
-func (f *Factory) normalizeManually(group GroupID) GroupID {
+func (f *Factory) onConstruct(group GroupID) GroupID {
 	if f.maxSteps <= 0 {
 		return group
 	}
@@ -54,7 +49,7 @@ func (f *Factory) normalizeManually(group GroupID) GroupID {
 				children[i] = child.ChildGroup(1)
 
 				// Reconstruct the scalar operator with modified children.
-				scalar := f.dynamicConstruct(e.Operator(), children, e.privateID())
+				scalar := f.DynamicConstruct(e.Operator(), children, e.privateID())
 
 				// Construct subquery as parent.
 				group = f.ConstructSubquery(child.ChildGroup(0), scalar)

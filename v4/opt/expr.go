@@ -23,11 +23,6 @@ type Expr struct {
 
 func makeExpr(mem *memo, group GroupID, required physicalPropsID) Expr {
 	best := mem.lookupGroup(group).lookupBestExpr(required)
-	if best == nil {
-		for x, y := range mem.lookupGroup(group).bestExprsMap {
-			fatalf("%v, %v", x, y)
-		}
-	}
 	return Expr{mem: mem, group: group, op: best.op, offset: best.offset, required: required}
 }
 

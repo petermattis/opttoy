@@ -18,8 +18,7 @@ const (
 	BindOp
 	RefOp
 
-	MatchTemplateOp
-	MatchTemplateNamesOp
+	MatchNamesOp
 	MatchInvokeOp
 	MatchFieldsOp
 	MatchAndOp
