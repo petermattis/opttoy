@@ -1,7 +1,7 @@
 [PushDownSelectJoinLeft, Normalize]
 (Select
     $input:(Join $left:* $right:* $on:*)
-    (Filters $list:[ ... $condition:* ... ] & ^(IsCorrelated $condition $right))
+    (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $right) ... ])
 )
 =>
 (Select
@@ -16,7 +16,7 @@
 [PushDownSelectJoinRight, Normalize]
 (Select
     $input:(InnerJoin|InnerJoinApply $left:* $right:* $on:*)
-    (Filters $list:[ ... $condition:* ... ] & ^(IsCorrelated $condition $left))
+    (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $left) ... ])
 )
 =>
 (Select

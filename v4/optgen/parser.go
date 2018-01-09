@@ -334,7 +334,7 @@ func (p *Parser) parseMatchListExpr() Expr {
 		return nil
 	}
 
-	matchItem := p.parseMatchBind()
+	matchItem := p.parseMatchFieldsArg()
 	if matchItem == nil {
 		return nil
 	}
