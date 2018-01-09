@@ -9,7 +9,8 @@ import (
 var _ = fmt.Println
 
 func TestCompilerTag(t *testing.T) {
-	s := `
+	testCompiler(t,
+		`
 		[Join]
 		define InnerJoin {
 			Left  Expr
@@ -23,41 +24,78 @@ func TestCompilerTag(t *testing.T) {
 		}
 
 		[NormalizeJoin]
-		(Join $r:* $s:* & (IsLower $s $r))
+		(Join $r:* $s:*)
 		=>
-		((OpName) $s $r)
-	`
-
-	r := strings.NewReader(s)
-	c := NewCompiler(r)
-	compiled, err := c.Compile()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s2 := compiled.Rules()[0].String()
-	fmt.Println(s2)
+		$r
+		`,
+		`
+		(Rules
+			(Rule
+				Header=(RuleHeader Name="NormalizeJoin" Tags=(Tags))
+				Match=(MatchFields
+					Names=InnerJoinOp
+					(Bind Label="r" Target=(MatchAny))
+					(Bind Label="s" Target=(MatchAny))
+				)
+				Replace=(Ref Label="r")
+			)
+			(Rule
+				Header=(RuleHeader Name="NormalizeJoin" Tags=(Tags))
+				Match=(MatchFields
+					Names=LeftJoinOp
+					(Bind Label="r" Target=(MatchAny))
+					(Bind Label="s" Target=(MatchAny))
+				)
+				Replace=(Ref Label="r")
+			)
+		)
+		`)
 }
 
 func TestCompilerOpNameArg(t *testing.T) {
-	s := `
+	testCompiler(t,
+		`
 		define InnerJoin {
 			Left  Expr
 			Right Expr
 		}
 
 		[NormalizeJoin]
-		(InnerJoin $r:* $s:* & (IsLower $s $r))
+		(InnerJoin $r:* $s:*)
 		=>
 		(Do (OpName) $s $r)
-	`
+		`,
+		`
+		(Rule
+			Header=(RuleHeader Name="NormalizeJoin" Tags=(Tags))
+			Match=(MatchFields
+				Names=InnerJoinOp
+				(Bind Label="r" Target=(MatchAny))
+				(Bind Label="s" Target=(MatchAny))
+			)
+			Replace=(Construct
+				OpName="Do"
+				InnerJoinOp
+				(Ref Label="s")
+				(Ref Label="r")
+			)
+		)
+		`)
+}
 
-	r := strings.NewReader(s)
+func testCompiler(t *testing.T, in, expected string) {
+	r := strings.NewReader(in)
 	c := NewCompiler(r)
 	compiled, err := c.Compile()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("%v\n", compiled.Rules())
+	if testing.Verbose() {
+		fmt.Printf("%s\n=>\n\n%s\n", in, compiled.String())
+	}
+
+	if !strings.Contains(removeWhitespace(compiled.String()), removeWhitespace(expected)) {
+		t.Fatalf("\nexpected:\n%s\nactual:\n%s", expected, compiled.String())
+	}
 }

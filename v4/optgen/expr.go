@@ -74,6 +74,9 @@ func (e *expr) Format(buf *bytes.Buffer, level int) {
 			buf.WriteByte('"')
 			buf.WriteString(e.value.(string))
 			buf.WriteByte('"')
+		} else if e.op == OpNameOp {
+			buf.WriteString(e.value.(string))
+			buf.WriteString("Op")
 		} else {
 			buf.WriteString(fmt.Sprintf("%v", e.value))
 		}
@@ -736,5 +739,5 @@ func (e *OpNameExpr) Visit(accept AcceptFunc) Expr {
 }
 
 func writeIndent(buf *bytes.Buffer, level int) {
-	buf.WriteString(strings.Repeat("  ", level))
+	buf.WriteString(strings.Repeat("\t", level))
 }

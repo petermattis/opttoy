@@ -41,9 +41,29 @@ func (c *compiledExpr) LookupDefine(name string) *DefineExpr {
 func (c *compiledExpr) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("(Compiled\n")
+
 	writeIndent(&buf, 1)
-	c.root.Format(&buf, 1)
-	buf.WriteString("\n)")
+	buf.WriteString("(Defines\n")
+	for _, define := range c.defines {
+		writeIndent(&buf, 2)
+		define.Format(&buf, 2)
+		buf.WriteString("\n")
+	}
+	writeIndent(&buf, 1)
+	buf.WriteString(")\n")
+
+	writeIndent(&buf, 1)
+	buf.WriteString("(Rules\n")
+	for _, rule := range c.rules {
+		writeIndent(&buf, 2)
+		rule.Format(&buf, 2)
+		buf.WriteString("\n")
+	}
+	writeIndent(&buf, 1)
+	buf.WriteString(")\n")
+
+	buf.WriteString(")\n")
+
 	return buf.String()
 }
 

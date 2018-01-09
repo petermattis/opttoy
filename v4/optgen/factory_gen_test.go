@@ -10,7 +10,8 @@ import (
 var _ = fmt.Println
 
 func TestFactoryGenNegate(t *testing.T) {
-	in := `
+	testFactory(t,
+		`
 		define Lt {
 			Left  Expr
 			Right Expr
@@ -20,9 +21,8 @@ func TestFactoryGenNegate(t *testing.T) {
 		(Lt $left:(Lt $left2:^(Lt $left3:* $right3:^*) $right2:*) $right1:*)
 		=>
 		(Lt $left $right2)
-	`
-
-	expected := `
+		`,
+		`
 		// [Test]
 		{
 			_lt := _f.mem.lookupNormExpr(left).asLt()
@@ -48,13 +48,12 @@ func TestFactoryGenNegate(t *testing.T) {
 				}
 			}
 		}
-	`
-
-	test(t, in, expected)
+		`)
 }
 
 func TestFactoryGenDynamic(t *testing.T) {
-	in := `
+	testFactory(t,
+		`
 		[Join]
 		define InnerJoin {
 			Left  Expr
@@ -71,28 +70,25 @@ func TestFactoryGenDynamic(t *testing.T) {
 		(InnerJoin $left:(Join|InnerJoin $lowerLeft:* $lowerRight:*) $right:*)
 		=>
 		((OpName $left) $lowerRight $lowerLeft)
-	`
-
-	expected := `
+		`,
+		`
 		// [Test]
 		{
 			_norm := _f.mem.lookupNormExpr(left)
-			if isJoinLookup[_norm.op] || _norm.op == innerJoinOp {
+			if isJoinLookup[_norm.op] || _norm.op == InnerJoinOp {
 				_e := makeExpr(_f.mem, left, defaultPhysPropsID)
-				lowerLeft := e.Child(0)
-				lowerRight := e.Child(1)
+				lowerLeft := _e.ChildGroup(0)
+				lowerRight := _e.ChildGroup(1)
 				_f.maxSteps--
 				_group = _f.DynamicConstruct(_f.mem.lookupNormExpr(left).op, []GroupID{lowerRight, lowerLeft}, 0)
 				_f.mem.addAltFingerprint(_fingerprint, _group)
 				return _group
 			}
 		}
-	`
-
-	test(t, in, expected)
+		`)
 }
 
-func test(t *testing.T, in, expected string) {
+func testFactory(t *testing.T, in, expected string) {
 	r := strings.NewReader(in)
 	c := NewCompiler(r)
 	compiled, err := c.Compile()
@@ -104,11 +100,11 @@ func test(t *testing.T, in, expected string) {
 	var buf bytes.Buffer
 	gen.Generate(compiled, &buf)
 
+	if testing.Verbose() {
+		fmt.Printf("%s\n=>\n\n%s\n", in, buf.String())
+	}
+
 	if !strings.Contains(removeWhitespace(buf.String()), removeWhitespace(expected)) {
 		t.Fatalf("\nexpected:\n%s\nactual:\n%s", expected, buf.String())
 	}
-}
-
-func removeWhitespace(s string) string {
-	return strings.Replace(strings.Replace(s, " ", "", -1), "\t", "", -1)
 }
