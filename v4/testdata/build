@@ -1,0 +1,423 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+exec
+CREATE TABLE b (x INT, z INT)
+----
+table b
+  x NULL
+  z NULL
+
+exec
+CREATE TABLE c (x INT, w INT)
+----
+table c
+  x NULL
+  w NULL
+
+build
+SELECT 1, 2
+----
+project
+ ├── columns: column1:1 column2:2
+ ├── values
+ │    └── tuple
+ └── projections
+      ├── const: 1
+      └── const: 2
+
+# TODO(peter): this currently panics because the subquery has nil
+# scalarProps which we try to dereference when determining the type of
+# the project element.
+#
+# build
+# SELECT (SELECT 1)
+# ----
+
+build
+SELECT y FROM a
+----
+project
+ ├── columns: y:2
+ ├── scan
+ │    └── columns: a.x:1 a.y:2
+ └── projections [unbound=(2)]
+      └── variable: a.y [unbound=(2)]
+
+build
+SELECT a.* FROM a
+----
+arrange
+ ├── columns: x:1 y:2
+ └── scan
+      └── columns: a.x:1 a.y:2
+
+build
+SELECT * FROM (SELECT a.x FROM a)
+----
+project
+ ├── columns: x:1
+ ├── scan
+ │    └── columns: a.x:1 a.y:2
+ └── projections [unbound=(1)]
+      └── variable: a.x [unbound=(1)]
+
+build
+SELECT * FROM (SELECT a.x+1 FROM a)
+----
+project
+ ├── columns: column1:3
+ ├── scan
+ │    └── columns: a.x:1 a.y:2
+ └── projections [unbound=(1)]
+      └── plus [unbound=(1)]
+           ├── variable: a.x [unbound=(1)]
+           └── const: 1
+
+build
+SELECT a.y, a.x FROM a
+----
+project
+ ├── columns: y:2 x:1
+ ├── scan
+ │    └── columns: a.x:1 a.y:2
+ └── projections [unbound=(1,2)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: a.x [unbound=(1)]
+
+build
+SELECT a.y+1 FROM a
+----
+project
+ ├── columns: column1:3
+ ├── scan
+ │    └── columns: a.x:1 a.y:2
+ └── projections [unbound=(2)]
+      └── plus [unbound=(2)]
+           ├── variable: a.y [unbound=(2)]
+           └── const: 1
+
+build
+SELECT * FROM b WHERE b.z > 10
+----
+arrange
+ ├── columns: x:1 z:2*
+ └── select
+      ├── columns: b.x:1 b.z:2*
+      ├── scan
+      │    └── columns: b.x:1 b.z:2
+      └── gt [unbound=(2)]
+           ├── variable: b.z [unbound=(2)]
+           └── const: 10
+
+build
+SELECT * FROM a JOIN b USING (x)
+----
+project
+ ├── columns: x:1* y:2 z:4
+ ├── equiv: (1,3)
+ ├── inner-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    ├── equiv: (1,3)
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: b.x:3 b.z:4
+ │    └── filters [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
+ └── projections [unbound=(1,2,4)]
+      ├── variable: a.x [unbound=(1)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT b.* FROM a JOIN b USING (x)
+----
+project
+ ├── columns: z:4
+ ├── equiv: (1,3)
+ ├── inner-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    ├── equiv: (1,3)
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: b.x:3 b.z:4
+ │    └── filters [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
+ └── projections [unbound=(4)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT a.y, b.z FROM a JOIN b ON (a.x = b.x) WHERE a.x > 7 AND b.z = 3
+----
+project
+ ├── columns: y:2 z:4*
+ ├── equiv: (1,3)
+ ├── select
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4*
+ │    ├── equiv: (1,3)
+ │    ├── inner-join
+ │    │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    │    ├── equiv: (1,3)
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── scan
+ │    │    │    └── columns: b.x:3 b.z:4
+ │    │    └── eq [unbound=(1,3)]
+ │    │         ├── variable: a.x [unbound=(1)]
+ │    │         └── variable: b.x [unbound=(3)]
+ │    └── and [unbound=(1,4)]
+ │         ├── gt [unbound=(1)]
+ │         │    ├── variable: a.x [unbound=(1)]
+ │         │    └── const: 7
+ │         └── eq [unbound=(4)]
+ │              ├── variable: b.z [unbound=(4)]
+ │              └── const: 3
+ └── projections [unbound=(2,4)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT b.x FROM a, b WHERE a.x > 7 AND b.z = 3
+----
+project
+ ├── columns: x:3
+ ├── select
+ │    ├── columns: a.x:1* a.y:2 b.x:3 b.z:4*
+ │    ├── inner-join
+ │    │    ├── columns: a.x:1 a.y:2 b.x:3 b.z:4
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── scan
+ │    │    │    └── columns: b.x:3 b.z:4
+ │    │    └── true
+ │    └── and [unbound=(1,4)]
+ │         ├── gt [unbound=(1)]
+ │         │    ├── variable: a.x [unbound=(1)]
+ │         │    └── const: 7
+ │         └── eq [unbound=(4)]
+ │              ├── variable: b.z [unbound=(4)]
+ │              └── const: 3
+ └── projections [unbound=(3)]
+      └── variable: b.x [unbound=(3)]
+
+build
+SELECT b.x FROM a NATURAL JOIN b WHERE a.x > 7 AND b.z = 3
+----
+project
+ ├── columns: x:3*
+ ├── equiv: (1,3)
+ ├── select
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4*
+ │    ├── equiv: (1,3)
+ │    ├── inner-join
+ │    │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    │    ├── equiv: (1,3)
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── scan
+ │    │    │    └── columns: b.x:3 b.z:4
+ │    │    └── filters [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
+ │    └── and [unbound=(1,4)]
+ │         ├── gt [unbound=(1)]
+ │         │    ├── variable: a.x [unbound=(1)]
+ │         │    └── const: 7
+ │         └── eq [unbound=(4)]
+ │              ├── variable: b.z [unbound=(4)]
+ │              └── const: 3
+ └── projections [unbound=(3)]
+      └── variable: b.x [unbound=(3)]
+
+build
+SELECT b.x FROM a JOIN b USING (x) WHERE a.x > 7 AND b.z = 3
+----
+project
+ ├── columns: x:3*
+ ├── equiv: (1,3)
+ ├── select
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4*
+ │    ├── equiv: (1,3)
+ │    ├── inner-join
+ │    │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    │    ├── equiv: (1,3)
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── scan
+ │    │    │    └── columns: b.x:3 b.z:4
+ │    │    └── filters [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
+ │    └── and [unbound=(1,4)]
+ │         ├── gt [unbound=(1)]
+ │         │    ├── variable: a.x [unbound=(1)]
+ │         │    └── const: 7
+ │         └── eq [unbound=(4)]
+ │              ├── variable: b.z [unbound=(4)]
+ │              └── const: 3
+ └── projections [unbound=(3)]
+      └── variable: b.x [unbound=(3)]
+
+build
+SELECT * FROM a LEFT JOIN b USING (x)
+----
+project
+ ├── columns: x:1* y:2 z:4
+ ├── equiv: (1,3)
+ ├── left-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    ├── equiv: (1,3)
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: b.x:3 b.z:4
+ │    └── filters [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
+ └── projections [unbound=(1,2,4)]
+      ├── variable: a.x [unbound=(1)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT * FROM a RIGHT JOIN b USING (x)
+----
+project
+ ├── columns: x:1* y:2 z:4
+ ├── equiv: (1,3)
+ ├── right-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    ├── equiv: (1,3)
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: b.x:3 b.z:4
+ │    └── filters [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
+ └── projections [unbound=(1,2,4)]
+      ├── variable: a.x [unbound=(1)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT * FROM a FULL JOIN b USING (x)
+----
+project
+ ├── columns: x:1* y:2 z:4
+ ├── equiv: (1,3)
+ ├── full-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    ├── equiv: (1,3)
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: b.x:3 b.z:4
+ │    └── filters [unbound=(1,3)]
+ │         └── eq [unbound=(1,3)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: b.x [unbound=(3)]
+ └── projections [unbound=(1,2,4)]
+      ├── variable: a.x [unbound=(1)]
+      ├── variable: a.y [unbound=(2)]
+      └── variable: b.z [unbound=(4)]
+
+build
+SELECT a.x, a.y FROM a UNION SELECT a.y, a.x FROM a
+----
+arrange
+ ├── columns: x:1 y:2
+ └── union
+      ├── columns: a.x:1 a.y:2
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      └── project
+           ├── columns: a.x:3 a.y:4
+           ├── scan
+           │    └── columns: a.x:3 a.y:4
+           └── projections [unbound=(3,4)]
+                ├── variable: a.y [unbound=(4)]
+                └── variable: a.x [unbound=(3)]
+
+build
+SELECT b.x FROM a NATURAL JOIN b NATURAL JOIN c
+----
+project
+ ├── columns: x:3*
+ ├── equiv: (1,3,5)
+ ├── inner-join
+ │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4 c.x:5* c.w:6
+ │    ├── equiv: (1,3,5)
+ │    ├── inner-join
+ │    │    ├── columns: a.x:1* a.y:2 b.x:3* b.z:4
+ │    │    ├── equiv: (1,3)
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── scan
+ │    │    │    └── columns: b.x:3 b.z:4
+ │    │    └── filters [unbound=(1,3)]
+ │    │         └── eq [unbound=(1,3)]
+ │    │              ├── variable: a.x [unbound=(1)]
+ │    │              └── variable: b.x [unbound=(3)]
+ │    ├── scan
+ │    │    └── columns: c.x:5 c.w:6
+ │    └── filters [unbound=(1,5)]
+ │         └── eq [unbound=(1,5)]
+ │              ├── variable: a.x [unbound=(1)]
+ │              └── variable: c.x [unbound=(5)]
+ └── projections [unbound=(3)]
+      └── variable: b.x [unbound=(3)]
+
+build
+SELECT a.x FROM a ORDER BY a.x
+----
+arrange
+ ├── columns: x:1 y:2
+ ├── ordering: +1
+ └── sort
+      ├── columns: a.x:1 a.y:2
+      ├── ordering: +1
+      └── scan
+           └── columns: a.x:1 a.y:2
+
+build
+SELECT * FROM a WHERE 1000000 < (SELECT SUM(z) FROM b WHERE a.x = b.x)
+----
+arrange
+ ├── columns: x:1* y:2
+ └── select
+      ├── columns: a.x:1* a.y:2
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      └── lt [unbound=(1)]
+           ├── const: 1000000
+           └── subquery [unbound=(1)]
+                ├── group-by [unbound=(1)]
+                │    ├── columns: column1:5
+                │    ├── select [unbound=(1)]
+                │    │    ├── columns: b.x:3* b.z:4
+                │    │    ├── equiv: (1,3)
+                │    │    ├── scan
+                │    │    │    └── columns: b.x:3 b.z:4
+                │    │    └── eq [unbound=(1,3)]
+                │    │         ├── variable: a.x [unbound=(1)]
+                │    │         └── variable: b.x [unbound=(3)]
+                │    ├── projections
+                │    └── projections [unbound=(4)]
+                │         └── function: sum [unbound=(4)]
+                │              └── variable: b.z [unbound=(4)]
+                └── variable: column1 [unbound=(5)]
