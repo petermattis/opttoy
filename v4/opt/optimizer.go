@@ -1,5 +1,59 @@
 package opt
 
+// # Optimization
+// Memo groups are recursively optimized according to a set of required
+// physical properties. The same group can be (and sometimes is) optimized
+// multiple times with different required props. Optimization of a group
+// proceeds in two phases:
+//
+// 1. Compute the cost of any previously generated expressions. That set
+//    initially contains only the group's normalized expression, but
+//    exploration may yield additional expressions. Costing a parent expression
+//    requires that the children first be costed, so costing triggers a
+//    recursive traversal of the memo groups.
+//
+// 2. Invoke the explorer to generate new equivalent expressions for the group.
+//    Those new expressions are costed once the optimizer loops back to the
+//    first phase.
+//
+// # Search Algorithm
+// The optimizer proceeds in multiple iterative "passes", until either it hits
+// some configured limit, or until an exhaustive search is complete. As long as
+// the search is allowed to complete, the best plan will be found, just as in
+// Volcano and Cascades. The optimizer uses several techniques to maximize the
+// chance that it finds the best plan early on:
+//
+// 1. As with Cascades, the search is highly directed, interleaving exploration
+//    with costing in order to prune parts of the tree that cannot yield a
+//    better plan. This contrasts with Volcano, which first generates all
+//    possible plans in one global phase (exploration), and then determines the
+//    lowest cost plan in another global phase (costing).
+//
+// 2. The optimizer uses a simple hill climbing heuristic to make greedy
+//    progress towards the best plan. During a given pass, the optimizer visits
+//    each group and performs costing and exploration for that group. As long
+//    as doing that yields a lower cost expression for the group, the optimizer
+//    will repeat those steps. This finds a local maxima for each group during
+//    the current pass.
+//
+// # Search Space Pruning
+// In order to avoid costing or exploring parts of the search space that cannot
+// yield a better plan, the optimizer performs aggressive "branch and bound
+// pruning". Each group expression is optimized with respect to a "costLimit"
+// parameter. As soon as this limit is exceeded, optimization of that
+// expression terminates. It's not uncommon for large sections of the search
+// space to never be costed or explored due to this pruning. Example:
+//
+//   innerJoin
+//     left:  cost = 50
+//     right: cost = 75
+//     on:    cost = 25
+//
+// If the current best expression for the group has a cost of 100, then the
+// optimizer does not need to cost or explore the "on" child of the join, and
+// does not need to cost the join itself. This is because the combined cost of
+// the left and right children already exceeds 100.
+
 import (
 	"math"
 )
@@ -51,6 +105,12 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 				continue
 			}
 
+			// Lower the cost limit further if an expression with a lower cost
+			// has already been discovered.
+			if best.cost.Less(costLimit) {
+				costLimit = best.cost
+			}
+
 			// If this is the first time that the expression has been costed, then
 			// always compute its cost.
 			recomputeCost := index >= int(best.costedIndex)
@@ -58,7 +118,7 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 			// Optimize the expression, adding enforcers as necessary to
 			// provide the required properties. The best expression will be
 			// updated by optimizeExpr if the expression has a lower cost.
-			best = o.optimizeExpr(mgrp, index, required, recomputeCost)
+			best = o.optimizeExpr(mgrp, index, required, costLimit, recomputeCost)
 
 			if !best.isExprFullyOptimized(index) {
 				groupFullyOptimized = false
@@ -103,6 +163,7 @@ func (o *optimizer) optimizeExpr(
 	mgrp *memoGroup,
 	index int,
 	required physicalPropsID,
+	costLimit physicalCost,
 	recomputeCost bool,
 ) (best *bestExpr) {
 	offset := mgrp.exprs[index]
@@ -125,11 +186,6 @@ func (o *optimizer) optimizeExpr(
 		return best
 	}
 
-	// Don't attempt to hoist this lookup above the call to enforceProps,
-	// because it recursively calls optimizeGroup, and that can change the
-	// address of the best expression when the bestExprs array resizes.
-	best = mgrp.lookupBestExpr(required)
-	costLimit := best.cost
 	remainingCost := costLimit
 	fullyOptimized := true
 
@@ -182,6 +238,11 @@ func (o *optimizer) optimizeExpr(
 		// Decrease the remaining max cost by the cost of the child.
 		remainingCost = remainingCost.Sub(bestChild.cost)
 	}
+
+	// Don't attempt to hoist this lookup above the call to enforceProps,
+	// because it recursively calls optimizeGroup, and that can change the
+	// address of the best expression when the bestExprs array resizes.
+	best = mgrp.lookupBestExpr(required)
 
 	if recomputeCost {
 		o.ratchetCost(best, &e)
