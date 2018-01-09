@@ -1,7 +1,6 @@
 package v3
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -49,7 +48,7 @@ func (s *scope) resolve(expr tree.Expr, desired types.T) tree.TypedExpr {
 // sql/subquery.go.
 func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 	switch t := expr.(type) {
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
@@ -99,9 +98,10 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 				// columns. A * is invalid elsewhere (and will be caught by TypeCheck()).
 				// Replace the function with COUNT_ROWS (which doesn't take any
 				// arguments).
+				cr := tree.Name("COUNT_ROWS")
 				e := &tree.FuncExpr{
 					Func: tree.ResolvableFunctionReference{
-						FunctionReference: tree.UnresolvedName{tree.Name("COUNT_ROWS")},
+						FunctionReference: &tree.UnresolvedName{&cr},
 					},
 				}
 				// We call TypeCheck to fill in FuncExpr internals. This is a fixed
@@ -189,7 +189,7 @@ func (s *subquery) String() string {
 }
 
 // Format implements the tree.Expr interface.
-func (s *subquery) Format(buf *bytes.Buffer, f tree.FmtFlags) {
+func (s *subquery) Format(ctx *tree.FmtCtx) {
 }
 
 // Walk implements the tree.Expr interface.
@@ -298,8 +298,8 @@ func (s *subquery) Eval(_ *tree.EvalContext) (tree.Datum, error) {
 }
 
 // Format implements the tree.Expr interface.
-func (c *columnProps) Format(buf *bytes.Buffer, f tree.FmtFlags) {
-	fmt.Fprintf(buf, "@%d", c.index+1)
+func (c *columnProps) Format(ctx *tree.FmtCtx) {
+	ctx.Printf("@%d", c.index+1)
 }
 
 // Walk implements the tree.Expr interface.

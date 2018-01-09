@@ -510,7 +510,7 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 	case tree.UnqualifiedStar:
 		fatalf("unexpected unresolved scalar expr: %T", pexpr)
 
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		fatalf("unexpected unresolved scalar expr: %T", pexpr)
 
 		// NB: this is the exception to the sorting of the case statements. The
@@ -785,7 +785,7 @@ func buildProjection(pexpr tree.Expr, scope *scope) []*expr {
 		}
 		return projections
 
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
