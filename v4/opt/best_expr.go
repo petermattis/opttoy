@@ -4,10 +4,11 @@ type bestExpr struct {
 	// op is the operator type of this expression.
 	op Operator
 
-	costedIndex uint32
+	// loc is the location of the lowest cost expression in the memo, including
+	// its group and its index within the group.
+	loc memoLoc
 
-	// offset is the offset of the lowest cost expression in the memo's arena.
-	offset exprOffset
+	costedID exprID
 
 	// lastOptimized is the pass in which this expression was last optimized.
 	// A given expression is optimized at most once per optimization pass.
@@ -30,14 +31,14 @@ func (be *bestExpr) ratchetCost(e *Expr, cost physicalCost, pass optimizePass) {
 	// Overwrite existing best expression if the new cost is lower.
 	if cost.Less(be.cost) {
 		be.op = e.op
-		be.offset = e.offset
+		be.loc = e.loc
 		be.lastImproved = pass
 		be.cost = cost
 	}
 }
 
 func (be *bestExpr) isEnforcer() bool {
-	return be.offset == 0
+	return be.loc.expr == 0
 }
 
 // wasOptimizedSince returns true if the expression was optimized during or
@@ -51,10 +52,10 @@ func (be *bestExpr) isFullyOptimized() bool {
 	return be.lastOptimized == fullyOptimizedPass
 }
 
-func (be *bestExpr) isExprFullyOptimized(exprIndex int) bool {
-	return be.fullyOptimized.Contains(exprIndex)
+func (be *bestExpr) isExprFullyOptimized(eid exprID) bool {
+	return be.fullyOptimized.Contains(int(eid))
 }
 
-func (be *bestExpr) markExprAsFullyOptimized(exprIndex int) {
-	be.fullyOptimized.Add(exprIndex)
+func (be *bestExpr) markExprAsFullyOptimized(eid exprID) {
+	be.fullyOptimized.Add(int(eid))
 }

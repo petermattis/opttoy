@@ -6,106 +6,98 @@ func (_f *Factory) ConstructSubquery(
 	input GroupID,
 	projection GroupID,
 ) GroupID {
-	_subqueryExpr := subqueryExpr{memoExpr: memoExpr{op: SubqueryOp}, input: input, projection: projection}
-	_fingerprint := _subqueryExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_subqueryExpr := makeSubqueryExpr(input, projection)
+	_group := _f.mem.lookupGroupByFingerprint(_subqueryExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSubquery(&_subqueryExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_subqueryExpr)))
 }
 
 func (_f *Factory) ConstructVariable(
 	col PrivateID,
 ) GroupID {
-	_variableExpr := variableExpr{memoExpr: memoExpr{op: VariableOp}, col: col}
-	_fingerprint := _variableExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_variableExpr := makeVariableExpr(col)
+	_group := _f.mem.lookupGroupByFingerprint(_variableExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeVariable(&_variableExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_variableExpr)))
 }
 
 func (_f *Factory) ConstructConst(
 	value PrivateID,
 ) GroupID {
-	_constExpr := constExpr{memoExpr: memoExpr{op: ConstOp}, value: value}
-	_fingerprint := _constExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_constExpr := makeConstExpr(value)
+	_group := _f.mem.lookupGroupByFingerprint(_constExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeConst(&_constExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_constExpr)))
 }
 
 func (_f *Factory) ConstructPlaceholder(
 	value PrivateID,
 ) GroupID {
-	_placeholderExpr := placeholderExpr{memoExpr: memoExpr{op: PlaceholderOp}, value: value}
-	_fingerprint := _placeholderExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_placeholderExpr := makePlaceholderExpr(value)
+	_group := _f.mem.lookupGroupByFingerprint(_placeholderExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizePlaceholder(&_placeholderExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_placeholderExpr)))
 }
 
 func (_f *Factory) ConstructList(
 	items ListID,
 ) GroupID {
-	_listExpr := listExpr{memoExpr: memoExpr{op: ListOp}, items: items}
-	_fingerprint := _listExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_listExpr := makeListExpr(items)
+	_group := _f.mem.lookupGroupByFingerprint(_listExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeList(&_listExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_listExpr)))
 }
 
 func (_f *Factory) ConstructOrderedList(
 	items ListID,
 ) GroupID {
-	_orderedListExpr := orderedListExpr{memoExpr: memoExpr{op: OrderedListOp}, items: items}
-	_fingerprint := _orderedListExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_orderedListExpr := makeOrderedListExpr(items)
+	_group := _f.mem.lookupGroupByFingerprint(_orderedListExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeOrderedList(&_orderedListExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_orderedListExpr)))
 }
 
 func (_f *Factory) ConstructTuple(
 	elems ListID,
 ) GroupID {
-	_tupleExpr := tupleExpr{memoExpr: memoExpr{op: TupleOp}, elems: elems}
-	_fingerprint := _tupleExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_tupleExpr := makeTupleExpr(elems)
+	_group := _f.mem.lookupGroupByFingerprint(_tupleExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeTuple(&_tupleExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_tupleExpr)))
 }
 
 func (_f *Factory) ConstructFilters(
 	conditions ListID,
 ) GroupID {
-	_filtersExpr := filtersExpr{memoExpr: memoExpr{op: FiltersOp}, conditions: conditions}
-	_fingerprint := _filtersExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_filtersExpr := makeFiltersExpr(conditions)
+	_group := _f.mem.lookupGroupByFingerprint(_filtersExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeFilters(&_filtersExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_filtersExpr))
 	}
 
 	// [EliminateFilters]
@@ -114,95 +106,89 @@ func (_f *Factory) ConstructFilters(
 		if _f.isEmptyList(items) {
 			_f.maxSteps--
 			_group = _f.ConstructTrue()
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_filtersExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFilters(&_filtersExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_filtersExpr)))
 }
 
 func (_f *Factory) ConstructProjections(
 	items ListID,
 	cols PrivateID,
 ) GroupID {
-	_projectionsExpr := projectionsExpr{memoExpr: memoExpr{op: ProjectionsOp}, items: items, cols: cols}
-	_fingerprint := _projectionsExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_projectionsExpr := makeProjectionsExpr(items, cols)
+	_group := _f.mem.lookupGroupByFingerprint(_projectionsExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeProjections(&_projectionsExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_projectionsExpr)))
 }
 
 func (_f *Factory) ConstructExists(
 	input GroupID,
 ) GroupID {
-	_existsExpr := existsExpr{memoExpr: memoExpr{op: ExistsOp}, input: input}
-	_fingerprint := _existsExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_existsExpr := makeExistsExpr(input)
+	_group := _f.mem.lookupGroupByFingerprint(_existsExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeExists(&_existsExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_existsExpr)))
 }
 
 func (_f *Factory) ConstructAnd(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_andExpr := andExpr{memoExpr: memoExpr{op: AndOp}, left: left, right: right}
-	_fingerprint := _andExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_andExpr := makeAndExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_andExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeAnd(&_andExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_andExpr)))
 }
 
 func (_f *Factory) ConstructOr(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_orExpr := orExpr{memoExpr: memoExpr{op: OrOp}, left: left, right: right}
-	_fingerprint := _orExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_orExpr := makeOrExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_orExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeOr(&_orExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_orExpr)))
 }
 
 func (_f *Factory) ConstructNot(
 	input GroupID,
 ) GroupID {
-	_notExpr := notExpr{memoExpr: memoExpr{op: NotOp}, input: input}
-	_fingerprint := _notExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notExpr := makeNotExpr(input)
+	_group := _f.mem.lookupGroupByFingerprint(_notExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNot(&_notExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notExpr)))
 }
 
 func (_f *Factory) ConstructEq(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_eqExpr := eqExpr{memoExpr: memoExpr{op: EqOp}, left: left, right: right}
-	_fingerprint := _eqExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_eqExpr := makeEqExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_eqExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeEq(&_eqExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_eqExpr))
 	}
 
 	// [NormalizeVar]
@@ -213,7 +199,7 @@ func (_f *Factory) ConstructEq(
 			if _variable2 != nil {
 				_f.maxSteps--
 				_group = _f.ConstructEq(right, left)
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_eqExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -221,92 +207,87 @@ func (_f *Factory) ConstructEq(
 
 	// [NormalizeVarOrder]
 	{
-		_variable3 := _f.mem.lookupNormExpr(left).asVariable()
-		if _variable3 != nil {
-			_variable4 := _f.mem.lookupNormExpr(right).asVariable()
-			if _variable4 != nil {
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
 				if _f.isLowerExpr(right, left) {
 					_f.maxSteps--
 					_group = _f.ConstructEq(right, left)
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_eqExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeEq(&_eqExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_eqExpr)))
 }
 
 func (_f *Factory) ConstructLt(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_ltExpr := ltExpr{memoExpr: memoExpr{op: LtOp}, left: left, right: right}
-	_fingerprint := _ltExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_ltExpr := makeLtExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_ltExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLt(&_ltExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_ltExpr)))
 }
 
 func (_f *Factory) ConstructGt(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_gtExpr := gtExpr{memoExpr: memoExpr{op: GtOp}, left: left, right: right}
-	_fingerprint := _gtExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_gtExpr := makeGtExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_gtExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeGt(&_gtExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_gtExpr)))
 }
 
 func (_f *Factory) ConstructLe(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_leExpr := leExpr{memoExpr: memoExpr{op: LeOp}, left: left, right: right}
-	_fingerprint := _leExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_leExpr := makeLeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_leExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLe(&_leExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_leExpr)))
 }
 
 func (_f *Factory) ConstructGe(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_geExpr := geExpr{memoExpr: memoExpr{op: GeOp}, left: left, right: right}
-	_fingerprint := _geExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_geExpr := makeGeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_geExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeGe(&_geExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_geExpr)))
 }
 
 func (_f *Factory) ConstructNe(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_neExpr := neExpr{memoExpr: memoExpr{op: NeOp}, left: left, right: right}
-	_fingerprint := _neExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_neExpr := makeNeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_neExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeNe(&_neExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_neExpr))
 	}
 
 	// [NormalizeVar]
@@ -317,7 +298,7 @@ func (_f *Factory) ConstructNe(
 			if _variable2 != nil {
 				_f.maxSteps--
 				_group = _f.ConstructNe(right, left)
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_neExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -325,586 +306,545 @@ func (_f *Factory) ConstructNe(
 
 	// [NormalizeVarOrder]
 	{
-		_variable3 := _f.mem.lookupNormExpr(left).asVariable()
-		if _variable3 != nil {
-			_variable4 := _f.mem.lookupNormExpr(right).asVariable()
-			if _variable4 != nil {
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
 				if _f.isLowerExpr(right, left) {
 					_f.maxSteps--
 					_group = _f.ConstructNe(right, left)
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_neExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNe(&_neExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_neExpr)))
 }
 
 func (_f *Factory) ConstructIn(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_inExpr := inExpr{memoExpr: memoExpr{op: InOp}, left: left, right: right}
-	_fingerprint := _inExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_inExpr := makeInExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_inExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIn(&_inExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_inExpr)))
 }
 
 func (_f *Factory) ConstructNotIn(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notInExpr := notInExpr{memoExpr: memoExpr{op: NotInOp}, left: left, right: right}
-	_fingerprint := _notInExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notInExpr := makeNotInExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notInExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotIn(&_notInExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notInExpr)))
 }
 
 func (_f *Factory) ConstructLike(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_likeExpr := likeExpr{memoExpr: memoExpr{op: LikeOp}, left: left, right: right}
-	_fingerprint := _likeExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_likeExpr := makeLikeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_likeExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLike(&_likeExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_likeExpr)))
 }
 
 func (_f *Factory) ConstructNotLike(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notLikeExpr := notLikeExpr{memoExpr: memoExpr{op: NotLikeOp}, left: left, right: right}
-	_fingerprint := _notLikeExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notLikeExpr := makeNotLikeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notLikeExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotLike(&_notLikeExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notLikeExpr)))
 }
 
 func (_f *Factory) ConstructILike(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_iLikeExpr := iLikeExpr{memoExpr: memoExpr{op: ILikeOp}, left: left, right: right}
-	_fingerprint := _iLikeExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_iLikeExpr := makeILikeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_iLikeExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeILike(&_iLikeExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_iLikeExpr)))
 }
 
 func (_f *Factory) ConstructNotILike(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notILikeExpr := notILikeExpr{memoExpr: memoExpr{op: NotILikeOp}, left: left, right: right}
-	_fingerprint := _notILikeExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notILikeExpr := makeNotILikeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notILikeExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotILike(&_notILikeExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notILikeExpr)))
 }
 
 func (_f *Factory) ConstructSimilarTo(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_similarToExpr := similarToExpr{memoExpr: memoExpr{op: SimilarToOp}, left: left, right: right}
-	_fingerprint := _similarToExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_similarToExpr := makeSimilarToExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_similarToExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSimilarTo(&_similarToExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_similarToExpr)))
 }
 
 func (_f *Factory) ConstructNotSimilarTo(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notSimilarToExpr := notSimilarToExpr{memoExpr: memoExpr{op: NotSimilarToOp}, left: left, right: right}
-	_fingerprint := _notSimilarToExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notSimilarToExpr := makeNotSimilarToExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notSimilarToExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotSimilarTo(&_notSimilarToExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notSimilarToExpr)))
 }
 
 func (_f *Factory) ConstructRegMatch(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_regMatchExpr := regMatchExpr{memoExpr: memoExpr{op: RegMatchOp}, left: left, right: right}
-	_fingerprint := _regMatchExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_regMatchExpr := makeRegMatchExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_regMatchExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeRegMatch(&_regMatchExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_regMatchExpr)))
 }
 
 func (_f *Factory) ConstructNotRegMatch(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notRegMatchExpr := notRegMatchExpr{memoExpr: memoExpr{op: NotRegMatchOp}, left: left, right: right}
-	_fingerprint := _notRegMatchExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notRegMatchExpr := makeNotRegMatchExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notRegMatchExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotRegMatch(&_notRegMatchExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notRegMatchExpr)))
 }
 
 func (_f *Factory) ConstructRegIMatch(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_regIMatchExpr := regIMatchExpr{memoExpr: memoExpr{op: RegIMatchOp}, left: left, right: right}
-	_fingerprint := _regIMatchExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_regIMatchExpr := makeRegIMatchExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_regIMatchExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeRegIMatch(&_regIMatchExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_regIMatchExpr)))
 }
 
 func (_f *Factory) ConstructNotRegIMatch(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_notRegIMatchExpr := notRegIMatchExpr{memoExpr: memoExpr{op: NotRegIMatchOp}, left: left, right: right}
-	_fingerprint := _notRegIMatchExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_notRegIMatchExpr := makeNotRegIMatchExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_notRegIMatchExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeNotRegIMatch(&_notRegIMatchExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_notRegIMatchExpr)))
 }
 
 func (_f *Factory) ConstructIsDistinctFrom(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_isDistinctFromExpr := isDistinctFromExpr{memoExpr: memoExpr{op: IsDistinctFromOp}, left: left, right: right}
-	_fingerprint := _isDistinctFromExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_isDistinctFromExpr := makeIsDistinctFromExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_isDistinctFromExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIsDistinctFrom(&_isDistinctFromExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_isDistinctFromExpr)))
 }
 
 func (_f *Factory) ConstructIsNotDistinctFrom(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_isNotDistinctFromExpr := isNotDistinctFromExpr{memoExpr: memoExpr{op: IsNotDistinctFromOp}, left: left, right: right}
-	_fingerprint := _isNotDistinctFromExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_isNotDistinctFromExpr := makeIsNotDistinctFromExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_isNotDistinctFromExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIsNotDistinctFrom(&_isNotDistinctFromExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_isNotDistinctFromExpr)))
 }
 
 func (_f *Factory) ConstructIs(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_isExpr := isExpr{memoExpr: memoExpr{op: IsOp}, left: left, right: right}
-	_fingerprint := _isExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_isExpr := makeIsExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_isExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIs(&_isExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_isExpr)))
 }
 
 func (_f *Factory) ConstructIsNot(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_isNotExpr := isNotExpr{memoExpr: memoExpr{op: IsNotOp}, left: left, right: right}
-	_fingerprint := _isNotExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_isNotExpr := makeIsNotExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_isNotExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIsNot(&_isNotExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_isNotExpr)))
 }
 
 func (_f *Factory) ConstructAny(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_anyExpr := anyExpr{memoExpr: memoExpr{op: AnyOp}, left: left, right: right}
-	_fingerprint := _anyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_anyExpr := makeAnyExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_anyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeAny(&_anyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_anyExpr)))
 }
 
 func (_f *Factory) ConstructSome(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_someExpr := someExpr{memoExpr: memoExpr{op: SomeOp}, left: left, right: right}
-	_fingerprint := _someExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_someExpr := makeSomeExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_someExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSome(&_someExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_someExpr)))
 }
 
 func (_f *Factory) ConstructAll(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_allExpr := allExpr{memoExpr: memoExpr{op: AllOp}, left: left, right: right}
-	_fingerprint := _allExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_allExpr := makeAllExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_allExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeAll(&_allExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_allExpr)))
 }
 
 func (_f *Factory) ConstructBitand(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_bitandExpr := bitandExpr{memoExpr: memoExpr{op: BitandOp}, left: left, right: right}
-	_fingerprint := _bitandExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_bitandExpr := makeBitandExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_bitandExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeBitand(&_bitandExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_bitandExpr)))
 }
 
 func (_f *Factory) ConstructBitor(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_bitorExpr := bitorExpr{memoExpr: memoExpr{op: BitorOp}, left: left, right: right}
-	_fingerprint := _bitorExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_bitorExpr := makeBitorExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_bitorExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeBitor(&_bitorExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_bitorExpr)))
 }
 
 func (_f *Factory) ConstructBitxor(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_bitxorExpr := bitxorExpr{memoExpr: memoExpr{op: BitxorOp}, left: left, right: right}
-	_fingerprint := _bitxorExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_bitxorExpr := makeBitxorExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_bitxorExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeBitxor(&_bitxorExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_bitxorExpr)))
 }
 
 func (_f *Factory) ConstructPlus(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_plusExpr := plusExpr{memoExpr: memoExpr{op: PlusOp}, left: left, right: right}
-	_fingerprint := _plusExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_plusExpr := makePlusExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_plusExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizePlus(&_plusExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_plusExpr)))
 }
 
 func (_f *Factory) ConstructMinus(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_minusExpr := minusExpr{memoExpr: memoExpr{op: MinusOp}, left: left, right: right}
-	_fingerprint := _minusExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_minusExpr := makeMinusExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_minusExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeMinus(&_minusExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_minusExpr)))
 }
 
 func (_f *Factory) ConstructMult(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_multExpr := multExpr{memoExpr: memoExpr{op: MultOp}, left: left, right: right}
-	_fingerprint := _multExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_multExpr := makeMultExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_multExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeMult(&_multExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_multExpr)))
 }
 
 func (_f *Factory) ConstructDiv(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_divExpr := divExpr{memoExpr: memoExpr{op: DivOp}, left: left, right: right}
-	_fingerprint := _divExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_divExpr := makeDivExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_divExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeDiv(&_divExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_divExpr)))
 }
 
 func (_f *Factory) ConstructFloorDiv(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_floorDivExpr := floorDivExpr{memoExpr: memoExpr{op: FloorDivOp}, left: left, right: right}
-	_fingerprint := _floorDivExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_floorDivExpr := makeFloorDivExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_floorDivExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFloorDiv(&_floorDivExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_floorDivExpr)))
 }
 
 func (_f *Factory) ConstructMod(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_modExpr := modExpr{memoExpr: memoExpr{op: ModOp}, left: left, right: right}
-	_fingerprint := _modExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_modExpr := makeModExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_modExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeMod(&_modExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_modExpr)))
 }
 
 func (_f *Factory) ConstructPow(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_powExpr := powExpr{memoExpr: memoExpr{op: PowOp}, left: left, right: right}
-	_fingerprint := _powExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_powExpr := makePowExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_powExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizePow(&_powExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_powExpr)))
 }
 
 func (_f *Factory) ConstructConcat(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_concatExpr := concatExpr{memoExpr: memoExpr{op: ConcatOp}, left: left, right: right}
-	_fingerprint := _concatExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_concatExpr := makeConcatExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_concatExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeConcat(&_concatExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_concatExpr)))
 }
 
 func (_f *Factory) ConstructLShift(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_lShiftExpr := lShiftExpr{memoExpr: memoExpr{op: LShiftOp}, left: left, right: right}
-	_fingerprint := _lShiftExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_lShiftExpr := makeLShiftExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_lShiftExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLShift(&_lShiftExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_lShiftExpr)))
 }
 
 func (_f *Factory) ConstructRShift(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_rShiftExpr := rShiftExpr{memoExpr: memoExpr{op: RShiftOp}, left: left, right: right}
-	_fingerprint := _rShiftExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_rShiftExpr := makeRShiftExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_rShiftExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeRShift(&_rShiftExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_rShiftExpr)))
 }
 
 func (_f *Factory) ConstructUnaryPlus(
 	input GroupID,
 ) GroupID {
-	_unaryPlusExpr := unaryPlusExpr{memoExpr: memoExpr{op: UnaryPlusOp}, input: input}
-	_fingerprint := _unaryPlusExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_unaryPlusExpr := makeUnaryPlusExpr(input)
+	_group := _f.mem.lookupGroupByFingerprint(_unaryPlusExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeUnaryPlus(&_unaryPlusExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_unaryPlusExpr)))
 }
 
 func (_f *Factory) ConstructUnaryMinus(
 	input GroupID,
 ) GroupID {
-	_unaryMinusExpr := unaryMinusExpr{memoExpr: memoExpr{op: UnaryMinusOp}, input: input}
-	_fingerprint := _unaryMinusExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_unaryMinusExpr := makeUnaryMinusExpr(input)
+	_group := _f.mem.lookupGroupByFingerprint(_unaryMinusExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeUnaryMinus(&_unaryMinusExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_unaryMinusExpr)))
 }
 
 func (_f *Factory) ConstructUnaryComplement(
 	input GroupID,
 ) GroupID {
-	_unaryComplementExpr := unaryComplementExpr{memoExpr: memoExpr{op: UnaryComplementOp}, input: input}
-	_fingerprint := _unaryComplementExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_unaryComplementExpr := makeUnaryComplementExpr(input)
+	_group := _f.mem.lookupGroupByFingerprint(_unaryComplementExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeUnaryComplement(&_unaryComplementExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_unaryComplementExpr)))
 }
 
 func (_f *Factory) ConstructFunction(
 	args ListID,
 	def PrivateID,
 ) GroupID {
-	_functionExpr := functionExpr{memoExpr: memoExpr{op: FunctionOp}, args: args, def: def}
-	_fingerprint := _functionExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_functionExpr := makeFunctionExpr(args, def)
+	_group := _f.mem.lookupGroupByFingerprint(_functionExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFunction(&_functionExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_functionExpr)))
 }
 
 func (_f *Factory) ConstructTrue() GroupID {
-	_trueExpr := trueExpr{memoExpr: memoExpr{op: TrueOp}}
-	_fingerprint := _trueExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_trueExpr := makeTrueExpr()
+	_group := _f.mem.lookupGroupByFingerprint(_trueExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeTrue(&_trueExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_trueExpr)))
 }
 
 func (_f *Factory) ConstructFalse() GroupID {
-	_falseExpr := falseExpr{memoExpr: memoExpr{op: FalseOp}}
-	_fingerprint := _falseExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_falseExpr := makeFalseExpr()
+	_group := _f.mem.lookupGroupByFingerprint(_falseExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFalse(&_falseExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_falseExpr)))
 }
 
 func (_f *Factory) ConstructScan(
 	table PrivateID,
 ) GroupID {
-	_scanExpr := scanExpr{memoExpr: memoExpr{op: ScanOp}, table: table}
-	_fingerprint := _scanExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_scanExpr := makeScanExpr(table)
+	_group := _f.mem.lookupGroupByFingerprint(_scanExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeScan(&_scanExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_scanExpr)))
 }
 
 func (_f *Factory) ConstructValues(
 	rows ListID,
 	cols PrivateID,
 ) GroupID {
-	_valuesExpr := valuesExpr{memoExpr: memoExpr{op: ValuesOp}, rows: rows, cols: cols}
-	_fingerprint := _valuesExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_valuesExpr := makeValuesExpr(rows, cols)
+	_group := _f.mem.lookupGroupByFingerprint(_valuesExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeValues(&_valuesExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_valuesExpr)))
 }
 
 func (_f *Factory) ConstructSelect(
 	input GroupID,
 	filter GroupID,
 ) GroupID {
-	_selectExpr := selectExpr{memoExpr: memoExpr{op: SelectOp}, input: input, filter: filter}
-	_fingerprint := _selectExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_selectExpr := makeSelectExpr(input, filter)
+	_group := _f.mem.lookupGroupByFingerprint(_selectExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeSelect(&_selectExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_selectExpr))
 	}
 
 	// [EliminateSelect]
@@ -913,7 +853,7 @@ func (_f *Factory) ConstructSelect(
 		if _true != nil {
 			_f.maxSteps--
 			_group = input
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 			return _group
 		}
 	}
@@ -925,7 +865,7 @@ func (_f *Factory) ConstructSelect(
 			if _f.useFilters(filter) {
 				_f.maxSteps--
 				_group = _f.ConstructSelect(input, _f.flattenFilterCondition(filter))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -939,15 +879,15 @@ func (_f *Factory) ConstructSelect(
 			left := _e.ChildGroup(0)
 			right := _e.ChildGroup(1)
 			on := _e.ChildGroup(2)
-			_filters2 := _f.mem.lookupNormExpr(filter).asFilters()
-			if _filters2 != nil {
-				list := _filters2.conditions
-				for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+			_filters := _f.mem.lookupNormExpr(filter).asFilters()
+			if _filters != nil {
+				list := _filters.conditions()
+				for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 					condition := _item
 					if !_f.isCorrelated(condition, right) {
 						_f.maxSteps--
 						_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{_f.ConstructSelect(left, condition), right, on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
-						_f.mem.addAltFingerprint(_fingerprint, _group)
+						_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 						return _group
 					}
 				}
@@ -957,21 +897,21 @@ func (_f *Factory) ConstructSelect(
 
 	// [PushDownSelectJoinRight]
 	{
-		_norm2 := _f.mem.lookupNormExpr(input)
-		if _norm2.op == InnerJoinOp || _norm2.op == InnerJoinApplyOp {
-			_e2 := makeExpr(_f.mem, input, defaultPhysPropsID)
-			left := _e2.ChildGroup(0)
-			right := _e2.ChildGroup(1)
-			on := _e2.ChildGroup(2)
-			_filters3 := _f.mem.lookupNormExpr(filter).asFilters()
-			if _filters3 != nil {
-				list := _filters3.conditions
-				for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_norm := _f.mem.lookupNormExpr(input)
+		if _norm.op == InnerJoinOp || _norm.op == InnerJoinApplyOp {
+			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
+			left := _e.ChildGroup(0)
+			right := _e.ChildGroup(1)
+			on := _e.ChildGroup(2)
+			_filters := _f.mem.lookupNormExpr(filter).asFilters()
+			if _filters != nil {
+				list := _filters.conditions()
+				for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 					condition := _item
 					if !_f.isCorrelated(condition, left) {
 						_f.maxSteps--
 						_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{left, _f.ConstructSelect(right, condition), on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
-						_f.mem.addAltFingerprint(_fingerprint, _group)
+						_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 						return _group
 					}
 				}
@@ -981,17 +921,17 @@ func (_f *Factory) ConstructSelect(
 
 	// [HoistSelectExists]
 	{
-		_filters4 := _f.mem.lookupNormExpr(filter).asFilters()
-		if _filters4 != nil {
-			list := _filters4.conditions
-			for _, _item := range _f.mem.lookupList(_filters4.conditions) {
+		_filters := _f.mem.lookupNormExpr(filter).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				exists := _item
 				_exists := _f.mem.lookupNormExpr(_item).asExists()
 				if _exists != nil {
-					subquery := _exists.input
+					subquery := _exists.input()
 					_f.maxSteps--
 					_group = _f.ConstructSemiJoinApply(input, subquery, _f.ConstructFilters(_f.removeListItem(list, exists)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1000,19 +940,19 @@ func (_f *Factory) ConstructSelect(
 
 	// [HoistSelectNotExists]
 	{
-		_filters5 := _f.mem.lookupNormExpr(filter).asFilters()
-		if _filters5 != nil {
-			list := _filters5.conditions
-			for _, _item := range _f.mem.lookupList(_filters5.conditions) {
+		_filters := _f.mem.lookupNormExpr(filter).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				exists := _item
 				_not := _f.mem.lookupNormExpr(_item).asNot()
 				if _not != nil {
-					_exists2 := _f.mem.lookupNormExpr(_not.input).asExists()
-					if _exists2 != nil {
-						subquery := _exists2.input
+					_exists := _f.mem.lookupNormExpr(_not.input()).asExists()
+					if _exists != nil {
+						subquery := _exists.input()
 						_f.maxSteps--
 						_group = _f.ConstructAntiJoinApply(input, subquery, _f.ConstructFilters(_f.removeListItem(list, exists)))
-						_f.mem.addAltFingerprint(_fingerprint, _group)
+						_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 						return _group
 					}
 				}
@@ -1022,40 +962,39 @@ func (_f *Factory) ConstructSelect(
 
 	// [HoistSelectFilterSubquery]
 	{
-		_filters6 := _f.mem.lookupNormExpr(filter).asFilters()
-		if _filters6 != nil {
-			list := _filters6.conditions
-			for _, _item := range _f.mem.lookupList(_filters6.conditions) {
+		_filters := _f.mem.lookupNormExpr(filter).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructInnerJoinApply(input, subqueryInput, _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSelect(&_selectExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_selectExpr)))
 }
 
 func (_f *Factory) ConstructProject(
 	input GroupID,
 	projections GroupID,
 ) GroupID {
-	_projectExpr := projectExpr{memoExpr: memoExpr{op: ProjectOp}, input: input, projections: projections}
-	_fingerprint := _projectExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_projectExpr := makeProjectExpr(input, projections)
+	_group := _f.mem.lookupGroupByFingerprint(_projectExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeProject(&_projectExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_projectExpr))
 	}
 
 	// [EliminateProject]
@@ -1063,12 +1002,12 @@ func (_f *Factory) ConstructProject(
 		if _f.projectsSameCols(projections, input) {
 			_f.maxSteps--
 			_group = input
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_projectExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeProject(&_projectExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_projectExpr)))
 }
 
 func (_f *Factory) ConstructInnerJoin(
@@ -1076,15 +1015,14 @@ func (_f *Factory) ConstructInnerJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_innerJoinExpr := innerJoinExpr{memoExpr: memoExpr{op: InnerJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _innerJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_innerJoinExpr := makeInnerJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_innerJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeInnerJoin(&_innerJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_innerJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1094,7 +1032,7 @@ func (_f *Factory) ConstructInnerJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructInnerJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_innerJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1102,15 +1040,15 @@ func (_f *Factory) ConstructInnerJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructInnerJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_innerJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1119,25 +1057,25 @@ func (_f *Factory) ConstructInnerJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructInnerJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_innerJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeInnerJoin(&_innerJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_innerJoinExpr)))
 }
 
 func (_f *Factory) ConstructLeftJoin(
@@ -1145,15 +1083,14 @@ func (_f *Factory) ConstructLeftJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_leftJoinExpr := leftJoinExpr{memoExpr: memoExpr{op: LeftJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _leftJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_leftJoinExpr := makeLeftJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_leftJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeLeftJoin(&_leftJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_leftJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1163,7 +1100,7 @@ func (_f *Factory) ConstructLeftJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructLeftJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_leftJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1171,15 +1108,15 @@ func (_f *Factory) ConstructLeftJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructLeftJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_leftJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1188,25 +1125,25 @@ func (_f *Factory) ConstructLeftJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructLeftJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_leftJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLeftJoin(&_leftJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_leftJoinExpr)))
 }
 
 func (_f *Factory) ConstructRightJoin(
@@ -1214,15 +1151,14 @@ func (_f *Factory) ConstructRightJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_rightJoinExpr := rightJoinExpr{memoExpr: memoExpr{op: RightJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _rightJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_rightJoinExpr := makeRightJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_rightJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeRightJoin(&_rightJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_rightJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1232,7 +1168,7 @@ func (_f *Factory) ConstructRightJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructRightJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_rightJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1240,15 +1176,15 @@ func (_f *Factory) ConstructRightJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructRightJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_rightJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1257,25 +1193,25 @@ func (_f *Factory) ConstructRightJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructRightJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_rightJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeRightJoin(&_rightJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_rightJoinExpr)))
 }
 
 func (_f *Factory) ConstructFullJoin(
@@ -1283,15 +1219,14 @@ func (_f *Factory) ConstructFullJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_fullJoinExpr := fullJoinExpr{memoExpr: memoExpr{op: FullJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _fullJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_fullJoinExpr := makeFullJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_fullJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeFullJoin(&_fullJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_fullJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1301,7 +1236,7 @@ func (_f *Factory) ConstructFullJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructFullJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_fullJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1309,15 +1244,15 @@ func (_f *Factory) ConstructFullJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructFullJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_fullJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1326,25 +1261,25 @@ func (_f *Factory) ConstructFullJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructFullJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_fullJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFullJoin(&_fullJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_fullJoinExpr)))
 }
 
 func (_f *Factory) ConstructSemiJoin(
@@ -1352,15 +1287,14 @@ func (_f *Factory) ConstructSemiJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_semiJoinExpr := semiJoinExpr{memoExpr: memoExpr{op: SemiJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _semiJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_semiJoinExpr := makeSemiJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_semiJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeSemiJoin(&_semiJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_semiJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1370,7 +1304,7 @@ func (_f *Factory) ConstructSemiJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructSemiJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_semiJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1378,15 +1312,15 @@ func (_f *Factory) ConstructSemiJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructSemiJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_semiJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1395,25 +1329,25 @@ func (_f *Factory) ConstructSemiJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructSemiJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_semiJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSemiJoin(&_semiJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_semiJoinExpr)))
 }
 
 func (_f *Factory) ConstructAntiJoin(
@@ -1421,15 +1355,14 @@ func (_f *Factory) ConstructAntiJoin(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_antiJoinExpr := antiJoinExpr{memoExpr: memoExpr{op: AntiJoinOp}, left: left, right: right, on: on}
-	_fingerprint := _antiJoinExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_antiJoinExpr := makeAntiJoinExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_antiJoinExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeAntiJoin(&_antiJoinExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_antiJoinExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1439,7 +1372,7 @@ func (_f *Factory) ConstructAntiJoin(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructAntiJoin(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_antiJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1447,15 +1380,15 @@ func (_f *Factory) ConstructAntiJoin(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructAntiJoin(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_antiJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1464,25 +1397,25 @@ func (_f *Factory) ConstructAntiJoin(
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructAntiJoin(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_antiJoinExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeAntiJoin(&_antiJoinExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_antiJoinExpr)))
 }
 
 func (_f *Factory) ConstructInnerJoinApply(
@@ -1490,15 +1423,14 @@ func (_f *Factory) ConstructInnerJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_innerJoinApplyExpr := innerJoinApplyExpr{memoExpr: memoExpr{op: InnerJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _innerJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_innerJoinApplyExpr := makeInnerJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_innerJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeInnerJoinApply(&_innerJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_innerJoinApplyExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1508,7 +1440,7 @@ func (_f *Factory) ConstructInnerJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructInnerJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1516,15 +1448,15 @@ func (_f *Factory) ConstructInnerJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructInnerJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1536,25 +1468,25 @@ func (_f *Factory) ConstructInnerJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(InnerJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructInnerJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1565,11 +1497,11 @@ func (_f *Factory) ConstructInnerJoinApply(
 	{
 		_project := _f.mem.lookupNormExpr(right).asProject()
 		if _project != nil {
-			input := _project.input
-			projections := _project.projections
+			input := _project.input()
+			projections := _project.projections()
 			_f.maxSteps--
 			_group = _f.ConstructSelect(_f.ConstructProject(_f.ConstructInnerJoinApply(left, input, _f.ConstructTrue()), _f.appendColumnProjections(projections, left)), on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
@@ -1578,11 +1510,11 @@ func (_f *Factory) ConstructInnerJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructInnerJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
@@ -1591,22 +1523,22 @@ func (_f *Factory) ConstructInnerJoinApply(
 	{
 		_groupBy := _f.mem.lookupNormExpr(right).asGroupBy()
 		if _groupBy != nil {
-			input := _groupBy.input
-			_projections := _f.mem.lookupNormExpr(_groupBy.groupings).asProjections()
+			input := _groupBy.input()
+			_projections := _f.mem.lookupNormExpr(_groupBy.groupings()).asProjections()
 			if _projections != nil {
-				items := _projections.items
+				items := _projections.items()
 				if _f.isEmptyList(items) {
-					aggregations := _groupBy.aggregations
+					aggregations := _groupBy.aggregations()
 					_f.maxSteps--
 					_group = _f.ConstructSelect(_f.ConstructGroupBy(_f.ConstructLeftJoinApply(left, input, _f.ConstructTrue()), _f.columnProjections(left), aggregations), on)
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeInnerJoinApply(&_innerJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_innerJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructLeftJoinApply(
@@ -1614,15 +1546,14 @@ func (_f *Factory) ConstructLeftJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_leftJoinApplyExpr := leftJoinApplyExpr{memoExpr: memoExpr{op: LeftJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _leftJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_leftJoinApplyExpr := makeLeftJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_leftJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeLeftJoinApply(&_leftJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_leftJoinApplyExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1632,7 +1563,7 @@ func (_f *Factory) ConstructLeftJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructLeftJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1640,15 +1571,15 @@ func (_f *Factory) ConstructLeftJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructLeftJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1660,25 +1591,25 @@ func (_f *Factory) ConstructLeftJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(LeftJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructLeftJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1689,16 +1620,16 @@ func (_f *Factory) ConstructLeftJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructLeftJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeLeftJoinApply(&_leftJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_leftJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructRightJoinApply(
@@ -1706,15 +1637,14 @@ func (_f *Factory) ConstructRightJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_rightJoinApplyExpr := rightJoinApplyExpr{memoExpr: memoExpr{op: RightJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _rightJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_rightJoinApplyExpr := makeRightJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_rightJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeRightJoinApply(&_rightJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_rightJoinApplyExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1724,7 +1654,7 @@ func (_f *Factory) ConstructRightJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructRightJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1732,15 +1662,15 @@ func (_f *Factory) ConstructRightJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructRightJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1752,25 +1682,25 @@ func (_f *Factory) ConstructRightJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(RightJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructRightJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1781,16 +1711,16 @@ func (_f *Factory) ConstructRightJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructRightJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeRightJoinApply(&_rightJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_rightJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructFullJoinApply(
@@ -1798,15 +1728,14 @@ func (_f *Factory) ConstructFullJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_fullJoinApplyExpr := fullJoinApplyExpr{memoExpr: memoExpr{op: FullJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _fullJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_fullJoinApplyExpr := makeFullJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_fullJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeFullJoinApply(&_fullJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_fullJoinApplyExpr))
 	}
 
 	// [EnsureJoinFilters]
@@ -1816,7 +1745,7 @@ func (_f *Factory) ConstructFullJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructFullJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1824,15 +1753,15 @@ func (_f *Factory) ConstructFullJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructFullJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1844,25 +1773,25 @@ func (_f *Factory) ConstructFullJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(FullJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructFullJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1873,16 +1802,16 @@ func (_f *Factory) ConstructFullJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructFullJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeFullJoinApply(&_fullJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_fullJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructSemiJoinApply(
@@ -1890,27 +1819,26 @@ func (_f *Factory) ConstructSemiJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_semiJoinApplyExpr := semiJoinApplyExpr{memoExpr: memoExpr{op: SemiJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _semiJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_semiJoinApplyExpr := makeSemiJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_semiJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeSemiJoinApply(&_semiJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_semiJoinApplyExpr))
 	}
 
 	// [EliminateSemiAntiJoinProject]
 	{
 		_project := _f.mem.lookupNormExpr(right).asProject()
 		if _project != nil {
-			input := _project.input
+			input := _project.input()
 			_true := _f.mem.lookupNormExpr(on).asTrue()
 			if _true != nil {
 				_f.maxSteps--
 				_group = _f.ConstructSemiJoinApply(left, input, _f.ConstructTrue())
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1923,7 +1851,7 @@ func (_f *Factory) ConstructSemiJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructSemiJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -1931,15 +1859,15 @@ func (_f *Factory) ConstructSemiJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructSemiJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1951,25 +1879,25 @@ func (_f *Factory) ConstructSemiJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(SemiJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructSemiJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -1980,11 +1908,11 @@ func (_f *Factory) ConstructSemiJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructSemiJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
@@ -1993,22 +1921,22 @@ func (_f *Factory) ConstructSemiJoinApply(
 	{
 		_groupBy := _f.mem.lookupNormExpr(right).asGroupBy()
 		if _groupBy != nil {
-			input := _groupBy.input
-			_projections := _f.mem.lookupNormExpr(_groupBy.groupings).asProjections()
+			input := _groupBy.input()
+			_projections := _f.mem.lookupNormExpr(_groupBy.groupings()).asProjections()
 			if _projections != nil {
-				items := _projections.items
+				items := _projections.items()
 				if _f.isEmptyList(items) {
-					aggregations := _groupBy.aggregations
+					aggregations := _groupBy.aggregations()
 					_f.maxSteps--
 					_group = _f.ConstructSelect(_f.ConstructGroupBy(_f.ConstructLeftJoinApply(left, input, _f.ConstructTrue()), _f.columnProjections(left), aggregations), on)
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeSemiJoinApply(&_semiJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_semiJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructAntiJoinApply(
@@ -2016,27 +1944,26 @@ func (_f *Factory) ConstructAntiJoinApply(
 	right GroupID,
 	on GroupID,
 ) GroupID {
-	_antiJoinApplyExpr := antiJoinApplyExpr{memoExpr: memoExpr{op: AntiJoinApplyOp}, left: left, right: right, on: on}
-	_fingerprint := _antiJoinApplyExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_antiJoinApplyExpr := makeAntiJoinApplyExpr(left, right, on)
+	_group := _f.mem.lookupGroupByFingerprint(_antiJoinApplyExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
 	if _f.maxSteps <= 0 {
-		return _f.mem.memoizeAntiJoinApply(&_antiJoinApplyExpr)
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_antiJoinApplyExpr))
 	}
 
 	// [EliminateSemiAntiJoinProject]
 	{
 		_project := _f.mem.lookupNormExpr(right).asProject()
 		if _project != nil {
-			input := _project.input
+			input := _project.input()
 			_true := _f.mem.lookupNormExpr(on).asTrue()
 			if _true != nil {
 				_f.maxSteps--
 				_group = _f.ConstructAntiJoinApply(left, input, _f.ConstructTrue())
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -2049,7 +1976,7 @@ func (_f *Factory) ConstructAntiJoinApply(
 			if _f.useFilters(on) {
 				_f.maxSteps--
 				_group = _f.ConstructAntiJoinApply(left, right, _f.flattenFilterCondition(on))
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
 		}
@@ -2057,15 +1984,15 @@ func (_f *Factory) ConstructAntiJoinApply(
 
 	// [PushDownJoinFilter]
 	{
-		_filters2 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters2 != nil {
-			list := _filters2.conditions
-			for _, _item := range _f.mem.lookupList(_filters2.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				condition := _item
 				if !_f.isCorrelated(condition, right) {
 					_f.maxSteps--
 					_group = _f.ConstructAntiJoinApply(_f.ConstructSelect(left, condition), right, _f.ConstructFilters(_f.removeListItem(list, condition)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -2077,25 +2004,25 @@ func (_f *Factory) ConstructAntiJoinApply(
 		if !_f.isCorrelated(right, left) {
 			_f.maxSteps--
 			_group = _f.removeApply(AntiJoinApplyOp, left, right, on)
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
 	// [HoistJoinFilterSubquery]
 	{
-		_filters3 := _f.mem.lookupNormExpr(on).asFilters()
-		if _filters3 != nil {
-			list := _filters3.conditions
-			for _, _item := range _f.mem.lookupList(_filters3.conditions) {
+		_filters := _f.mem.lookupNormExpr(on).asFilters()
+		if _filters != nil {
+			list := _filters.conditions()
+			for _, _item := range _f.mem.lookupList(_filters.conditions()) {
 				subquery := _item
 				_subquery := _f.mem.lookupNormExpr(_item).asSubquery()
 				if _subquery != nil {
-					subqueryInput := _subquery.input
-					projection := _subquery.projection
+					subqueryInput := _subquery.input()
+					projection := _subquery.projection()
 					_f.maxSteps--
 					_group = _f.ConstructAntiJoinApply(left, _f.ConstructInnerJoinApply(right, subqueryInput, _f.ConstructTrue()), _f.ConstructFilters(_f.replaceListItem(list, subquery, projection)))
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -2106,16 +2033,16 @@ func (_f *Factory) ConstructAntiJoinApply(
 	{
 		_select := _f.mem.lookupNormExpr(right).asSelect()
 		if _select != nil {
-			input := _select.input
-			filter := _select.filter
+			input := _select.input()
+			filter := _select.filter()
 			_f.maxSteps--
 			_group = _f.ConstructAntiJoinApply(left, input, _f.concatFilterConditions(on, filter))
-			_f.mem.addAltFingerprint(_fingerprint, _group)
+			_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 			return _group
 		}
 	}
 
-	return _f.onConstruct(_f.mem.memoizeAntiJoinApply(&_antiJoinApplyExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_antiJoinApplyExpr)))
 }
 
 func (_f *Factory) ConstructGroupBy(
@@ -2123,14 +2050,13 @@ func (_f *Factory) ConstructGroupBy(
 	groupings GroupID,
 	aggregations GroupID,
 ) GroupID {
-	_groupByExpr := groupByExpr{memoExpr: memoExpr{op: GroupByOp}, input: input, groupings: groupings, aggregations: aggregations}
-	_fingerprint := _groupByExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_groupByExpr := makeGroupByExpr(input, groupings, aggregations)
+	_group := _f.mem.lookupGroupByFingerprint(_groupByExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeGroupBy(&_groupByExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_groupByExpr)))
 }
 
 func (_f *Factory) ConstructUnion(
@@ -2138,42 +2064,39 @@ func (_f *Factory) ConstructUnion(
 	right GroupID,
 	colMap PrivateID,
 ) GroupID {
-	_unionExpr := unionExpr{memoExpr: memoExpr{op: UnionOp}, left: left, right: right, colMap: colMap}
-	_fingerprint := _unionExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_unionExpr := makeUnionExpr(left, right, colMap)
+	_group := _f.mem.lookupGroupByFingerprint(_unionExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeUnion(&_unionExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_unionExpr)))
 }
 
 func (_f *Factory) ConstructIntersect(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_intersectExpr := intersectExpr{memoExpr: memoExpr{op: IntersectOp}, left: left, right: right}
-	_fingerprint := _intersectExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_intersectExpr := makeIntersectExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_intersectExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeIntersect(&_intersectExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_intersectExpr)))
 }
 
 func (_f *Factory) ConstructExcept(
 	left GroupID,
 	right GroupID,
 ) GroupID {
-	_exceptExpr := exceptExpr{memoExpr: memoExpr{op: ExceptOp}, left: left, right: right}
-	_fingerprint := _exceptExpr.fingerprint()
-	_group := _f.mem.lookupGroupByFingerprint(_fingerprint)
+	_exceptExpr := makeExceptExpr(left, right)
+	_group := _f.mem.lookupGroupByFingerprint(_exceptExpr.fingerprint())
 	if _group != 0 {
 		return _group
 	}
 
-	return _f.onConstruct(_f.mem.memoizeExcept(&_exceptExpr))
+	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_exceptExpr)))
 }
 
 type dynConstructLookupFunc func(f *Factory, children []GroupID, private PrivateID) GroupID

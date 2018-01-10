@@ -14,11 +14,6 @@ func (g *ExprsGen) Generate(compiled CompiledExpr, w io.Writer) {
 	g.compiled = compiled
 	g.w = w
 
-	fmt.Fprintf(g.w, "import (\n")
-	fmt.Fprintf(g.w, "  \"crypto/md5\"\n")
-	fmt.Fprintf(g.w, "  \"unsafe\"\n")
-	fmt.Fprintf(g.w, ")\n\n")
-
 	g.genChildCountLookup()
 	g.genChildGroupLookup()
 	g.genPrivateFieldLookup()
@@ -60,8 +55,8 @@ func (g *ExprsGen) genChildCountLookup() {
 
 		list := define.ListField()
 		if list != nil {
-			fmt.Fprintf(g.w, "    %s := (*%s)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))\n", varName, exprType)
-			fmt.Fprintf(g.w, "    return %d + int(%s.%s.len)\n", count-1, varName, unTitle(list.Name()))
+			fmt.Fprintf(g.w, "    %s := (*%s)(e.mem.lookupExpr(e.loc))\n", varName, exprType)
+			fmt.Fprintf(g.w, "    return %d + int(%s.%s().len)\n", count-1, varName, unTitle(list.Name()))
 		} else {
 			fmt.Fprintf(g.w, "    return %d\n", count)
 		}
@@ -103,7 +98,7 @@ func (g *ExprsGen) genChildGroupLookup() {
 		if define.HasTag("Enforcer") {
 			// Enforcers have a single child which is the same group they're in.
 			fmt.Fprintf(g.w, "    if n == 0 {\n")
-			fmt.Fprintf(g.w, "      return e.group\n")
+			fmt.Fprintf(g.w, "      return e.loc.group\n")
 			fmt.Fprintf(g.w, "    }\n\n")
 
 			fmt.Fprintf(g.w, "    panic(\"child index out of range\")\n")
@@ -111,7 +106,7 @@ func (g *ExprsGen) genChildGroupLookup() {
 			continue
 		}
 
-		fmt.Fprintf(g.w, "    %s := (*%s)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))\n\n", varName, exprType)
+		fmt.Fprintf(g.w, "    %s := (*%s)(e.mem.lookupExpr(e.loc))\n\n", varName, exprType)
 
 		fmt.Fprintf(g.w, "  switch n {\n")
 
@@ -124,14 +119,14 @@ func (g *ExprsGen) genChildGroupLookup() {
 
 			if field.IsListType() {
 				fmt.Fprintf(g.w, "  default:\n")
-				fmt.Fprintf(g.w, "    list := e.mem.lookupList(%s.%s)\n", varName, unTitle(field.Name()))
+				fmt.Fprintf(g.w, "    list := e.mem.lookupList(%s.%s())\n", varName, unTitle(field.Name()))
 				fmt.Fprintf(g.w, "    return list[n - %d]", index)
 				fmt.Fprintf(g.w, "  }\n")
 				break
 			}
 
 			fmt.Fprintf(g.w, "  case %d:\n", index)
-			fmt.Fprintf(g.w, "    return %s.%s\n", varName, unTitle(field.Name()))
+			fmt.Fprintf(g.w, "    return %s.%s()\n", varName, unTitle(field.Name()))
 		}
 
 		if define.ListField() == nil {
@@ -165,8 +160,8 @@ func (g *ExprsGen) genPrivateFieldLookup() {
 
 		private := define.PrivateField()
 		if private != nil {
-			fmt.Fprintf(g.w, "    %s := (*%s)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))\n", varName, exprType)
-			fmt.Fprintf(g.w, "    return %s.%s\n", varName, unTitle(private.Name()))
+			fmt.Fprintf(g.w, "    %s := (*%s)(e.mem.lookupExpr(e.loc))\n", varName, exprType)
+			fmt.Fprintf(g.w, "    return %s.%s()\n", varName, unTitle(private.Name()))
 		} else {
 			fmt.Fprintf(g.w, "    return 0\n")
 		}
@@ -212,36 +207,64 @@ func (g *ExprsGen) genIsTag() {
 }
 
 func (g *ExprsGen) genExprFuncs(define *DefineExpr) {
+	opType := fmt.Sprintf("%sOp", define.Name())
 	exprType := fmt.Sprintf("%sExpr", unTitle(define.Name()))
 
-	// Generate the expression struct.
-	fmt.Fprintf(g.w, "type %s struct {\n", exprType)
-	fmt.Fprintf(g.w, "  memoExpr\n")
+	// Generate the expression type.
+	fmt.Fprintf(g.w, "type %s memoExpr\n\n", exprType)
 
-	for _, elem2 := range define.Fields() {
+	// Generate a strongly-typed constructor function for the type.
+	fmt.Fprintf(g.w, "func make%sExpr(", define.Name())
+	for i, elem2 := range define.Fields() {
 		field := elem2.(*DefineFieldExpr)
-		fmt.Fprintf(g.w, "  %s %s\n", unTitle(field.Name()), mapType(field.Type()))
+		if i != 0 {
+			fmt.Fprint(g.w, ", ")
+		}
+		fmt.Fprintf(g.w, "%s %s", unTitle(field.Name()), mapType(field.Type()))
+	}
+	fmt.Fprintf(g.w, ") %s {\n", exprType)
+	fmt.Fprintf(g.w, "  return %s{op: %s, state: exprState{", exprType, opType)
+
+	for i, elem2 := range define.Fields() {
+		field := elem2.(*DefineFieldExpr)
+		fieldName := unTitle(field.Name())
+
+		if i != 0 {
+			fmt.Fprintf(g.w, ", ")
+		}
+
+		if field.IsListType() {
+			fmt.Fprintf(g.w, "%s.offset, %s.len", fieldName, fieldName)
+		} else {
+			fmt.Fprintf(g.w, "uint32(%s)", fieldName)
+		}
 	}
 
-	fmt.Fprintf(g.w, "}\n\n")
+	fmt.Fprint(g.w, "}}\n")
+	fmt.Fprint(g.w, "}\n\n")
 
-	// Generate the Fingerprint method.
-	fmt.Fprintf(g.w, "func (e *%s) fingerprint() (f fingerprint) {\n", exprType)
+	// Generate the strongly-typed accessor methods.
+	stateIndex := 0
+	for _, elem2 := range define.Fields() {
+		field := elem2.(*DefineFieldExpr)
 
-	fmt.Fprintf(g.w, "  const size = unsafe.Sizeof(%s{})\n", exprType)
-	fmt.Fprintf(g.w, "  const offset = unsafe.Offsetof(%s{}.op)\n\n", exprType)
+		fmt.Fprintf(g.w, "func (e *%s) %s() %s {\n", exprType, unTitle(field.Name()), mapType(field.Type()))
+		if field.IsListType() {
+			fmt.Fprintf(g.w, "  return ListID{offset: e.state[%d], len: e.state[%d]}\n", stateIndex, stateIndex+1)
+			stateIndex += 2
+		} else if field.IsPrivateType() {
+			fmt.Fprintf(g.w, "  return PrivateID(e.state[%d])\n", stateIndex)
+			stateIndex++
+		} else {
+			fmt.Fprintf(g.w, "  return GroupID(e.state[%d])\n", stateIndex)
+			stateIndex++
+		}
+		fmt.Fprintf(g.w, "}\n\n")
+	}
 
-	fmt.Fprintf(g.w, "  b := *(*[size]byte)(unsafe.Pointer(e))\n\n")
-
-	// If size is less than or equal to the size of Fingerprint, then
-	// inline the fields in the fingerprint. Otherwise, use MD5 hash.
-	fmt.Fprintf(g.w, "  if size - offset <= unsafe.Sizeof(f) {\n")
-	fmt.Fprintf(g.w, "    copy(f[:], b[offset:])\n")
-	fmt.Fprintf(g.w, "  } else {\n")
-	fmt.Fprintf(g.w, "    f = fingerprint(md5.Sum(b[offset:]))\n")
-	fmt.Fprintf(g.w, "  }\n\n")
-
-	fmt.Fprintf(g.w, "  return\n")
+	// Generate the fingerprint method.
+	fmt.Fprintf(g.w, "func (e *%s) fingerprint() fingerprint {\n", exprType)
+	fmt.Fprintf(g.w, "  return fingerprint(*e)\n")
 	fmt.Fprintf(g.w, "}\n\n")
 }
 
@@ -254,56 +277,8 @@ func (g *ExprsGen) genMemoFuncs(define *DefineExpr) {
 	fmt.Fprintf(g.w, "func (m *memoExpr) as%s() *%s {\n", define.Name(), exprType)
 	fmt.Fprintf(g.w, "  if m.op != %s {\n", opType)
 	fmt.Fprintf(g.w, "    return nil\n")
-	fmt.Fprintf(g.w, "  }\n\n")
+	fmt.Fprintf(g.w, "  }\n")
 
-	fmt.Fprintf(g.w, "  return (*%s)(unsafe.Pointer(m))\n", exprType)
-	fmt.Fprintf(g.w, "}\n\n")
-
-	// Generate a method on the memo class that memoizes an expression of
-	// the currently generating type.
-	fmt.Fprintf(g.w, "func (m *memo) memoize%s(expr *%s) GroupID {\n", define.Name(), exprType)
-	fmt.Fprintf(g.w, "  const size = uint32(unsafe.Sizeof(%s{}))\n", exprType)
-	fmt.Fprintf(g.w, "  const align = uint32(unsafe.Alignof(%s{}))\n\n", exprType)
-
-	for _, elem2 := range define.Fields() {
-		field := elem2.(*DefineFieldExpr)
-		if field.IsListType() {
-			fmt.Fprintf(g.w, "  if expr.%s == UndefinedList {\n", unTitle(field.Name()))
-		} else {
-			fmt.Fprintf(g.w, "  if expr.%s == 0 {\n", unTitle(field.Name()))
-		}
-
-		fmt.Fprintf(g.w, "    panic(\"%s child cannot be undefined\")\n", unTitle(field.Name()))
-		fmt.Fprintf(g.w, "  }\n\n")
-	}
-
-	fmt.Fprintf(g.w, "  fingerprint := expr.fingerprint()\n")
-	fmt.Fprintf(g.w, "  loc := m.exprMap[fingerprint]\n")
-	fmt.Fprintf(g.w, "  if loc.offset == 0 {\n")
-	fmt.Fprintf(g.w, "    loc.offset = exprOffset(m.arena.alloc(size, align))\n")
-	fmt.Fprintf(g.w, "    p := (*%s)(m.arena.getPointer(uint32(loc.offset)))\n", exprType)
-	fmt.Fprintf(g.w, "    *p = *expr\n\n")
-
-	fmt.Fprintf(g.w, "    if loc.group == 0 {\n")
-	fmt.Fprintf(g.w, "      if expr.group != 0 {\n")
-	fmt.Fprintf(g.w, "        loc.group = expr.group")
-	fmt.Fprintf(g.w, "      } else {\n")
-	fmt.Fprintf(g.w, "        mgrp := m.newGroup(%s, loc.offset)\n", opType)
-	fmt.Fprintf(g.w, "        p.group = mgrp.id\n")
-	fmt.Fprintf(g.w, "        loc.group = mgrp.id\n")
-	fmt.Fprintf(g.w, "        e := Expr{mem: m, group: mgrp.id, op: %s, offset: loc.offset, required: defaultPhysPropsID}\n", opType)
-	fmt.Fprintf(g.w, "        mgrp.logical = m.logPropsFactory.constructProps(&e)\n")
-	fmt.Fprintf(g.w, "      }\n")
-	fmt.Fprintf(g.w, "    } else {\n")
-	fmt.Fprintf(g.w, "      if expr.group != loc.group {\n")
-	fmt.Fprintf(g.w, "        panic(\"denormalized expression's group doesn't match fingerprint group\")\n")
-	fmt.Fprintf(g.w, "      }\n")
-	fmt.Fprintf(g.w, "    }\n\n")
-
-	fmt.Fprintf(g.w, "    m.lookupGroup(loc.group).addExpr(loc.offset)\n")
-	fmt.Fprintf(g.w, "    m.exprMap[fingerprint] = loc\n")
-	fmt.Fprintf(g.w, "  }\n\n")
-
-	fmt.Fprintf(g.w, "  return loc.group\n")
+	fmt.Fprintf(g.w, "  return (*%s)(m)\n", exprType)
 	fmt.Fprintf(g.w, "}\n\n")
 }

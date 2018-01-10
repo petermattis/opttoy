@@ -79,7 +79,7 @@ func (o *optimizer) optimize(root GroupID, required physicalPropsID) Expr {
 	if best.op == UnknownOp {
 		panic("optimization step returned invalid result")
 	}
-	return Expr{mem: o.mem, group: root, op: best.op, offset: best.offset, required: required}
+	return Expr{mem: o.mem, loc: best.loc, op: best.op, required: required}
 }
 
 func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, costLimit physicalCost) *bestExpr {
@@ -94,14 +94,16 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 	// As long as there's been some improvement to the best expression, then
 	// keep optimizing the group.
 	pass := o.pass
-	start := 0
+	start := exprID(0)
 	for {
 		groupFullyOptimized := true
 
-		for index, _ := range mgrp.exprs[start:] {
+		for i := range mgrp.exprs[start:] {
+			eid := exprID(i)
+
 			// If the group is already fully optimized for the given required
 			// properties, then skip it, since it won't get better.
-			if best.isExprFullyOptimized(index) {
+			if best.isExprFullyOptimized(eid) {
 				continue
 			}
 
@@ -113,21 +115,21 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 
 			// If this is the first time that the expression has been costed, then
 			// always compute its cost.
-			recomputeCost := index >= int(best.costedIndex)
+			recomputeCost := eid >= best.costedID
 
 			// Optimize the expression, adding enforcers as necessary to
 			// provide the required properties. The best expression will be
 			// updated by optimizeExpr if the expression has a lower cost.
-			best = o.optimizeExpr(mgrp, index, required, costLimit, recomputeCost)
+			best = o.optimizeExpr(mgrp, eid, required, costLimit, recomputeCost)
 
-			if !best.isExprFullyOptimized(index) {
+			if !best.isExprFullyOptimized(eid) {
 				groupFullyOptimized = false
 			}
 		}
 
 		pass.minor++
-		start = len(mgrp.exprs)
-		best.costedIndex = uint32(start)
+		start = exprID(len(mgrp.exprs))
+		best.costedID = start
 
 		// Now generate new expressions that are logically equivalent to other
 		// expressions in this group.
@@ -161,14 +163,14 @@ func (o *optimizer) optimizeGroup(mgrp *memoGroup, required physicalPropsID, cos
 
 func (o *optimizer) optimizeExpr(
 	mgrp *memoGroup,
-	index int,
+	eid exprID,
 	required physicalPropsID,
 	costLimit physicalCost,
 	recomputeCost bool,
 ) (best *bestExpr) {
-	offset := mgrp.exprs[index]
-	op := o.mem.lookupExpr(offset).op
-	e := Expr{mem: o.mem, group: mgrp.id, op: op, offset: offset, required: required}
+	loc := memoLoc{group: mgrp.id, expr: eid}
+	op := mgrp.lookupExpr(eid).op
+	e := Expr{mem: o.mem, loc: loc, op: op, required: required}
 
 	// Compute the cost for enforcers to provide the required properties. This
 	// may be lower than the expression providing the properties itself.
@@ -181,7 +183,7 @@ func (o *optimizer) optimizeExpr(
 		// expression is complete for the required properties.
 		best = mgrp.lookupBestExpr(required)
 		if fullyEnforced {
-			best.markExprAsFullyOptimized(index)
+			best.markExprAsFullyOptimized(eid)
 		}
 		return best
 	}
@@ -249,7 +251,7 @@ func (o *optimizer) optimizeExpr(
 	}
 
 	if fullyEnforced && fullyOptimized {
-		best.markExprAsFullyOptimized(index)
+		best.markExprAsFullyOptimized(eid)
 	}
 
 	return
@@ -282,7 +284,7 @@ func (o *optimizer) enforceProps(e *Expr, recomputeCost bool) (fullyOptimized bo
 	}
 
 	// Optimize the group for the "inner" properties.
-	mgrp := o.mem.lookupGroup(e.group)
+	mgrp := o.mem.lookupGroup(e.loc.group)
 	inner := *e
 	inner.required = o.mem.internPhysicalProps(&innerProps)
 	costLimit := mgrp.ensureBestExpr(inner.required).cost
@@ -299,15 +301,15 @@ func (o *optimizer) enforceProps(e *Expr, recomputeCost bool) (fullyOptimized bo
 		// Cost the expression with the enforcer added.
 		var enforcer Expr
 		if props.Projection.Defined() {
-			enforcer = Expr{mem: o.mem, group: e.group, op: ArrangeOp, required: e.required}
+			enforcer = Expr{mem: o.mem, loc: memoLoc{group: e.loc.group}, op: ArrangeOp, required: e.required}
 		} else if props.Ordering.Defined() {
-			enforcer = Expr{mem: o.mem, group: e.group, op: SortOp, required: e.required}
+			enforcer = Expr{mem: o.mem, loc: memoLoc{group: e.loc.group}, op: SortOp, required: e.required}
 		}
 
 		// Don't attempt to hoist the lookup above the optimizeGroup call,
 		// since that will change the address of the best expression when the
 		// bestExprs array resizes.
-		best := o.mem.lookupGroup(e.group).lookupBestExpr(e.required)
+		best := o.mem.lookupGroup(e.loc.group).lookupBestExpr(e.required)
 		o.ratchetCost(best, &enforcer)
 	}
 

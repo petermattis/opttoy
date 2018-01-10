@@ -29,7 +29,7 @@ func (e *explorer) exploreGroup(mgrp *memoGroup, pass optimizePass) (fullyExplor
 	}
 
 	mgrp.exploreCtx.start = mgrp.exploreCtx.end
-	mgrp.exploreCtx.end = uint32(len(mgrp.exprs))
+	mgrp.exploreCtx.end = exprID(len(mgrp.exprs))
 
 	// If this group has already been explored during this optimization pass,
 	// then it's not necessary to re-explore expressions that have already been
@@ -41,16 +41,16 @@ func (e *explorer) exploreGroup(mgrp *memoGroup, pass optimizePass) (fullyExplor
 	}
 
 	fullyExplored = true
-	for index, offset := range exprs {
-		if e.isExprFullyExplored(mgrp, index) {
+	for i := range exprs {
+		if e.isExprFullyExplored(mgrp, i) {
 			continue
 		}
 
-		mexpr := e.mem.lookupExpr(offset)
-		partlyExplored := index < int(mgrp.exploreCtx.start)
+		mexpr := &exprs[i]
+		partlyExplored := i < int(mgrp.exploreCtx.start)
 
 		if e.exploreExpr(mexpr, pass, partlyExplored) {
-			e.markExprAsFullyExplored(mgrp, index)
+			e.markExprAsFullyExplored(mgrp, i)
 		} else {
 			fullyExplored = false
 		}
@@ -122,7 +122,7 @@ func (_e *explorer) exploreInnerJoin(_root *innerJoinExpr, pass optimizePass, pa
 					_innerJoin := _e.factory.ConstructInnerJoin(r, t, _and)
 					_filter2 := _e.factory.ConstructFilters(newUpperFilter, newUpperFilter2)
 					_innerJoinExpr2 := innerJoinExpr{memoExpr: memoExpr{op: InnerJoinOp, group: _root.group}, left: _innerJoin, right: s, filter: _and2}
-					_e.mem.memoizeInnerJoin(&_innerJoinExpr2)
+					_e.mem.memoizeDenormExpr(_root.group, &_innerJoinExpr2)
 				}
 			}
 		}
@@ -147,7 +147,7 @@ func (e *explorer) markExprAsFullyExplored(mgrp *memoGroup, index int) {
 	mgrp.exploreCtx.exprs.Add(index)
 }
 
-func (e *explorer) lookupExploreExprs(mgrp *memoGroup, skipPartlyExplored bool) []exprOffset {
+func (e *explorer) lookupExploreExprs(mgrp *memoGroup, skipPartlyExplored bool) []memoExpr {
 	if skipPartlyExplored {
 		return mgrp.exprs[mgrp.exploreCtx.start:mgrp.exploreCtx.end]
 	}

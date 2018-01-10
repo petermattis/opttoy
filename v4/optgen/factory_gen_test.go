@@ -27,23 +27,23 @@ func TestFactoryGenNegate(t *testing.T) {
 		{
 			_lt := _f.mem.lookupNormExpr(left).asLt()
 			if _lt != nil {
-				left2 := _lt.left
+				left2 := _lt.left()
 				_match := false
-				_lt2 := _f.mem.lookupNormExpr(_lt.left).asLt()
+				_lt2 := _f.mem.lookupNormExpr(_lt.left()).asLt()
 				if _lt2 != nil {
-					left3 := _lt2.left
-					right3 := _lt2.right
+					left3 := _lt2.left()
+					right3 := _lt2.right()
 					if false {
 						_match = true
 					}
 				}
 
 				if !_match {
-					right2 := _lt.right
+					right2 := _lt.right()
 					right1 := right
 					_f.maxSteps--
 					_group = _f.ConstructLt(left, right2)
-					_f.mem.addAltFingerprint(_fingerprint, _group)
+					_f.mem.addAltFingerprint(_ltExpr.fingerprint(), _group)
 					return _group
 				}
 			}
@@ -81,7 +81,7 @@ func TestFactoryGenDynamic(t *testing.T) {
 				lowerRight := _e.ChildGroup(1)
 				_f.maxSteps--
 				_group = _f.DynamicConstruct(_f.mem.lookupNormExpr(left).op, []GroupID{lowerRight, lowerLeft}, 0)
-				_f.mem.addAltFingerprint(_fingerprint, _group)
+				_f.mem.addAltFingerprint(_innerJoinExpr.fingerprint(), _group)
 				return _group
 			}
 		}

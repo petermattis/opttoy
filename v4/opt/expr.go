@@ -12,18 +12,24 @@ import (
 type ColMap map[ColumnIndex]ColumnIndex
 
 // Expr is 24 bytes on a 64-bit machine, and is immutable after construction,
-// so it can be passed by value.
+// so it can be passed by value. Don't reorder fields without checking its
+// new size.
 type Expr struct {
 	mem      *memo
-	group    GroupID
+	loc      memoLoc
 	op       Operator
-	offset   exprOffset
 	required physicalPropsID
 }
 
 func makeExpr(mem *memo, group GroupID, required physicalPropsID) Expr {
-	best := mem.lookupGroup(group).lookupBestExpr(required)
-	return Expr{mem: mem, group: group, op: best.op, offset: best.offset, required: required}
+	mgrp := mem.lookupGroup(group)
+
+	if required == defaultPhysPropsID {
+		return Expr{mem: mem, loc: memoLoc{group: group, expr: normExprID}, op: mgrp.lookupExpr(normExprID).op, required: required}
+	}
+
+	best := mgrp.lookupBestExpr(required)
+	return Expr{mem: mem, loc: best.loc, op: best.op, required: required}
 }
 
 func (e *Expr) Operator() Operator {
@@ -31,7 +37,7 @@ func (e *Expr) Operator() Operator {
 }
 
 func (e *Expr) Logical() *LogicalProps {
-	return e.mem.lookupGroup(e.group).logical
+	return e.mem.lookupGroup(e.loc.group).logical
 }
 
 // Physical returns the physical properties required of this expression, such
@@ -46,6 +52,10 @@ func (e *Expr) ChildCount() int {
 
 func (e *Expr) Child(nth int) Expr {
 	group := e.ChildGroup(nth)
+	if e.required == defaultPhysPropsID {
+		return makeExpr(e.mem, group, defaultPhysPropsID)
+	}
+
 	required := e.mem.physPropsFactory.constructChildProps(e, nth)
 	return makeExpr(e.mem, group, required)
 }

@@ -78,8 +78,8 @@ func (f *Factory) concatFilterConditions(filterLeft, filterRight GroupID) GroupI
 		return filterRight
 	}
 
-	leftConditions := leftExpr.asFilters().conditions
-	rightConditions := rightExpr.asFilters().conditions
+	leftConditions := leftExpr.asFilters().conditions()
+	rightConditions := rightExpr.asFilters().conditions()
 
 	items := make([]GroupID, leftConditions.len, leftConditions.len+rightConditions.len)
 	copy(items, f.mem.lookupList(leftConditions))
@@ -97,19 +97,19 @@ func (f *Factory) flattenFilterCondition(filter GroupID) GroupID {
 
 		var flatten func(andExpr *andExpr)
 		flatten = func(andExpr *andExpr) {
-			leftExpr := f.mem.lookupNormExpr(andExpr.left)
-			rightExpr := f.mem.lookupNormExpr(andExpr.right)
+			leftExpr := f.mem.lookupNormExpr(andExpr.left())
+			rightExpr := f.mem.lookupNormExpr(andExpr.right())
 
 			if leftExpr.op == AndOp {
 				flatten(leftExpr.asAnd())
 			} else {
-				items = append(items, andExpr.left)
+				items = append(items, andExpr.left())
 			}
 
 			if rightExpr.op == AndOp {
 				flatten(rightExpr.asAnd())
 			} else {
-				items = append(items, andExpr.right)
+				items = append(items, andExpr.right())
 			}
 		}
 
@@ -217,8 +217,8 @@ func (f *Factory) columnProjections(group GroupID) GroupID {
 
 func (f *Factory) appendColumnProjections(projections, group GroupID) GroupID {
 	projectionsExpr := f.mem.lookupNormExpr(projections).asProjections()
-	projectionsItems := f.mem.lookupList(projectionsExpr.items)
-	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols).(*ColSet)
+	projectionsItems := f.mem.lookupList(projectionsExpr.items())
+	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols()).(*ColSet)
 
 	// The final output columns are the union of the columns in "projections"
 	// with the appended columns.
@@ -247,7 +247,7 @@ func (f *Factory) appendColumnProjections(projections, group GroupID) GroupID {
 
 func (f *Factory) projectsSameCols(projections, input GroupID) bool {
 	projectionsExpr := f.mem.lookupNormExpr(projections).asProjections()
-	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols).(*ColSet)
+	projectionsCols := *f.mem.lookupPrivate(projectionsExpr.cols()).(*ColSet)
 	inputCols := f.mem.lookupGroup(input).logical.Relational.OutputCols
 	return projectionsCols.Equals(inputCols)
 }

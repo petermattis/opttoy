@@ -2,11 +2,6 @@
 
 package opt
 
-import (
-	"crypto/md5"
-	"unsafe"
-)
-
 type childCountLookupFunc func(e *Expr) int
 
 var childCountLookup = []childCountLookupFunc{
@@ -37,32 +32,32 @@ var childCountLookup = []childCountLookupFunc{
 
 	// ListOp
 	func(e *Expr) int {
-		listExpr := (*listExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(listExpr.items.len)
+		listExpr := (*listExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(listExpr.items().len)
 	},
 
 	// OrderedListOp
 	func(e *Expr) int {
-		orderedListExpr := (*orderedListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(orderedListExpr.items.len)
+		orderedListExpr := (*orderedListExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(orderedListExpr.items().len)
 	},
 
 	// TupleOp
 	func(e *Expr) int {
-		tupleExpr := (*tupleExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(tupleExpr.elems.len)
+		tupleExpr := (*tupleExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(tupleExpr.elems().len)
 	},
 
 	// FiltersOp
 	func(e *Expr) int {
-		filtersExpr := (*filtersExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(filtersExpr.conditions.len)
+		filtersExpr := (*filtersExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(filtersExpr.conditions().len)
 	},
 
 	// ProjectionsOp
 	func(e *Expr) int {
-		projectionsExpr := (*projectionsExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(projectionsExpr.items.len)
+		projectionsExpr := (*projectionsExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(projectionsExpr.items().len)
 	},
 
 	// ExistsOp
@@ -292,8 +287,8 @@ var childCountLookup = []childCountLookupFunc{
 
 	// FunctionOp
 	func(e *Expr) int {
-		functionExpr := (*functionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(functionExpr.args.len)
+		functionExpr := (*functionExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(functionExpr.args().len)
 	},
 
 	// TrueOp
@@ -313,8 +308,8 @@ var childCountLookup = []childCountLookupFunc{
 
 	// ValuesOp
 	func(e *Expr) int {
-		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return 0 + int(valuesExpr.rows.len)
+		valuesExpr := (*valuesExpr)(e.mem.lookupExpr(e.loc))
+		return 0 + int(valuesExpr.rows().len)
 	},
 
 	// SelectOp
@@ -428,13 +423,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// SubqueryOp
 	func(e *Expr, n int) GroupID {
-		subqueryExpr := (*subqueryExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		subqueryExpr := (*subqueryExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return subqueryExpr.input
+			return subqueryExpr.input()
 		case 1:
-			return subqueryExpr.projection
+			return subqueryExpr.projection()
 		default:
 			panic("child index out of range")
 		}
@@ -457,66 +452,66 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ListOp
 	func(e *Expr, n int) GroupID {
-		listExpr := (*listExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		listExpr := (*listExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(listExpr.items)
+			list := e.mem.lookupList(listExpr.items())
 			return list[n-0]
 		}
 	},
 
 	// OrderedListOp
 	func(e *Expr, n int) GroupID {
-		orderedListExpr := (*orderedListExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		orderedListExpr := (*orderedListExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(orderedListExpr.items)
+			list := e.mem.lookupList(orderedListExpr.items())
 			return list[n-0]
 		}
 	},
 
 	// TupleOp
 	func(e *Expr, n int) GroupID {
-		tupleExpr := (*tupleExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		tupleExpr := (*tupleExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(tupleExpr.elems)
+			list := e.mem.lookupList(tupleExpr.elems())
 			return list[n-0]
 		}
 	},
 
 	// FiltersOp
 	func(e *Expr, n int) GroupID {
-		filtersExpr := (*filtersExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		filtersExpr := (*filtersExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(filtersExpr.conditions)
+			list := e.mem.lookupList(filtersExpr.conditions())
 			return list[n-0]
 		}
 	},
 
 	// ProjectionsOp
 	func(e *Expr, n int) GroupID {
-		projectionsExpr := (*projectionsExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		projectionsExpr := (*projectionsExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(projectionsExpr.items)
+			list := e.mem.lookupList(projectionsExpr.items())
 			return list[n-0]
 		}
 	},
 
 	// ExistsOp
 	func(e *Expr, n int) GroupID {
-		existsExpr := (*existsExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		existsExpr := (*existsExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return existsExpr.input
+			return existsExpr.input()
 		default:
 			panic("child index out of range")
 		}
@@ -524,13 +519,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// AndOp
 	func(e *Expr, n int) GroupID {
-		andExpr := (*andExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		andExpr := (*andExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return andExpr.left
+			return andExpr.left()
 		case 1:
-			return andExpr.right
+			return andExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -538,13 +533,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// OrOp
 	func(e *Expr, n int) GroupID {
-		orExpr := (*orExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		orExpr := (*orExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return orExpr.left
+			return orExpr.left()
 		case 1:
-			return orExpr.right
+			return orExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -552,11 +547,11 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotOp
 	func(e *Expr, n int) GroupID {
-		notExpr := (*notExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notExpr := (*notExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notExpr.input
+			return notExpr.input()
 		default:
 			panic("child index out of range")
 		}
@@ -564,13 +559,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// EqOp
 	func(e *Expr, n int) GroupID {
-		eqExpr := (*eqExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		eqExpr := (*eqExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return eqExpr.left
+			return eqExpr.left()
 		case 1:
-			return eqExpr.right
+			return eqExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -578,13 +573,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LtOp
 	func(e *Expr, n int) GroupID {
-		ltExpr := (*ltExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		ltExpr := (*ltExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return ltExpr.left
+			return ltExpr.left()
 		case 1:
-			return ltExpr.right
+			return ltExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -592,13 +587,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// GtOp
 	func(e *Expr, n int) GroupID {
-		gtExpr := (*gtExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		gtExpr := (*gtExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return gtExpr.left
+			return gtExpr.left()
 		case 1:
-			return gtExpr.right
+			return gtExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -606,13 +601,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LeOp
 	func(e *Expr, n int) GroupID {
-		leExpr := (*leExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		leExpr := (*leExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return leExpr.left
+			return leExpr.left()
 		case 1:
-			return leExpr.right
+			return leExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -620,13 +615,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// GeOp
 	func(e *Expr, n int) GroupID {
-		geExpr := (*geExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		geExpr := (*geExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return geExpr.left
+			return geExpr.left()
 		case 1:
-			return geExpr.right
+			return geExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -634,13 +629,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NeOp
 	func(e *Expr, n int) GroupID {
-		neExpr := (*neExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		neExpr := (*neExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return neExpr.left
+			return neExpr.left()
 		case 1:
-			return neExpr.right
+			return neExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -648,13 +643,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// InOp
 	func(e *Expr, n int) GroupID {
-		inExpr := (*inExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		inExpr := (*inExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return inExpr.left
+			return inExpr.left()
 		case 1:
-			return inExpr.right
+			return inExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -662,13 +657,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotInOp
 	func(e *Expr, n int) GroupID {
-		notInExpr := (*notInExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notInExpr := (*notInExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notInExpr.left
+			return notInExpr.left()
 		case 1:
-			return notInExpr.right
+			return notInExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -676,13 +671,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LikeOp
 	func(e *Expr, n int) GroupID {
-		likeExpr := (*likeExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		likeExpr := (*likeExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return likeExpr.left
+			return likeExpr.left()
 		case 1:
-			return likeExpr.right
+			return likeExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -690,13 +685,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotLikeOp
 	func(e *Expr, n int) GroupID {
-		notLikeExpr := (*notLikeExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notLikeExpr := (*notLikeExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notLikeExpr.left
+			return notLikeExpr.left()
 		case 1:
-			return notLikeExpr.right
+			return notLikeExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -704,13 +699,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ILikeOp
 	func(e *Expr, n int) GroupID {
-		iLikeExpr := (*iLikeExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		iLikeExpr := (*iLikeExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return iLikeExpr.left
+			return iLikeExpr.left()
 		case 1:
-			return iLikeExpr.right
+			return iLikeExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -718,13 +713,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotILikeOp
 	func(e *Expr, n int) GroupID {
-		notILikeExpr := (*notILikeExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notILikeExpr := (*notILikeExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notILikeExpr.left
+			return notILikeExpr.left()
 		case 1:
-			return notILikeExpr.right
+			return notILikeExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -732,13 +727,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// SimilarToOp
 	func(e *Expr, n int) GroupID {
-		similarToExpr := (*similarToExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		similarToExpr := (*similarToExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return similarToExpr.left
+			return similarToExpr.left()
 		case 1:
-			return similarToExpr.right
+			return similarToExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -746,13 +741,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotSimilarToOp
 	func(e *Expr, n int) GroupID {
-		notSimilarToExpr := (*notSimilarToExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notSimilarToExpr := (*notSimilarToExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notSimilarToExpr.left
+			return notSimilarToExpr.left()
 		case 1:
-			return notSimilarToExpr.right
+			return notSimilarToExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -760,13 +755,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// RegMatchOp
 	func(e *Expr, n int) GroupID {
-		regMatchExpr := (*regMatchExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		regMatchExpr := (*regMatchExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return regMatchExpr.left
+			return regMatchExpr.left()
 		case 1:
-			return regMatchExpr.right
+			return regMatchExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -774,13 +769,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotRegMatchOp
 	func(e *Expr, n int) GroupID {
-		notRegMatchExpr := (*notRegMatchExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notRegMatchExpr := (*notRegMatchExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notRegMatchExpr.left
+			return notRegMatchExpr.left()
 		case 1:
-			return notRegMatchExpr.right
+			return notRegMatchExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -788,13 +783,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// RegIMatchOp
 	func(e *Expr, n int) GroupID {
-		regIMatchExpr := (*regIMatchExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		regIMatchExpr := (*regIMatchExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return regIMatchExpr.left
+			return regIMatchExpr.left()
 		case 1:
-			return regIMatchExpr.right
+			return regIMatchExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -802,13 +797,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// NotRegIMatchOp
 	func(e *Expr, n int) GroupID {
-		notRegIMatchExpr := (*notRegIMatchExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		notRegIMatchExpr := (*notRegIMatchExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return notRegIMatchExpr.left
+			return notRegIMatchExpr.left()
 		case 1:
-			return notRegIMatchExpr.right
+			return notRegIMatchExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -816,13 +811,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// IsDistinctFromOp
 	func(e *Expr, n int) GroupID {
-		isDistinctFromExpr := (*isDistinctFromExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		isDistinctFromExpr := (*isDistinctFromExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return isDistinctFromExpr.left
+			return isDistinctFromExpr.left()
 		case 1:
-			return isDistinctFromExpr.right
+			return isDistinctFromExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -830,13 +825,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// IsNotDistinctFromOp
 	func(e *Expr, n int) GroupID {
-		isNotDistinctFromExpr := (*isNotDistinctFromExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		isNotDistinctFromExpr := (*isNotDistinctFromExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return isNotDistinctFromExpr.left
+			return isNotDistinctFromExpr.left()
 		case 1:
-			return isNotDistinctFromExpr.right
+			return isNotDistinctFromExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -844,13 +839,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// IsOp
 	func(e *Expr, n int) GroupID {
-		isExpr := (*isExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		isExpr := (*isExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return isExpr.left
+			return isExpr.left()
 		case 1:
-			return isExpr.right
+			return isExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -858,13 +853,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// IsNotOp
 	func(e *Expr, n int) GroupID {
-		isNotExpr := (*isNotExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		isNotExpr := (*isNotExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return isNotExpr.left
+			return isNotExpr.left()
 		case 1:
-			return isNotExpr.right
+			return isNotExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -872,13 +867,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// AnyOp
 	func(e *Expr, n int) GroupID {
-		anyExpr := (*anyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		anyExpr := (*anyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return anyExpr.left
+			return anyExpr.left()
 		case 1:
-			return anyExpr.right
+			return anyExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -886,13 +881,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// SomeOp
 	func(e *Expr, n int) GroupID {
-		someExpr := (*someExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		someExpr := (*someExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return someExpr.left
+			return someExpr.left()
 		case 1:
-			return someExpr.right
+			return someExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -900,13 +895,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// AllOp
 	func(e *Expr, n int) GroupID {
-		allExpr := (*allExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		allExpr := (*allExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return allExpr.left
+			return allExpr.left()
 		case 1:
-			return allExpr.right
+			return allExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -914,13 +909,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// BitandOp
 	func(e *Expr, n int) GroupID {
-		bitandExpr := (*bitandExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		bitandExpr := (*bitandExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return bitandExpr.left
+			return bitandExpr.left()
 		case 1:
-			return bitandExpr.right
+			return bitandExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -928,13 +923,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// BitorOp
 	func(e *Expr, n int) GroupID {
-		bitorExpr := (*bitorExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		bitorExpr := (*bitorExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return bitorExpr.left
+			return bitorExpr.left()
 		case 1:
-			return bitorExpr.right
+			return bitorExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -942,13 +937,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// BitxorOp
 	func(e *Expr, n int) GroupID {
-		bitxorExpr := (*bitxorExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		bitxorExpr := (*bitxorExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return bitxorExpr.left
+			return bitxorExpr.left()
 		case 1:
-			return bitxorExpr.right
+			return bitxorExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -956,13 +951,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// PlusOp
 	func(e *Expr, n int) GroupID {
-		plusExpr := (*plusExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		plusExpr := (*plusExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return plusExpr.left
+			return plusExpr.left()
 		case 1:
-			return plusExpr.right
+			return plusExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -970,13 +965,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// MinusOp
 	func(e *Expr, n int) GroupID {
-		minusExpr := (*minusExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		minusExpr := (*minusExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return minusExpr.left
+			return minusExpr.left()
 		case 1:
-			return minusExpr.right
+			return minusExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -984,13 +979,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// MultOp
 	func(e *Expr, n int) GroupID {
-		multExpr := (*multExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		multExpr := (*multExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return multExpr.left
+			return multExpr.left()
 		case 1:
-			return multExpr.right
+			return multExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -998,13 +993,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// DivOp
 	func(e *Expr, n int) GroupID {
-		divExpr := (*divExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		divExpr := (*divExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return divExpr.left
+			return divExpr.left()
 		case 1:
-			return divExpr.right
+			return divExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1012,13 +1007,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// FloorDivOp
 	func(e *Expr, n int) GroupID {
-		floorDivExpr := (*floorDivExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		floorDivExpr := (*floorDivExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return floorDivExpr.left
+			return floorDivExpr.left()
 		case 1:
-			return floorDivExpr.right
+			return floorDivExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1026,13 +1021,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ModOp
 	func(e *Expr, n int) GroupID {
-		modExpr := (*modExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		modExpr := (*modExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return modExpr.left
+			return modExpr.left()
 		case 1:
-			return modExpr.right
+			return modExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1040,13 +1035,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// PowOp
 	func(e *Expr, n int) GroupID {
-		powExpr := (*powExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		powExpr := (*powExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return powExpr.left
+			return powExpr.left()
 		case 1:
-			return powExpr.right
+			return powExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1054,13 +1049,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ConcatOp
 	func(e *Expr, n int) GroupID {
-		concatExpr := (*concatExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		concatExpr := (*concatExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return concatExpr.left
+			return concatExpr.left()
 		case 1:
-			return concatExpr.right
+			return concatExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1068,13 +1063,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LShiftOp
 	func(e *Expr, n int) GroupID {
-		lShiftExpr := (*lShiftExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		lShiftExpr := (*lShiftExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return lShiftExpr.left
+			return lShiftExpr.left()
 		case 1:
-			return lShiftExpr.right
+			return lShiftExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1082,13 +1077,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// RShiftOp
 	func(e *Expr, n int) GroupID {
-		rShiftExpr := (*rShiftExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		rShiftExpr := (*rShiftExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return rShiftExpr.left
+			return rShiftExpr.left()
 		case 1:
-			return rShiftExpr.right
+			return rShiftExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1096,11 +1091,11 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// UnaryPlusOp
 	func(e *Expr, n int) GroupID {
-		unaryPlusExpr := (*unaryPlusExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		unaryPlusExpr := (*unaryPlusExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return unaryPlusExpr.input
+			return unaryPlusExpr.input()
 		default:
 			panic("child index out of range")
 		}
@@ -1108,11 +1103,11 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// UnaryMinusOp
 	func(e *Expr, n int) GroupID {
-		unaryMinusExpr := (*unaryMinusExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		unaryMinusExpr := (*unaryMinusExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return unaryMinusExpr.input
+			return unaryMinusExpr.input()
 		default:
 			panic("child index out of range")
 		}
@@ -1120,11 +1115,11 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// UnaryComplementOp
 	func(e *Expr, n int) GroupID {
-		unaryComplementExpr := (*unaryComplementExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		unaryComplementExpr := (*unaryComplementExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return unaryComplementExpr.input
+			return unaryComplementExpr.input()
 		default:
 			panic("child index out of range")
 		}
@@ -1132,11 +1127,11 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// FunctionOp
 	func(e *Expr, n int) GroupID {
-		functionExpr := (*functionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		functionExpr := (*functionExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(functionExpr.args)
+			list := e.mem.lookupList(functionExpr.args())
 			return list[n-0]
 		}
 	},
@@ -1158,24 +1153,24 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ValuesOp
 	func(e *Expr, n int) GroupID {
-		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		valuesExpr := (*valuesExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		default:
-			list := e.mem.lookupList(valuesExpr.rows)
+			list := e.mem.lookupList(valuesExpr.rows())
 			return list[n-0]
 		}
 	},
 
 	// SelectOp
 	func(e *Expr, n int) GroupID {
-		selectExpr := (*selectExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		selectExpr := (*selectExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return selectExpr.input
+			return selectExpr.input()
 		case 1:
-			return selectExpr.filter
+			return selectExpr.filter()
 		default:
 			panic("child index out of range")
 		}
@@ -1183,13 +1178,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ProjectOp
 	func(e *Expr, n int) GroupID {
-		projectExpr := (*projectExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		projectExpr := (*projectExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return projectExpr.input
+			return projectExpr.input()
 		case 1:
-			return projectExpr.projections
+			return projectExpr.projections()
 		default:
 			panic("child index out of range")
 		}
@@ -1197,15 +1192,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// InnerJoinOp
 	func(e *Expr, n int) GroupID {
-		innerJoinExpr := (*innerJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		innerJoinExpr := (*innerJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return innerJoinExpr.left
+			return innerJoinExpr.left()
 		case 1:
-			return innerJoinExpr.right
+			return innerJoinExpr.right()
 		case 2:
-			return innerJoinExpr.on
+			return innerJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1213,15 +1208,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LeftJoinOp
 	func(e *Expr, n int) GroupID {
-		leftJoinExpr := (*leftJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		leftJoinExpr := (*leftJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return leftJoinExpr.left
+			return leftJoinExpr.left()
 		case 1:
-			return leftJoinExpr.right
+			return leftJoinExpr.right()
 		case 2:
-			return leftJoinExpr.on
+			return leftJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1229,15 +1224,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// RightJoinOp
 	func(e *Expr, n int) GroupID {
-		rightJoinExpr := (*rightJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		rightJoinExpr := (*rightJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return rightJoinExpr.left
+			return rightJoinExpr.left()
 		case 1:
-			return rightJoinExpr.right
+			return rightJoinExpr.right()
 		case 2:
-			return rightJoinExpr.on
+			return rightJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1245,15 +1240,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// FullJoinOp
 	func(e *Expr, n int) GroupID {
-		fullJoinExpr := (*fullJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		fullJoinExpr := (*fullJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return fullJoinExpr.left
+			return fullJoinExpr.left()
 		case 1:
-			return fullJoinExpr.right
+			return fullJoinExpr.right()
 		case 2:
-			return fullJoinExpr.on
+			return fullJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1261,15 +1256,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// SemiJoinOp
 	func(e *Expr, n int) GroupID {
-		semiJoinExpr := (*semiJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		semiJoinExpr := (*semiJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return semiJoinExpr.left
+			return semiJoinExpr.left()
 		case 1:
-			return semiJoinExpr.right
+			return semiJoinExpr.right()
 		case 2:
-			return semiJoinExpr.on
+			return semiJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1277,15 +1272,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// AntiJoinOp
 	func(e *Expr, n int) GroupID {
-		antiJoinExpr := (*antiJoinExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		antiJoinExpr := (*antiJoinExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return antiJoinExpr.left
+			return antiJoinExpr.left()
 		case 1:
-			return antiJoinExpr.right
+			return antiJoinExpr.right()
 		case 2:
-			return antiJoinExpr.on
+			return antiJoinExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1293,15 +1288,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// InnerJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		innerJoinApplyExpr := (*innerJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		innerJoinApplyExpr := (*innerJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return innerJoinApplyExpr.left
+			return innerJoinApplyExpr.left()
 		case 1:
-			return innerJoinApplyExpr.right
+			return innerJoinApplyExpr.right()
 		case 2:
-			return innerJoinApplyExpr.on
+			return innerJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1309,15 +1304,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// LeftJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		leftJoinApplyExpr := (*leftJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		leftJoinApplyExpr := (*leftJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return leftJoinApplyExpr.left
+			return leftJoinApplyExpr.left()
 		case 1:
-			return leftJoinApplyExpr.right
+			return leftJoinApplyExpr.right()
 		case 2:
-			return leftJoinApplyExpr.on
+			return leftJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1325,15 +1320,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// RightJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		rightJoinApplyExpr := (*rightJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		rightJoinApplyExpr := (*rightJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return rightJoinApplyExpr.left
+			return rightJoinApplyExpr.left()
 		case 1:
-			return rightJoinApplyExpr.right
+			return rightJoinApplyExpr.right()
 		case 2:
-			return rightJoinApplyExpr.on
+			return rightJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1341,15 +1336,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// FullJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		fullJoinApplyExpr := (*fullJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		fullJoinApplyExpr := (*fullJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return fullJoinApplyExpr.left
+			return fullJoinApplyExpr.left()
 		case 1:
-			return fullJoinApplyExpr.right
+			return fullJoinApplyExpr.right()
 		case 2:
-			return fullJoinApplyExpr.on
+			return fullJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1357,15 +1352,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// SemiJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		semiJoinApplyExpr := (*semiJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		semiJoinApplyExpr := (*semiJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return semiJoinApplyExpr.left
+			return semiJoinApplyExpr.left()
 		case 1:
-			return semiJoinApplyExpr.right
+			return semiJoinApplyExpr.right()
 		case 2:
-			return semiJoinApplyExpr.on
+			return semiJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1373,15 +1368,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// AntiJoinApplyOp
 	func(e *Expr, n int) GroupID {
-		antiJoinApplyExpr := (*antiJoinApplyExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		antiJoinApplyExpr := (*antiJoinApplyExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return antiJoinApplyExpr.left
+			return antiJoinApplyExpr.left()
 		case 1:
-			return antiJoinApplyExpr.right
+			return antiJoinApplyExpr.right()
 		case 2:
-			return antiJoinApplyExpr.on
+			return antiJoinApplyExpr.on()
 		default:
 			panic("child index out of range")
 		}
@@ -1389,15 +1384,15 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// GroupByOp
 	func(e *Expr, n int) GroupID {
-		groupByExpr := (*groupByExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		groupByExpr := (*groupByExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return groupByExpr.input
+			return groupByExpr.input()
 		case 1:
-			return groupByExpr.groupings
+			return groupByExpr.groupings()
 		case 2:
-			return groupByExpr.aggregations
+			return groupByExpr.aggregations()
 		default:
 			panic("child index out of range")
 		}
@@ -1405,13 +1400,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// UnionOp
 	func(e *Expr, n int) GroupID {
-		unionExpr := (*unionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		unionExpr := (*unionExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return unionExpr.left
+			return unionExpr.left()
 		case 1:
-			return unionExpr.right
+			return unionExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1419,13 +1414,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// IntersectOp
 	func(e *Expr, n int) GroupID {
-		intersectExpr := (*intersectExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		intersectExpr := (*intersectExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return intersectExpr.left
+			return intersectExpr.left()
 		case 1:
-			return intersectExpr.right
+			return intersectExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1433,13 +1428,13 @@ var childGroupLookup = []childGroupLookupFunc{
 
 	// ExceptOp
 	func(e *Expr, n int) GroupID {
-		exceptExpr := (*exceptExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
+		exceptExpr := (*exceptExpr)(e.mem.lookupExpr(e.loc))
 
 		switch n {
 		case 0:
-			return exceptExpr.left
+			return exceptExpr.left()
 		case 1:
-			return exceptExpr.right
+			return exceptExpr.right()
 		default:
 			panic("child index out of range")
 		}
@@ -1448,7 +1443,7 @@ var childGroupLookup = []childGroupLookupFunc{
 	// SortOp
 	func(e *Expr, n int) GroupID {
 		if n == 0 {
-			return e.group
+			return e.loc.group
 		}
 
 		panic("child index out of range")
@@ -1457,7 +1452,7 @@ var childGroupLookup = []childGroupLookupFunc{
 	// ArrangeOp
 	func(e *Expr, n int) GroupID {
 		if n == 0 {
-			return e.group
+			return e.loc.group
 		}
 
 		panic("child index out of range")
@@ -1479,20 +1474,20 @@ var privateLookup = []privateLookupFunc{
 
 	// VariableOp
 	func(e *Expr) PrivateID {
-		variableExpr := (*variableExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return variableExpr.col
+		variableExpr := (*variableExpr)(e.mem.lookupExpr(e.loc))
+		return variableExpr.col()
 	},
 
 	// ConstOp
 	func(e *Expr) PrivateID {
-		constExpr := (*constExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return constExpr.value
+		constExpr := (*constExpr)(e.mem.lookupExpr(e.loc))
+		return constExpr.value()
 	},
 
 	// PlaceholderOp
 	func(e *Expr) PrivateID {
-		placeholderExpr := (*placeholderExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return placeholderExpr.value
+		placeholderExpr := (*placeholderExpr)(e.mem.lookupExpr(e.loc))
+		return placeholderExpr.value()
 	},
 
 	// ListOp
@@ -1517,8 +1512,8 @@ var privateLookup = []privateLookupFunc{
 
 	// ProjectionsOp
 	func(e *Expr) PrivateID {
-		projectionsExpr := (*projectionsExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return projectionsExpr.cols
+		projectionsExpr := (*projectionsExpr)(e.mem.lookupExpr(e.loc))
+		return projectionsExpr.cols()
 	},
 
 	// ExistsOp
@@ -1748,8 +1743,8 @@ var privateLookup = []privateLookupFunc{
 
 	// FunctionOp
 	func(e *Expr) PrivateID {
-		functionExpr := (*functionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return functionExpr.def
+		functionExpr := (*functionExpr)(e.mem.lookupExpr(e.loc))
+		return functionExpr.def()
 	},
 
 	// TrueOp
@@ -1764,14 +1759,14 @@ var privateLookup = []privateLookupFunc{
 
 	// ScanOp
 	func(e *Expr) PrivateID {
-		scanExpr := (*scanExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return scanExpr.table
+		scanExpr := (*scanExpr)(e.mem.lookupExpr(e.loc))
+		return scanExpr.table()
 	},
 
 	// ValuesOp
 	func(e *Expr) PrivateID {
-		valuesExpr := (*valuesExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return valuesExpr.cols
+		valuesExpr := (*valuesExpr)(e.mem.lookupExpr(e.loc))
+		return valuesExpr.cols()
 	},
 
 	// SelectOp
@@ -1851,8 +1846,8 @@ var privateLookup = []privateLookupFunc{
 
 	// UnionOp
 	func(e *Expr) PrivateID {
-		unionExpr := (*unionExpr)(unsafe.Pointer(e.mem.lookupExpr(e.offset)))
-		return unionExpr.colMap
+		unionExpr := (*unionExpr)(e.mem.lookupExpr(e.loc))
+		return unionExpr.colMap()
 	},
 
 	// IntersectOp
@@ -2316,5454 +2311,1915 @@ func (e *Expr) IsEnforcer() bool {
 	return isEnforcerLookup[e.op]
 }
 
-type subqueryExpr struct {
-	memoExpr
-	input      GroupID
-	projection GroupID
+type subqueryExpr memoExpr
+
+func makeSubqueryExpr(input GroupID, projection GroupID) subqueryExpr {
+	return subqueryExpr{op: SubqueryOp, state: exprState{uint32(input), uint32(projection)}}
 }
 
-func (e *subqueryExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(subqueryExpr{})
-	const offset = unsafe.Offsetof(subqueryExpr{}.op)
+func (e *subqueryExpr) input() GroupID {
+	return GroupID(e.state[0])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *subqueryExpr) projection() GroupID {
+	return GroupID(e.state[1])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *subqueryExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSubquery() *subqueryExpr {
 	if m.op != SubqueryOp {
 		return nil
 	}
-
-	return (*subqueryExpr)(unsafe.Pointer(m))
+	return (*subqueryExpr)(m)
 }
 
-func (m *memo) memoizeSubquery(expr *subqueryExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(subqueryExpr{}))
-	const align = uint32(unsafe.Alignof(subqueryExpr{}))
+type variableExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	if expr.projection == 0 {
-		panic("projection child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*subqueryExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SubqueryOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SubqueryOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeVariableExpr(col PrivateID) variableExpr {
+	return variableExpr{op: VariableOp, state: exprState{uint32(col)}}
 }
 
-type variableExpr struct {
-	memoExpr
-	col PrivateID
+func (e *variableExpr) col() PrivateID {
+	return PrivateID(e.state[0])
 }
 
-func (e *variableExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(variableExpr{})
-	const offset = unsafe.Offsetof(variableExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *variableExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asVariable() *variableExpr {
 	if m.op != VariableOp {
 		return nil
 	}
-
-	return (*variableExpr)(unsafe.Pointer(m))
+	return (*variableExpr)(m)
 }
 
-func (m *memo) memoizeVariable(expr *variableExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(variableExpr{}))
-	const align = uint32(unsafe.Alignof(variableExpr{}))
+type constExpr memoExpr
 
-	if expr.col == 0 {
-		panic("col child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*variableExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(VariableOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: VariableOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeConstExpr(value PrivateID) constExpr {
+	return constExpr{op: ConstOp, state: exprState{uint32(value)}}
 }
 
-type constExpr struct {
-	memoExpr
-	value PrivateID
+func (e *constExpr) value() PrivateID {
+	return PrivateID(e.state[0])
 }
 
-func (e *constExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(constExpr{})
-	const offset = unsafe.Offsetof(constExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *constExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asConst() *constExpr {
 	if m.op != ConstOp {
 		return nil
 	}
-
-	return (*constExpr)(unsafe.Pointer(m))
+	return (*constExpr)(m)
 }
 
-func (m *memo) memoizeConst(expr *constExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(constExpr{}))
-	const align = uint32(unsafe.Alignof(constExpr{}))
+type placeholderExpr memoExpr
 
-	if expr.value == 0 {
-		panic("value child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*constExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ConstOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ConstOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makePlaceholderExpr(value PrivateID) placeholderExpr {
+	return placeholderExpr{op: PlaceholderOp, state: exprState{uint32(value)}}
 }
 
-type placeholderExpr struct {
-	memoExpr
-	value PrivateID
+func (e *placeholderExpr) value() PrivateID {
+	return PrivateID(e.state[0])
 }
 
-func (e *placeholderExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(placeholderExpr{})
-	const offset = unsafe.Offsetof(placeholderExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *placeholderExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asPlaceholder() *placeholderExpr {
 	if m.op != PlaceholderOp {
 		return nil
 	}
-
-	return (*placeholderExpr)(unsafe.Pointer(m))
+	return (*placeholderExpr)(m)
 }
 
-func (m *memo) memoizePlaceholder(expr *placeholderExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(placeholderExpr{}))
-	const align = uint32(unsafe.Alignof(placeholderExpr{}))
+type listExpr memoExpr
 
-	if expr.value == 0 {
-		panic("value child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*placeholderExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(PlaceholderOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PlaceholderOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeListExpr(items ListID) listExpr {
+	return listExpr{op: ListOp, state: exprState{items.offset, items.len}}
 }
 
-type listExpr struct {
-	memoExpr
-	items ListID
+func (e *listExpr) items() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *listExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(listExpr{})
-	const offset = unsafe.Offsetof(listExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *listExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asList() *listExpr {
 	if m.op != ListOp {
 		return nil
 	}
-
-	return (*listExpr)(unsafe.Pointer(m))
+	return (*listExpr)(m)
 }
 
-func (m *memo) memoizeList(expr *listExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(listExpr{}))
-	const align = uint32(unsafe.Alignof(listExpr{}))
+type orderedListExpr memoExpr
 
-	if expr.items == UndefinedList {
-		panic("items child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*listExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ListOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ListOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeOrderedListExpr(items ListID) orderedListExpr {
+	return orderedListExpr{op: OrderedListOp, state: exprState{items.offset, items.len}}
 }
 
-type orderedListExpr struct {
-	memoExpr
-	items ListID
+func (e *orderedListExpr) items() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *orderedListExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(orderedListExpr{})
-	const offset = unsafe.Offsetof(orderedListExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *orderedListExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asOrderedList() *orderedListExpr {
 	if m.op != OrderedListOp {
 		return nil
 	}
-
-	return (*orderedListExpr)(unsafe.Pointer(m))
+	return (*orderedListExpr)(m)
 }
 
-func (m *memo) memoizeOrderedList(expr *orderedListExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(orderedListExpr{}))
-	const align = uint32(unsafe.Alignof(orderedListExpr{}))
+type tupleExpr memoExpr
 
-	if expr.items == UndefinedList {
-		panic("items child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*orderedListExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(OrderedListOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: OrderedListOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeTupleExpr(elems ListID) tupleExpr {
+	return tupleExpr{op: TupleOp, state: exprState{elems.offset, elems.len}}
 }
 
-type tupleExpr struct {
-	memoExpr
-	elems ListID
+func (e *tupleExpr) elems() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *tupleExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(tupleExpr{})
-	const offset = unsafe.Offsetof(tupleExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *tupleExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asTuple() *tupleExpr {
 	if m.op != TupleOp {
 		return nil
 	}
-
-	return (*tupleExpr)(unsafe.Pointer(m))
+	return (*tupleExpr)(m)
 }
 
-func (m *memo) memoizeTuple(expr *tupleExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(tupleExpr{}))
-	const align = uint32(unsafe.Alignof(tupleExpr{}))
+type filtersExpr memoExpr
 
-	if expr.elems == UndefinedList {
-		panic("elems child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*tupleExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(TupleOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: TupleOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFiltersExpr(conditions ListID) filtersExpr {
+	return filtersExpr{op: FiltersOp, state: exprState{conditions.offset, conditions.len}}
 }
 
-type filtersExpr struct {
-	memoExpr
-	conditions ListID
+func (e *filtersExpr) conditions() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *filtersExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(filtersExpr{})
-	const offset = unsafe.Offsetof(filtersExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *filtersExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFilters() *filtersExpr {
 	if m.op != FiltersOp {
 		return nil
 	}
-
-	return (*filtersExpr)(unsafe.Pointer(m))
+	return (*filtersExpr)(m)
 }
 
-func (m *memo) memoizeFilters(expr *filtersExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(filtersExpr{}))
-	const align = uint32(unsafe.Alignof(filtersExpr{}))
+type projectionsExpr memoExpr
 
-	if expr.conditions == UndefinedList {
-		panic("conditions child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*filtersExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FiltersOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FiltersOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeProjectionsExpr(items ListID, cols PrivateID) projectionsExpr {
+	return projectionsExpr{op: ProjectionsOp, state: exprState{items.offset, items.len, uint32(cols)}}
 }
 
-type projectionsExpr struct {
-	memoExpr
-	items ListID
-	cols  PrivateID
+func (e *projectionsExpr) items() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *projectionsExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(projectionsExpr{})
-	const offset = unsafe.Offsetof(projectionsExpr{}.op)
+func (e *projectionsExpr) cols() PrivateID {
+	return PrivateID(e.state[2])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *projectionsExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asProjections() *projectionsExpr {
 	if m.op != ProjectionsOp {
 		return nil
 	}
-
-	return (*projectionsExpr)(unsafe.Pointer(m))
+	return (*projectionsExpr)(m)
 }
 
-func (m *memo) memoizeProjections(expr *projectionsExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(projectionsExpr{}))
-	const align = uint32(unsafe.Alignof(projectionsExpr{}))
+type existsExpr memoExpr
 
-	if expr.items == UndefinedList {
-		panic("items child cannot be undefined")
-	}
-
-	if expr.cols == 0 {
-		panic("cols child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*projectionsExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ProjectionsOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ProjectionsOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeExistsExpr(input GroupID) existsExpr {
+	return existsExpr{op: ExistsOp, state: exprState{uint32(input)}}
 }
 
-type existsExpr struct {
-	memoExpr
-	input GroupID
+func (e *existsExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *existsExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(existsExpr{})
-	const offset = unsafe.Offsetof(existsExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *existsExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asExists() *existsExpr {
 	if m.op != ExistsOp {
 		return nil
 	}
-
-	return (*existsExpr)(unsafe.Pointer(m))
+	return (*existsExpr)(m)
 }
 
-func (m *memo) memoizeExists(expr *existsExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(existsExpr{}))
-	const align = uint32(unsafe.Alignof(existsExpr{}))
+type andExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*existsExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ExistsOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ExistsOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeAndExpr(left GroupID, right GroupID) andExpr {
+	return andExpr{op: AndOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type andExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *andExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *andExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(andExpr{})
-	const offset = unsafe.Offsetof(andExpr{}.op)
+func (e *andExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *andExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asAnd() *andExpr {
 	if m.op != AndOp {
 		return nil
 	}
-
-	return (*andExpr)(unsafe.Pointer(m))
+	return (*andExpr)(m)
 }
 
-func (m *memo) memoizeAnd(expr *andExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(andExpr{}))
-	const align = uint32(unsafe.Alignof(andExpr{}))
+type orExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*andExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(AndOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AndOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeOrExpr(left GroupID, right GroupID) orExpr {
+	return orExpr{op: OrOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type orExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *orExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *orExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(orExpr{})
-	const offset = unsafe.Offsetof(orExpr{}.op)
+func (e *orExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *orExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asOr() *orExpr {
 	if m.op != OrOp {
 		return nil
 	}
-
-	return (*orExpr)(unsafe.Pointer(m))
+	return (*orExpr)(m)
 }
 
-func (m *memo) memoizeOr(expr *orExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(orExpr{}))
-	const align = uint32(unsafe.Alignof(orExpr{}))
+type notExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*orExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(OrOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: OrOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotExpr(input GroupID) notExpr {
+	return notExpr{op: NotOp, state: exprState{uint32(input)}}
 }
 
-type notExpr struct {
-	memoExpr
-	input GroupID
+func (e *notExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notExpr{})
-	const offset = unsafe.Offsetof(notExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNot() *notExpr {
 	if m.op != NotOp {
 		return nil
 	}
-
-	return (*notExpr)(unsafe.Pointer(m))
+	return (*notExpr)(m)
 }
 
-func (m *memo) memoizeNot(expr *notExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notExpr{}))
-	const align = uint32(unsafe.Alignof(notExpr{}))
+type eqExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeEqExpr(left GroupID, right GroupID) eqExpr {
+	return eqExpr{op: EqOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type eqExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *eqExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *eqExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(eqExpr{})
-	const offset = unsafe.Offsetof(eqExpr{}.op)
+func (e *eqExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *eqExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asEq() *eqExpr {
 	if m.op != EqOp {
 		return nil
 	}
-
-	return (*eqExpr)(unsafe.Pointer(m))
+	return (*eqExpr)(m)
 }
 
-func (m *memo) memoizeEq(expr *eqExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(eqExpr{}))
-	const align = uint32(unsafe.Alignof(eqExpr{}))
+type ltExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*eqExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(EqOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: EqOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLtExpr(left GroupID, right GroupID) ltExpr {
+	return ltExpr{op: LtOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type ltExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *ltExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *ltExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(ltExpr{})
-	const offset = unsafe.Offsetof(ltExpr{}.op)
+func (e *ltExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *ltExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLt() *ltExpr {
 	if m.op != LtOp {
 		return nil
 	}
-
-	return (*ltExpr)(unsafe.Pointer(m))
+	return (*ltExpr)(m)
 }
 
-func (m *memo) memoizeLt(expr *ltExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(ltExpr{}))
-	const align = uint32(unsafe.Alignof(ltExpr{}))
+type gtExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*ltExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LtOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LtOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeGtExpr(left GroupID, right GroupID) gtExpr {
+	return gtExpr{op: GtOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type gtExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *gtExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *gtExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(gtExpr{})
-	const offset = unsafe.Offsetof(gtExpr{}.op)
+func (e *gtExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *gtExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asGt() *gtExpr {
 	if m.op != GtOp {
 		return nil
 	}
-
-	return (*gtExpr)(unsafe.Pointer(m))
+	return (*gtExpr)(m)
 }
 
-func (m *memo) memoizeGt(expr *gtExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(gtExpr{}))
-	const align = uint32(unsafe.Alignof(gtExpr{}))
+type leExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*gtExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(GtOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GtOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLeExpr(left GroupID, right GroupID) leExpr {
+	return leExpr{op: LeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type leExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *leExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *leExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(leExpr{})
-	const offset = unsafe.Offsetof(leExpr{}.op)
+func (e *leExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *leExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLe() *leExpr {
 	if m.op != LeOp {
 		return nil
 	}
-
-	return (*leExpr)(unsafe.Pointer(m))
+	return (*leExpr)(m)
 }
 
-func (m *memo) memoizeLe(expr *leExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(leExpr{}))
-	const align = uint32(unsafe.Alignof(leExpr{}))
+type geExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*leExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeGeExpr(left GroupID, right GroupID) geExpr {
+	return geExpr{op: GeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type geExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *geExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *geExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(geExpr{})
-	const offset = unsafe.Offsetof(geExpr{}.op)
+func (e *geExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *geExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asGe() *geExpr {
 	if m.op != GeOp {
 		return nil
 	}
-
-	return (*geExpr)(unsafe.Pointer(m))
+	return (*geExpr)(m)
 }
 
-func (m *memo) memoizeGe(expr *geExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(geExpr{}))
-	const align = uint32(unsafe.Alignof(geExpr{}))
+type neExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*geExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(GeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNeExpr(left GroupID, right GroupID) neExpr {
+	return neExpr{op: NeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type neExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *neExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *neExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(neExpr{})
-	const offset = unsafe.Offsetof(neExpr{}.op)
+func (e *neExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *neExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNe() *neExpr {
 	if m.op != NeOp {
 		return nil
 	}
-
-	return (*neExpr)(unsafe.Pointer(m))
+	return (*neExpr)(m)
 }
 
-func (m *memo) memoizeNe(expr *neExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(neExpr{}))
-	const align = uint32(unsafe.Alignof(neExpr{}))
+type inExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*neExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeInExpr(left GroupID, right GroupID) inExpr {
+	return inExpr{op: InOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type inExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *inExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *inExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(inExpr{})
-	const offset = unsafe.Offsetof(inExpr{}.op)
+func (e *inExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *inExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIn() *inExpr {
 	if m.op != InOp {
 		return nil
 	}
-
-	return (*inExpr)(unsafe.Pointer(m))
+	return (*inExpr)(m)
 }
 
-func (m *memo) memoizeIn(expr *inExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(inExpr{}))
-	const align = uint32(unsafe.Alignof(inExpr{}))
+type notInExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*inExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(InOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotInExpr(left GroupID, right GroupID) notInExpr {
+	return notInExpr{op: NotInOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notInExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notInExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notInExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notInExpr{})
-	const offset = unsafe.Offsetof(notInExpr{}.op)
+func (e *notInExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notInExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotIn() *notInExpr {
 	if m.op != NotInOp {
 		return nil
 	}
-
-	return (*notInExpr)(unsafe.Pointer(m))
+	return (*notInExpr)(m)
 }
 
-func (m *memo) memoizeNotIn(expr *notInExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notInExpr{}))
-	const align = uint32(unsafe.Alignof(notInExpr{}))
+type likeExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notInExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotInOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotInOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLikeExpr(left GroupID, right GroupID) likeExpr {
+	return likeExpr{op: LikeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type likeExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *likeExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *likeExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(likeExpr{})
-	const offset = unsafe.Offsetof(likeExpr{}.op)
+func (e *likeExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *likeExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLike() *likeExpr {
 	if m.op != LikeOp {
 		return nil
 	}
-
-	return (*likeExpr)(unsafe.Pointer(m))
+	return (*likeExpr)(m)
 }
 
-func (m *memo) memoizeLike(expr *likeExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(likeExpr{}))
-	const align = uint32(unsafe.Alignof(likeExpr{}))
+type notLikeExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*likeExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LikeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LikeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotLikeExpr(left GroupID, right GroupID) notLikeExpr {
+	return notLikeExpr{op: NotLikeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notLikeExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notLikeExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notLikeExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notLikeExpr{})
-	const offset = unsafe.Offsetof(notLikeExpr{}.op)
+func (e *notLikeExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notLikeExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotLike() *notLikeExpr {
 	if m.op != NotLikeOp {
 		return nil
 	}
-
-	return (*notLikeExpr)(unsafe.Pointer(m))
+	return (*notLikeExpr)(m)
 }
 
-func (m *memo) memoizeNotLike(expr *notLikeExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notLikeExpr{}))
-	const align = uint32(unsafe.Alignof(notLikeExpr{}))
+type iLikeExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notLikeExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotLikeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotLikeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeILikeExpr(left GroupID, right GroupID) iLikeExpr {
+	return iLikeExpr{op: ILikeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type iLikeExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *iLikeExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *iLikeExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(iLikeExpr{})
-	const offset = unsafe.Offsetof(iLikeExpr{}.op)
+func (e *iLikeExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *iLikeExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asILike() *iLikeExpr {
 	if m.op != ILikeOp {
 		return nil
 	}
-
-	return (*iLikeExpr)(unsafe.Pointer(m))
+	return (*iLikeExpr)(m)
 }
 
-func (m *memo) memoizeILike(expr *iLikeExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(iLikeExpr{}))
-	const align = uint32(unsafe.Alignof(iLikeExpr{}))
+type notILikeExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*iLikeExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ILikeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ILikeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotILikeExpr(left GroupID, right GroupID) notILikeExpr {
+	return notILikeExpr{op: NotILikeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notILikeExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notILikeExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notILikeExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notILikeExpr{})
-	const offset = unsafe.Offsetof(notILikeExpr{}.op)
+func (e *notILikeExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notILikeExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotILike() *notILikeExpr {
 	if m.op != NotILikeOp {
 		return nil
 	}
-
-	return (*notILikeExpr)(unsafe.Pointer(m))
+	return (*notILikeExpr)(m)
 }
 
-func (m *memo) memoizeNotILike(expr *notILikeExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notILikeExpr{}))
-	const align = uint32(unsafe.Alignof(notILikeExpr{}))
+type similarToExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notILikeExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotILikeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotILikeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeSimilarToExpr(left GroupID, right GroupID) similarToExpr {
+	return similarToExpr{op: SimilarToOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type similarToExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *similarToExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *similarToExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(similarToExpr{})
-	const offset = unsafe.Offsetof(similarToExpr{}.op)
+func (e *similarToExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *similarToExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSimilarTo() *similarToExpr {
 	if m.op != SimilarToOp {
 		return nil
 	}
-
-	return (*similarToExpr)(unsafe.Pointer(m))
+	return (*similarToExpr)(m)
 }
 
-func (m *memo) memoizeSimilarTo(expr *similarToExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(similarToExpr{}))
-	const align = uint32(unsafe.Alignof(similarToExpr{}))
+type notSimilarToExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*similarToExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SimilarToOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SimilarToOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotSimilarToExpr(left GroupID, right GroupID) notSimilarToExpr {
+	return notSimilarToExpr{op: NotSimilarToOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notSimilarToExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notSimilarToExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notSimilarToExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notSimilarToExpr{})
-	const offset = unsafe.Offsetof(notSimilarToExpr{}.op)
+func (e *notSimilarToExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notSimilarToExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotSimilarTo() *notSimilarToExpr {
 	if m.op != NotSimilarToOp {
 		return nil
 	}
-
-	return (*notSimilarToExpr)(unsafe.Pointer(m))
+	return (*notSimilarToExpr)(m)
 }
 
-func (m *memo) memoizeNotSimilarTo(expr *notSimilarToExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notSimilarToExpr{}))
-	const align = uint32(unsafe.Alignof(notSimilarToExpr{}))
+type regMatchExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notSimilarToExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotSimilarToOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotSimilarToOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeRegMatchExpr(left GroupID, right GroupID) regMatchExpr {
+	return regMatchExpr{op: RegMatchOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type regMatchExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *regMatchExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *regMatchExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(regMatchExpr{})
-	const offset = unsafe.Offsetof(regMatchExpr{}.op)
+func (e *regMatchExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *regMatchExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asRegMatch() *regMatchExpr {
 	if m.op != RegMatchOp {
 		return nil
 	}
-
-	return (*regMatchExpr)(unsafe.Pointer(m))
+	return (*regMatchExpr)(m)
 }
 
-func (m *memo) memoizeRegMatch(expr *regMatchExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(regMatchExpr{}))
-	const align = uint32(unsafe.Alignof(regMatchExpr{}))
+type notRegMatchExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*regMatchExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(RegMatchOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RegMatchOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotRegMatchExpr(left GroupID, right GroupID) notRegMatchExpr {
+	return notRegMatchExpr{op: NotRegMatchOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notRegMatchExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notRegMatchExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notRegMatchExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notRegMatchExpr{})
-	const offset = unsafe.Offsetof(notRegMatchExpr{}.op)
+func (e *notRegMatchExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notRegMatchExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotRegMatch() *notRegMatchExpr {
 	if m.op != NotRegMatchOp {
 		return nil
 	}
-
-	return (*notRegMatchExpr)(unsafe.Pointer(m))
+	return (*notRegMatchExpr)(m)
 }
 
-func (m *memo) memoizeNotRegMatch(expr *notRegMatchExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notRegMatchExpr{}))
-	const align = uint32(unsafe.Alignof(notRegMatchExpr{}))
+type regIMatchExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notRegMatchExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotRegMatchOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotRegMatchOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeRegIMatchExpr(left GroupID, right GroupID) regIMatchExpr {
+	return regIMatchExpr{op: RegIMatchOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type regIMatchExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *regIMatchExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *regIMatchExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(regIMatchExpr{})
-	const offset = unsafe.Offsetof(regIMatchExpr{}.op)
+func (e *regIMatchExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *regIMatchExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asRegIMatch() *regIMatchExpr {
 	if m.op != RegIMatchOp {
 		return nil
 	}
-
-	return (*regIMatchExpr)(unsafe.Pointer(m))
+	return (*regIMatchExpr)(m)
 }
 
-func (m *memo) memoizeRegIMatch(expr *regIMatchExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(regIMatchExpr{}))
-	const align = uint32(unsafe.Alignof(regIMatchExpr{}))
+type notRegIMatchExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*regIMatchExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(RegIMatchOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RegIMatchOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeNotRegIMatchExpr(left GroupID, right GroupID) notRegIMatchExpr {
+	return notRegIMatchExpr{op: NotRegIMatchOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type notRegIMatchExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *notRegIMatchExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *notRegIMatchExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(notRegIMatchExpr{})
-	const offset = unsafe.Offsetof(notRegIMatchExpr{}.op)
+func (e *notRegIMatchExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *notRegIMatchExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asNotRegIMatch() *notRegIMatchExpr {
 	if m.op != NotRegIMatchOp {
 		return nil
 	}
-
-	return (*notRegIMatchExpr)(unsafe.Pointer(m))
+	return (*notRegIMatchExpr)(m)
 }
 
-func (m *memo) memoizeNotRegIMatch(expr *notRegIMatchExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(notRegIMatchExpr{}))
-	const align = uint32(unsafe.Alignof(notRegIMatchExpr{}))
+type isDistinctFromExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*notRegIMatchExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(NotRegIMatchOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: NotRegIMatchOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeIsDistinctFromExpr(left GroupID, right GroupID) isDistinctFromExpr {
+	return isDistinctFromExpr{op: IsDistinctFromOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type isDistinctFromExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *isDistinctFromExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *isDistinctFromExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(isDistinctFromExpr{})
-	const offset = unsafe.Offsetof(isDistinctFromExpr{}.op)
+func (e *isDistinctFromExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *isDistinctFromExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIsDistinctFrom() *isDistinctFromExpr {
 	if m.op != IsDistinctFromOp {
 		return nil
 	}
-
-	return (*isDistinctFromExpr)(unsafe.Pointer(m))
+	return (*isDistinctFromExpr)(m)
 }
 
-func (m *memo) memoizeIsDistinctFrom(expr *isDistinctFromExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(isDistinctFromExpr{}))
-	const align = uint32(unsafe.Alignof(isDistinctFromExpr{}))
+type isNotDistinctFromExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*isDistinctFromExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(IsDistinctFromOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsDistinctFromOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeIsNotDistinctFromExpr(left GroupID, right GroupID) isNotDistinctFromExpr {
+	return isNotDistinctFromExpr{op: IsNotDistinctFromOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type isNotDistinctFromExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *isNotDistinctFromExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *isNotDistinctFromExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(isNotDistinctFromExpr{})
-	const offset = unsafe.Offsetof(isNotDistinctFromExpr{}.op)
+func (e *isNotDistinctFromExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *isNotDistinctFromExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIsNotDistinctFrom() *isNotDistinctFromExpr {
 	if m.op != IsNotDistinctFromOp {
 		return nil
 	}
-
-	return (*isNotDistinctFromExpr)(unsafe.Pointer(m))
+	return (*isNotDistinctFromExpr)(m)
 }
 
-func (m *memo) memoizeIsNotDistinctFrom(expr *isNotDistinctFromExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(isNotDistinctFromExpr{}))
-	const align = uint32(unsafe.Alignof(isNotDistinctFromExpr{}))
+type isExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*isNotDistinctFromExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(IsNotDistinctFromOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsNotDistinctFromOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeIsExpr(left GroupID, right GroupID) isExpr {
+	return isExpr{op: IsOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type isExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *isExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *isExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(isExpr{})
-	const offset = unsafe.Offsetof(isExpr{}.op)
+func (e *isExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *isExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIs() *isExpr {
 	if m.op != IsOp {
 		return nil
 	}
-
-	return (*isExpr)(unsafe.Pointer(m))
+	return (*isExpr)(m)
 }
 
-func (m *memo) memoizeIs(expr *isExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(isExpr{}))
-	const align = uint32(unsafe.Alignof(isExpr{}))
+type isNotExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*isExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(IsOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeIsNotExpr(left GroupID, right GroupID) isNotExpr {
+	return isNotExpr{op: IsNotOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type isNotExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *isNotExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *isNotExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(isNotExpr{})
-	const offset = unsafe.Offsetof(isNotExpr{}.op)
+func (e *isNotExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *isNotExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIsNot() *isNotExpr {
 	if m.op != IsNotOp {
 		return nil
 	}
-
-	return (*isNotExpr)(unsafe.Pointer(m))
+	return (*isNotExpr)(m)
 }
 
-func (m *memo) memoizeIsNot(expr *isNotExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(isNotExpr{}))
-	const align = uint32(unsafe.Alignof(isNotExpr{}))
+type anyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*isNotExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(IsNotOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IsNotOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeAnyExpr(left GroupID, right GroupID) anyExpr {
+	return anyExpr{op: AnyOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type anyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *anyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *anyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(anyExpr{})
-	const offset = unsafe.Offsetof(anyExpr{}.op)
+func (e *anyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *anyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asAny() *anyExpr {
 	if m.op != AnyOp {
 		return nil
 	}
-
-	return (*anyExpr)(unsafe.Pointer(m))
+	return (*anyExpr)(m)
 }
 
-func (m *memo) memoizeAny(expr *anyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(anyExpr{}))
-	const align = uint32(unsafe.Alignof(anyExpr{}))
+type someExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*anyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(AnyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AnyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeSomeExpr(left GroupID, right GroupID) someExpr {
+	return someExpr{op: SomeOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type someExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *someExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *someExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(someExpr{})
-	const offset = unsafe.Offsetof(someExpr{}.op)
+func (e *someExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *someExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSome() *someExpr {
 	if m.op != SomeOp {
 		return nil
 	}
-
-	return (*someExpr)(unsafe.Pointer(m))
+	return (*someExpr)(m)
 }
 
-func (m *memo) memoizeSome(expr *someExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(someExpr{}))
-	const align = uint32(unsafe.Alignof(someExpr{}))
+type allExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*someExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SomeOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SomeOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeAllExpr(left GroupID, right GroupID) allExpr {
+	return allExpr{op: AllOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type allExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *allExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *allExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(allExpr{})
-	const offset = unsafe.Offsetof(allExpr{}.op)
+func (e *allExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *allExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asAll() *allExpr {
 	if m.op != AllOp {
 		return nil
 	}
-
-	return (*allExpr)(unsafe.Pointer(m))
+	return (*allExpr)(m)
 }
 
-func (m *memo) memoizeAll(expr *allExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(allExpr{}))
-	const align = uint32(unsafe.Alignof(allExpr{}))
+type bitandExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*allExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(AllOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AllOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeBitandExpr(left GroupID, right GroupID) bitandExpr {
+	return bitandExpr{op: BitandOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type bitandExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *bitandExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *bitandExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(bitandExpr{})
-	const offset = unsafe.Offsetof(bitandExpr{}.op)
+func (e *bitandExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *bitandExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asBitand() *bitandExpr {
 	if m.op != BitandOp {
 		return nil
 	}
-
-	return (*bitandExpr)(unsafe.Pointer(m))
+	return (*bitandExpr)(m)
 }
 
-func (m *memo) memoizeBitand(expr *bitandExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(bitandExpr{}))
-	const align = uint32(unsafe.Alignof(bitandExpr{}))
+type bitorExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*bitandExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(BitandOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitandOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeBitorExpr(left GroupID, right GroupID) bitorExpr {
+	return bitorExpr{op: BitorOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type bitorExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *bitorExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *bitorExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(bitorExpr{})
-	const offset = unsafe.Offsetof(bitorExpr{}.op)
+func (e *bitorExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *bitorExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asBitor() *bitorExpr {
 	if m.op != BitorOp {
 		return nil
 	}
-
-	return (*bitorExpr)(unsafe.Pointer(m))
+	return (*bitorExpr)(m)
 }
 
-func (m *memo) memoizeBitor(expr *bitorExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(bitorExpr{}))
-	const align = uint32(unsafe.Alignof(bitorExpr{}))
+type bitxorExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*bitorExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(BitorOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitorOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeBitxorExpr(left GroupID, right GroupID) bitxorExpr {
+	return bitxorExpr{op: BitxorOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type bitxorExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *bitxorExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *bitxorExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(bitxorExpr{})
-	const offset = unsafe.Offsetof(bitxorExpr{}.op)
+func (e *bitxorExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *bitxorExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asBitxor() *bitxorExpr {
 	if m.op != BitxorOp {
 		return nil
 	}
-
-	return (*bitxorExpr)(unsafe.Pointer(m))
+	return (*bitxorExpr)(m)
 }
 
-func (m *memo) memoizeBitxor(expr *bitxorExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(bitxorExpr{}))
-	const align = uint32(unsafe.Alignof(bitxorExpr{}))
+type plusExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*bitxorExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(BitxorOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: BitxorOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makePlusExpr(left GroupID, right GroupID) plusExpr {
+	return plusExpr{op: PlusOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type plusExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *plusExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *plusExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(plusExpr{})
-	const offset = unsafe.Offsetof(plusExpr{}.op)
+func (e *plusExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *plusExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asPlus() *plusExpr {
 	if m.op != PlusOp {
 		return nil
 	}
-
-	return (*plusExpr)(unsafe.Pointer(m))
+	return (*plusExpr)(m)
 }
 
-func (m *memo) memoizePlus(expr *plusExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(plusExpr{}))
-	const align = uint32(unsafe.Alignof(plusExpr{}))
+type minusExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*plusExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(PlusOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PlusOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeMinusExpr(left GroupID, right GroupID) minusExpr {
+	return minusExpr{op: MinusOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type minusExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *minusExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *minusExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(minusExpr{})
-	const offset = unsafe.Offsetof(minusExpr{}.op)
+func (e *minusExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *minusExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asMinus() *minusExpr {
 	if m.op != MinusOp {
 		return nil
 	}
-
-	return (*minusExpr)(unsafe.Pointer(m))
+	return (*minusExpr)(m)
 }
 
-func (m *memo) memoizeMinus(expr *minusExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(minusExpr{}))
-	const align = uint32(unsafe.Alignof(minusExpr{}))
+type multExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*minusExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(MinusOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: MinusOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeMultExpr(left GroupID, right GroupID) multExpr {
+	return multExpr{op: MultOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type multExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *multExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *multExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(multExpr{})
-	const offset = unsafe.Offsetof(multExpr{}.op)
+func (e *multExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *multExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asMult() *multExpr {
 	if m.op != MultOp {
 		return nil
 	}
-
-	return (*multExpr)(unsafe.Pointer(m))
+	return (*multExpr)(m)
 }
 
-func (m *memo) memoizeMult(expr *multExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(multExpr{}))
-	const align = uint32(unsafe.Alignof(multExpr{}))
+type divExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*multExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(MultOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: MultOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeDivExpr(left GroupID, right GroupID) divExpr {
+	return divExpr{op: DivOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type divExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *divExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *divExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(divExpr{})
-	const offset = unsafe.Offsetof(divExpr{}.op)
+func (e *divExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *divExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asDiv() *divExpr {
 	if m.op != DivOp {
 		return nil
 	}
-
-	return (*divExpr)(unsafe.Pointer(m))
+	return (*divExpr)(m)
 }
 
-func (m *memo) memoizeDiv(expr *divExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(divExpr{}))
-	const align = uint32(unsafe.Alignof(divExpr{}))
+type floorDivExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*divExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(DivOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: DivOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFloorDivExpr(left GroupID, right GroupID) floorDivExpr {
+	return floorDivExpr{op: FloorDivOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type floorDivExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *floorDivExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *floorDivExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(floorDivExpr{})
-	const offset = unsafe.Offsetof(floorDivExpr{}.op)
+func (e *floorDivExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *floorDivExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFloorDiv() *floorDivExpr {
 	if m.op != FloorDivOp {
 		return nil
 	}
-
-	return (*floorDivExpr)(unsafe.Pointer(m))
+	return (*floorDivExpr)(m)
 }
 
-func (m *memo) memoizeFloorDiv(expr *floorDivExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(floorDivExpr{}))
-	const align = uint32(unsafe.Alignof(floorDivExpr{}))
+type modExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*floorDivExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FloorDivOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FloorDivOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeModExpr(left GroupID, right GroupID) modExpr {
+	return modExpr{op: ModOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type modExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *modExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *modExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(modExpr{})
-	const offset = unsafe.Offsetof(modExpr{}.op)
+func (e *modExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *modExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asMod() *modExpr {
 	if m.op != ModOp {
 		return nil
 	}
-
-	return (*modExpr)(unsafe.Pointer(m))
+	return (*modExpr)(m)
 }
 
-func (m *memo) memoizeMod(expr *modExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(modExpr{}))
-	const align = uint32(unsafe.Alignof(modExpr{}))
+type powExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*modExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ModOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ModOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makePowExpr(left GroupID, right GroupID) powExpr {
+	return powExpr{op: PowOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type powExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *powExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *powExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(powExpr{})
-	const offset = unsafe.Offsetof(powExpr{}.op)
+func (e *powExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *powExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asPow() *powExpr {
 	if m.op != PowOp {
 		return nil
 	}
-
-	return (*powExpr)(unsafe.Pointer(m))
+	return (*powExpr)(m)
 }
 
-func (m *memo) memoizePow(expr *powExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(powExpr{}))
-	const align = uint32(unsafe.Alignof(powExpr{}))
+type concatExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*powExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(PowOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: PowOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeConcatExpr(left GroupID, right GroupID) concatExpr {
+	return concatExpr{op: ConcatOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type concatExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *concatExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *concatExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(concatExpr{})
-	const offset = unsafe.Offsetof(concatExpr{}.op)
+func (e *concatExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *concatExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asConcat() *concatExpr {
 	if m.op != ConcatOp {
 		return nil
 	}
-
-	return (*concatExpr)(unsafe.Pointer(m))
+	return (*concatExpr)(m)
 }
 
-func (m *memo) memoizeConcat(expr *concatExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(concatExpr{}))
-	const align = uint32(unsafe.Alignof(concatExpr{}))
+type lShiftExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*concatExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ConcatOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ConcatOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLShiftExpr(left GroupID, right GroupID) lShiftExpr {
+	return lShiftExpr{op: LShiftOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type lShiftExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *lShiftExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *lShiftExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(lShiftExpr{})
-	const offset = unsafe.Offsetof(lShiftExpr{}.op)
+func (e *lShiftExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *lShiftExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLShift() *lShiftExpr {
 	if m.op != LShiftOp {
 		return nil
 	}
-
-	return (*lShiftExpr)(unsafe.Pointer(m))
+	return (*lShiftExpr)(m)
 }
 
-func (m *memo) memoizeLShift(expr *lShiftExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(lShiftExpr{}))
-	const align = uint32(unsafe.Alignof(lShiftExpr{}))
+type rShiftExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*lShiftExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LShiftOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LShiftOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeRShiftExpr(left GroupID, right GroupID) rShiftExpr {
+	return rShiftExpr{op: RShiftOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type rShiftExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *rShiftExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *rShiftExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(rShiftExpr{})
-	const offset = unsafe.Offsetof(rShiftExpr{}.op)
+func (e *rShiftExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *rShiftExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asRShift() *rShiftExpr {
 	if m.op != RShiftOp {
 		return nil
 	}
-
-	return (*rShiftExpr)(unsafe.Pointer(m))
+	return (*rShiftExpr)(m)
 }
 
-func (m *memo) memoizeRShift(expr *rShiftExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(rShiftExpr{}))
-	const align = uint32(unsafe.Alignof(rShiftExpr{}))
+type unaryPlusExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*rShiftExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(RShiftOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RShiftOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeUnaryPlusExpr(input GroupID) unaryPlusExpr {
+	return unaryPlusExpr{op: UnaryPlusOp, state: exprState{uint32(input)}}
 }
 
-type unaryPlusExpr struct {
-	memoExpr
-	input GroupID
+func (e *unaryPlusExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *unaryPlusExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(unaryPlusExpr{})
-	const offset = unsafe.Offsetof(unaryPlusExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *unaryPlusExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asUnaryPlus() *unaryPlusExpr {
 	if m.op != UnaryPlusOp {
 		return nil
 	}
-
-	return (*unaryPlusExpr)(unsafe.Pointer(m))
+	return (*unaryPlusExpr)(m)
 }
 
-func (m *memo) memoizeUnaryPlus(expr *unaryPlusExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(unaryPlusExpr{}))
-	const align = uint32(unsafe.Alignof(unaryPlusExpr{}))
+type unaryMinusExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*unaryPlusExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(UnaryPlusOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryPlusOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeUnaryMinusExpr(input GroupID) unaryMinusExpr {
+	return unaryMinusExpr{op: UnaryMinusOp, state: exprState{uint32(input)}}
 }
 
-type unaryMinusExpr struct {
-	memoExpr
-	input GroupID
+func (e *unaryMinusExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *unaryMinusExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(unaryMinusExpr{})
-	const offset = unsafe.Offsetof(unaryMinusExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *unaryMinusExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asUnaryMinus() *unaryMinusExpr {
 	if m.op != UnaryMinusOp {
 		return nil
 	}
-
-	return (*unaryMinusExpr)(unsafe.Pointer(m))
+	return (*unaryMinusExpr)(m)
 }
 
-func (m *memo) memoizeUnaryMinus(expr *unaryMinusExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(unaryMinusExpr{}))
-	const align = uint32(unsafe.Alignof(unaryMinusExpr{}))
+type unaryComplementExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*unaryMinusExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(UnaryMinusOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryMinusOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeUnaryComplementExpr(input GroupID) unaryComplementExpr {
+	return unaryComplementExpr{op: UnaryComplementOp, state: exprState{uint32(input)}}
 }
 
-type unaryComplementExpr struct {
-	memoExpr
-	input GroupID
+func (e *unaryComplementExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *unaryComplementExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(unaryComplementExpr{})
-	const offset = unsafe.Offsetof(unaryComplementExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *unaryComplementExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asUnaryComplement() *unaryComplementExpr {
 	if m.op != UnaryComplementOp {
 		return nil
 	}
-
-	return (*unaryComplementExpr)(unsafe.Pointer(m))
+	return (*unaryComplementExpr)(m)
 }
 
-func (m *memo) memoizeUnaryComplement(expr *unaryComplementExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(unaryComplementExpr{}))
-	const align = uint32(unsafe.Alignof(unaryComplementExpr{}))
+type functionExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*unaryComplementExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(UnaryComplementOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnaryComplementOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFunctionExpr(args ListID, def PrivateID) functionExpr {
+	return functionExpr{op: FunctionOp, state: exprState{args.offset, args.len, uint32(def)}}
 }
 
-type functionExpr struct {
-	memoExpr
-	args ListID
-	def  PrivateID
+func (e *functionExpr) args() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *functionExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(functionExpr{})
-	const offset = unsafe.Offsetof(functionExpr{}.op)
+func (e *functionExpr) def() PrivateID {
+	return PrivateID(e.state[2])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *functionExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFunction() *functionExpr {
 	if m.op != FunctionOp {
 		return nil
 	}
-
-	return (*functionExpr)(unsafe.Pointer(m))
+	return (*functionExpr)(m)
 }
 
-func (m *memo) memoizeFunction(expr *functionExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(functionExpr{}))
-	const align = uint32(unsafe.Alignof(functionExpr{}))
+type trueExpr memoExpr
 
-	if expr.args == UndefinedList {
-		panic("args child cannot be undefined")
-	}
-
-	if expr.def == 0 {
-		panic("def child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*functionExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FunctionOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FunctionOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeTrueExpr() trueExpr {
+	return trueExpr{op: TrueOp, state: exprState{}}
 }
 
-type trueExpr struct {
-	memoExpr
-}
-
-func (e *trueExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(trueExpr{})
-	const offset = unsafe.Offsetof(trueExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *trueExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asTrue() *trueExpr {
 	if m.op != TrueOp {
 		return nil
 	}
-
-	return (*trueExpr)(unsafe.Pointer(m))
+	return (*trueExpr)(m)
 }
 
-func (m *memo) memoizeTrue(expr *trueExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(trueExpr{}))
-	const align = uint32(unsafe.Alignof(trueExpr{}))
+type falseExpr memoExpr
 
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*trueExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(TrueOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: TrueOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFalseExpr() falseExpr {
+	return falseExpr{op: FalseOp, state: exprState{}}
 }
 
-type falseExpr struct {
-	memoExpr
-}
-
-func (e *falseExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(falseExpr{})
-	const offset = unsafe.Offsetof(falseExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *falseExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFalse() *falseExpr {
 	if m.op != FalseOp {
 		return nil
 	}
-
-	return (*falseExpr)(unsafe.Pointer(m))
+	return (*falseExpr)(m)
 }
 
-func (m *memo) memoizeFalse(expr *falseExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(falseExpr{}))
-	const align = uint32(unsafe.Alignof(falseExpr{}))
+type scanExpr memoExpr
 
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*falseExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FalseOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FalseOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeScanExpr(table PrivateID) scanExpr {
+	return scanExpr{op: ScanOp, state: exprState{uint32(table)}}
 }
 
-type scanExpr struct {
-	memoExpr
-	table PrivateID
+func (e *scanExpr) table() PrivateID {
+	return PrivateID(e.state[0])
 }
 
-func (e *scanExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(scanExpr{})
-	const offset = unsafe.Offsetof(scanExpr{}.op)
-
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *scanExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asScan() *scanExpr {
 	if m.op != ScanOp {
 		return nil
 	}
-
-	return (*scanExpr)(unsafe.Pointer(m))
+	return (*scanExpr)(m)
 }
 
-func (m *memo) memoizeScan(expr *scanExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(scanExpr{}))
-	const align = uint32(unsafe.Alignof(scanExpr{}))
+type valuesExpr memoExpr
 
-	if expr.table == 0 {
-		panic("table child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*scanExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ScanOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ScanOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeValuesExpr(rows ListID, cols PrivateID) valuesExpr {
+	return valuesExpr{op: ValuesOp, state: exprState{rows.offset, rows.len, uint32(cols)}}
 }
 
-type valuesExpr struct {
-	memoExpr
-	rows ListID
-	cols PrivateID
+func (e *valuesExpr) rows() ListID {
+	return ListID{offset: e.state[0], len: e.state[1]}
 }
 
-func (e *valuesExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(valuesExpr{})
-	const offset = unsafe.Offsetof(valuesExpr{}.op)
+func (e *valuesExpr) cols() PrivateID {
+	return PrivateID(e.state[2])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *valuesExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asValues() *valuesExpr {
 	if m.op != ValuesOp {
 		return nil
 	}
-
-	return (*valuesExpr)(unsafe.Pointer(m))
+	return (*valuesExpr)(m)
 }
 
-func (m *memo) memoizeValues(expr *valuesExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(valuesExpr{}))
-	const align = uint32(unsafe.Alignof(valuesExpr{}))
+type selectExpr memoExpr
 
-	if expr.rows == UndefinedList {
-		panic("rows child cannot be undefined")
-	}
-
-	if expr.cols == 0 {
-		panic("cols child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*valuesExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ValuesOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ValuesOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeSelectExpr(input GroupID, filter GroupID) selectExpr {
+	return selectExpr{op: SelectOp, state: exprState{uint32(input), uint32(filter)}}
 }
 
-type selectExpr struct {
-	memoExpr
-	input  GroupID
-	filter GroupID
+func (e *selectExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *selectExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(selectExpr{})
-	const offset = unsafe.Offsetof(selectExpr{}.op)
+func (e *selectExpr) filter() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *selectExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSelect() *selectExpr {
 	if m.op != SelectOp {
 		return nil
 	}
-
-	return (*selectExpr)(unsafe.Pointer(m))
+	return (*selectExpr)(m)
 }
 
-func (m *memo) memoizeSelect(expr *selectExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(selectExpr{}))
-	const align = uint32(unsafe.Alignof(selectExpr{}))
+type projectExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	if expr.filter == 0 {
-		panic("filter child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*selectExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SelectOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SelectOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeProjectExpr(input GroupID, projections GroupID) projectExpr {
+	return projectExpr{op: ProjectOp, state: exprState{uint32(input), uint32(projections)}}
 }
 
-type projectExpr struct {
-	memoExpr
-	input       GroupID
-	projections GroupID
+func (e *projectExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *projectExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(projectExpr{})
-	const offset = unsafe.Offsetof(projectExpr{}.op)
+func (e *projectExpr) projections() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *projectExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asProject() *projectExpr {
 	if m.op != ProjectOp {
 		return nil
 	}
-
-	return (*projectExpr)(unsafe.Pointer(m))
+	return (*projectExpr)(m)
 }
 
-func (m *memo) memoizeProject(expr *projectExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(projectExpr{}))
-	const align = uint32(unsafe.Alignof(projectExpr{}))
+type innerJoinExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	if expr.projections == 0 {
-		panic("projections child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*projectExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ProjectOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ProjectOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeInnerJoinExpr(left GroupID, right GroupID, on GroupID) innerJoinExpr {
+	return innerJoinExpr{op: InnerJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type innerJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *innerJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *innerJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(innerJoinExpr{})
-	const offset = unsafe.Offsetof(innerJoinExpr{}.op)
+func (e *innerJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *innerJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *innerJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asInnerJoin() *innerJoinExpr {
 	if m.op != InnerJoinOp {
 		return nil
 	}
-
-	return (*innerJoinExpr)(unsafe.Pointer(m))
+	return (*innerJoinExpr)(m)
 }
 
-func (m *memo) memoizeInnerJoin(expr *innerJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(innerJoinExpr{}))
-	const align = uint32(unsafe.Alignof(innerJoinExpr{}))
+type leftJoinExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*innerJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(InnerJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InnerJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLeftJoinExpr(left GroupID, right GroupID, on GroupID) leftJoinExpr {
+	return leftJoinExpr{op: LeftJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type leftJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *leftJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *leftJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(leftJoinExpr{})
-	const offset = unsafe.Offsetof(leftJoinExpr{}.op)
+func (e *leftJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *leftJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *leftJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLeftJoin() *leftJoinExpr {
 	if m.op != LeftJoinOp {
 		return nil
 	}
-
-	return (*leftJoinExpr)(unsafe.Pointer(m))
+	return (*leftJoinExpr)(m)
 }
 
-func (m *memo) memoizeLeftJoin(expr *leftJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(leftJoinExpr{}))
-	const align = uint32(unsafe.Alignof(leftJoinExpr{}))
+type rightJoinExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*leftJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LeftJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeftJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeRightJoinExpr(left GroupID, right GroupID, on GroupID) rightJoinExpr {
+	return rightJoinExpr{op: RightJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type rightJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *rightJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *rightJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(rightJoinExpr{})
-	const offset = unsafe.Offsetof(rightJoinExpr{}.op)
+func (e *rightJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *rightJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *rightJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asRightJoin() *rightJoinExpr {
 	if m.op != RightJoinOp {
 		return nil
 	}
-
-	return (*rightJoinExpr)(unsafe.Pointer(m))
+	return (*rightJoinExpr)(m)
 }
 
-func (m *memo) memoizeRightJoin(expr *rightJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(rightJoinExpr{}))
-	const align = uint32(unsafe.Alignof(rightJoinExpr{}))
+type fullJoinExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*rightJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(RightJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RightJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFullJoinExpr(left GroupID, right GroupID, on GroupID) fullJoinExpr {
+	return fullJoinExpr{op: FullJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type fullJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *fullJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *fullJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(fullJoinExpr{})
-	const offset = unsafe.Offsetof(fullJoinExpr{}.op)
+func (e *fullJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *fullJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *fullJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFullJoin() *fullJoinExpr {
 	if m.op != FullJoinOp {
 		return nil
 	}
-
-	return (*fullJoinExpr)(unsafe.Pointer(m))
+	return (*fullJoinExpr)(m)
 }
 
-func (m *memo) memoizeFullJoin(expr *fullJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(fullJoinExpr{}))
-	const align = uint32(unsafe.Alignof(fullJoinExpr{}))
+type semiJoinExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*fullJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FullJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FullJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeSemiJoinExpr(left GroupID, right GroupID, on GroupID) semiJoinExpr {
+	return semiJoinExpr{op: SemiJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type semiJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *semiJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *semiJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(semiJoinExpr{})
-	const offset = unsafe.Offsetof(semiJoinExpr{}.op)
+func (e *semiJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *semiJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *semiJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSemiJoin() *semiJoinExpr {
 	if m.op != SemiJoinOp {
 		return nil
 	}
-
-	return (*semiJoinExpr)(unsafe.Pointer(m))
+	return (*semiJoinExpr)(m)
 }
 
-func (m *memo) memoizeSemiJoin(expr *semiJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(semiJoinExpr{}))
-	const align = uint32(unsafe.Alignof(semiJoinExpr{}))
+type antiJoinExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*semiJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SemiJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SemiJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeAntiJoinExpr(left GroupID, right GroupID, on GroupID) antiJoinExpr {
+	return antiJoinExpr{op: AntiJoinOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type antiJoinExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *antiJoinExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *antiJoinExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(antiJoinExpr{})
-	const offset = unsafe.Offsetof(antiJoinExpr{}.op)
+func (e *antiJoinExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *antiJoinExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *antiJoinExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asAntiJoin() *antiJoinExpr {
 	if m.op != AntiJoinOp {
 		return nil
 	}
-
-	return (*antiJoinExpr)(unsafe.Pointer(m))
+	return (*antiJoinExpr)(m)
 }
 
-func (m *memo) memoizeAntiJoin(expr *antiJoinExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(antiJoinExpr{}))
-	const align = uint32(unsafe.Alignof(antiJoinExpr{}))
+type innerJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*antiJoinExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(AntiJoinOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AntiJoinOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeInnerJoinApplyExpr(left GroupID, right GroupID, on GroupID) innerJoinApplyExpr {
+	return innerJoinApplyExpr{op: InnerJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type innerJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *innerJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *innerJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(innerJoinApplyExpr{})
-	const offset = unsafe.Offsetof(innerJoinApplyExpr{}.op)
+func (e *innerJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *innerJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *innerJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asInnerJoinApply() *innerJoinApplyExpr {
 	if m.op != InnerJoinApplyOp {
 		return nil
 	}
-
-	return (*innerJoinApplyExpr)(unsafe.Pointer(m))
+	return (*innerJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeInnerJoinApply(expr *innerJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(innerJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(innerJoinApplyExpr{}))
+type leftJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*innerJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(InnerJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: InnerJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeLeftJoinApplyExpr(left GroupID, right GroupID, on GroupID) leftJoinApplyExpr {
+	return leftJoinApplyExpr{op: LeftJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type leftJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *leftJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *leftJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(leftJoinApplyExpr{})
-	const offset = unsafe.Offsetof(leftJoinApplyExpr{}.op)
+func (e *leftJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *leftJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *leftJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asLeftJoinApply() *leftJoinApplyExpr {
 	if m.op != LeftJoinApplyOp {
 		return nil
 	}
-
-	return (*leftJoinApplyExpr)(unsafe.Pointer(m))
+	return (*leftJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeLeftJoinApply(expr *leftJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(leftJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(leftJoinApplyExpr{}))
+type rightJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*leftJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(LeftJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: LeftJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeRightJoinApplyExpr(left GroupID, right GroupID, on GroupID) rightJoinApplyExpr {
+	return rightJoinApplyExpr{op: RightJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type rightJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *rightJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *rightJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(rightJoinApplyExpr{})
-	const offset = unsafe.Offsetof(rightJoinApplyExpr{}.op)
+func (e *rightJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *rightJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *rightJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asRightJoinApply() *rightJoinApplyExpr {
 	if m.op != RightJoinApplyOp {
 		return nil
 	}
-
-	return (*rightJoinApplyExpr)(unsafe.Pointer(m))
+	return (*rightJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeRightJoinApply(expr *rightJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(rightJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(rightJoinApplyExpr{}))
+type fullJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*rightJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(RightJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: RightJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeFullJoinApplyExpr(left GroupID, right GroupID, on GroupID) fullJoinApplyExpr {
+	return fullJoinApplyExpr{op: FullJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type fullJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *fullJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *fullJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(fullJoinApplyExpr{})
-	const offset = unsafe.Offsetof(fullJoinApplyExpr{}.op)
+func (e *fullJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *fullJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *fullJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asFullJoinApply() *fullJoinApplyExpr {
 	if m.op != FullJoinApplyOp {
 		return nil
 	}
-
-	return (*fullJoinApplyExpr)(unsafe.Pointer(m))
+	return (*fullJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeFullJoinApply(expr *fullJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(fullJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(fullJoinApplyExpr{}))
+type semiJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*fullJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(FullJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: FullJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeSemiJoinApplyExpr(left GroupID, right GroupID, on GroupID) semiJoinApplyExpr {
+	return semiJoinApplyExpr{op: SemiJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type semiJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *semiJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *semiJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(semiJoinApplyExpr{})
-	const offset = unsafe.Offsetof(semiJoinApplyExpr{}.op)
+func (e *semiJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *semiJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *semiJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asSemiJoinApply() *semiJoinApplyExpr {
 	if m.op != SemiJoinApplyOp {
 		return nil
 	}
-
-	return (*semiJoinApplyExpr)(unsafe.Pointer(m))
+	return (*semiJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeSemiJoinApply(expr *semiJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(semiJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(semiJoinApplyExpr{}))
+type antiJoinApplyExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*semiJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(SemiJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: SemiJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeAntiJoinApplyExpr(left GroupID, right GroupID, on GroupID) antiJoinApplyExpr {
+	return antiJoinApplyExpr{op: AntiJoinApplyOp, state: exprState{uint32(left), uint32(right), uint32(on)}}
 }
 
-type antiJoinApplyExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
-	on    GroupID
+func (e *antiJoinApplyExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *antiJoinApplyExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(antiJoinApplyExpr{})
-	const offset = unsafe.Offsetof(antiJoinApplyExpr{}.op)
+func (e *antiJoinApplyExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *antiJoinApplyExpr) on() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *antiJoinApplyExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asAntiJoinApply() *antiJoinApplyExpr {
 	if m.op != AntiJoinApplyOp {
 		return nil
 	}
-
-	return (*antiJoinApplyExpr)(unsafe.Pointer(m))
+	return (*antiJoinApplyExpr)(m)
 }
 
-func (m *memo) memoizeAntiJoinApply(expr *antiJoinApplyExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(antiJoinApplyExpr{}))
-	const align = uint32(unsafe.Alignof(antiJoinApplyExpr{}))
+type groupByExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.on == 0 {
-		panic("on child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*antiJoinApplyExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(AntiJoinApplyOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: AntiJoinApplyOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeGroupByExpr(input GroupID, groupings GroupID, aggregations GroupID) groupByExpr {
+	return groupByExpr{op: GroupByOp, state: exprState{uint32(input), uint32(groupings), uint32(aggregations)}}
 }
 
-type groupByExpr struct {
-	memoExpr
-	input        GroupID
-	groupings    GroupID
-	aggregations GroupID
+func (e *groupByExpr) input() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *groupByExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(groupByExpr{})
-	const offset = unsafe.Offsetof(groupByExpr{}.op)
+func (e *groupByExpr) groupings() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *groupByExpr) aggregations() GroupID {
+	return GroupID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *groupByExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asGroupBy() *groupByExpr {
 	if m.op != GroupByOp {
 		return nil
 	}
-
-	return (*groupByExpr)(unsafe.Pointer(m))
+	return (*groupByExpr)(m)
 }
 
-func (m *memo) memoizeGroupBy(expr *groupByExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(groupByExpr{}))
-	const align = uint32(unsafe.Alignof(groupByExpr{}))
+type unionExpr memoExpr
 
-	if expr.input == 0 {
-		panic("input child cannot be undefined")
-	}
-
-	if expr.groupings == 0 {
-		panic("groupings child cannot be undefined")
-	}
-
-	if expr.aggregations == 0 {
-		panic("aggregations child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*groupByExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(GroupByOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: GroupByOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeUnionExpr(left GroupID, right GroupID, colMap PrivateID) unionExpr {
+	return unionExpr{op: UnionOp, state: exprState{uint32(left), uint32(right), uint32(colMap)}}
 }
 
-type unionExpr struct {
-	memoExpr
-	left   GroupID
-	right  GroupID
-	colMap PrivateID
+func (e *unionExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *unionExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(unionExpr{})
-	const offset = unsafe.Offsetof(unionExpr{}.op)
+func (e *unionExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
+func (e *unionExpr) colMap() PrivateID {
+	return PrivateID(e.state[2])
+}
 
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *unionExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asUnion() *unionExpr {
 	if m.op != UnionOp {
 		return nil
 	}
-
-	return (*unionExpr)(unsafe.Pointer(m))
+	return (*unionExpr)(m)
 }
 
-func (m *memo) memoizeUnion(expr *unionExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(unionExpr{}))
-	const align = uint32(unsafe.Alignof(unionExpr{}))
+type intersectExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	if expr.colMap == 0 {
-		panic("colMap child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*unionExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(UnionOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: UnionOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeIntersectExpr(left GroupID, right GroupID) intersectExpr {
+	return intersectExpr{op: IntersectOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type intersectExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *intersectExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *intersectExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(intersectExpr{})
-	const offset = unsafe.Offsetof(intersectExpr{}.op)
+func (e *intersectExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *intersectExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asIntersect() *intersectExpr {
 	if m.op != IntersectOp {
 		return nil
 	}
-
-	return (*intersectExpr)(unsafe.Pointer(m))
+	return (*intersectExpr)(m)
 }
 
-func (m *memo) memoizeIntersect(expr *intersectExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(intersectExpr{}))
-	const align = uint32(unsafe.Alignof(intersectExpr{}))
+type exceptExpr memoExpr
 
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*intersectExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(IntersectOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: IntersectOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+func makeExceptExpr(left GroupID, right GroupID) exceptExpr {
+	return exceptExpr{op: ExceptOp, state: exprState{uint32(left), uint32(right)}}
 }
 
-type exceptExpr struct {
-	memoExpr
-	left  GroupID
-	right GroupID
+func (e *exceptExpr) left() GroupID {
+	return GroupID(e.state[0])
 }
 
-func (e *exceptExpr) fingerprint() (f fingerprint) {
-	const size = unsafe.Sizeof(exceptExpr{})
-	const offset = unsafe.Offsetof(exceptExpr{}.op)
+func (e *exceptExpr) right() GroupID {
+	return GroupID(e.state[1])
+}
 
-	b := *(*[size]byte)(unsafe.Pointer(e))
-
-	if size-offset <= unsafe.Sizeof(f) {
-		copy(f[:], b[offset:])
-	} else {
-		f = fingerprint(md5.Sum(b[offset:]))
-	}
-
-	return
+func (e *exceptExpr) fingerprint() fingerprint {
+	return fingerprint(*e)
 }
 
 func (m *memoExpr) asExcept() *exceptExpr {
 	if m.op != ExceptOp {
 		return nil
 	}
-
-	return (*exceptExpr)(unsafe.Pointer(m))
-}
-
-func (m *memo) memoizeExcept(expr *exceptExpr) GroupID {
-	const size = uint32(unsafe.Sizeof(exceptExpr{}))
-	const align = uint32(unsafe.Alignof(exceptExpr{}))
-
-	if expr.left == 0 {
-		panic("left child cannot be undefined")
-	}
-
-	if expr.right == 0 {
-		panic("right child cannot be undefined")
-	}
-
-	fingerprint := expr.fingerprint()
-	loc := m.exprMap[fingerprint]
-	if loc.offset == 0 {
-		loc.offset = exprOffset(m.arena.alloc(size, align))
-		p := (*exceptExpr)(m.arena.getPointer(uint32(loc.offset)))
-		*p = *expr
-
-		if loc.group == 0 {
-			if expr.group != 0 {
-				loc.group = expr.group
-			} else {
-				mgrp := m.newGroup(ExceptOp, loc.offset)
-				p.group = mgrp.id
-				loc.group = mgrp.id
-				e := Expr{mem: m, group: mgrp.id, op: ExceptOp, offset: loc.offset, required: defaultPhysPropsID}
-				mgrp.logical = m.logPropsFactory.constructProps(&e)
-			}
-		} else {
-			if expr.group != loc.group {
-				panic("denormalized expression's group doesn't match fingerprint group")
-			}
-		}
-
-		m.lookupGroup(loc.group).addExpr(loc.offset)
-		m.exprMap[fingerprint] = loc
-	}
-
-	return loc.group
+	return (*exceptExpr)(m)
 }

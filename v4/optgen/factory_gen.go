@@ -14,8 +14,6 @@ func (g *FactoryGen) Generate(compiled CompiledExpr, w io.Writer) {
 	g.init(compiled, w, "Normalize")
 
 	for _, define := range g.defines {
-		g.resetUnique()
-
 		g.w.writeIndent("func (_f *Factory) Construct%s(\n", define.name)
 
 		for _, field := range define.fields {
@@ -24,22 +22,24 @@ func (g *FactoryGen) Generate(compiled CompiledExpr, w io.Writer) {
 
 		g.w.nest(") GroupID {\n")
 
-		g.w.writeIndent("%s := %s{memoExpr: memoExpr{op: %s}", define.varName, define.exprType, define.opType)
+		g.w.writeIndent("%s := make%sExpr(", define.varName, define.name)
 
-		for _, field := range define.fields {
-			g.w.write(", %s: %s", field.name, field.name)
+		for i, field := range define.fields {
+			if i != 0 {
+				g.w.write(", ")
+			}
+			g.w.write("%s", field.name)
 		}
 
-		g.w.write("}\n")
-		g.w.writeIndent("_fingerprint := %s.fingerprint()\n", define.varName)
-		g.w.writeIndent("_group := _f.mem.lookupGroupByFingerprint(_fingerprint)\n")
+		g.w.write(")\n")
+		g.w.writeIndent("_group := _f.mem.lookupGroupByFingerprint(%s.fingerprint())\n", define.varName)
 		g.w.nest("if _group != 0 {\n")
 		g.w.writeIndent("return _group\n")
 		g.w.unnest(1, "}\n\n")
 
 		if len(define.rules) > 0 {
 			g.w.nest("if _f.maxSteps <= 0 {\n")
-			g.w.writeIndent("return _f.mem.memoize%s(&%s)\n", define.name, define.varName)
+			g.w.writeIndent("return _f.mem.memoizeNormExpr((*memoExpr)(&%s))\n", define.varName)
 			g.w.unnest(1, "}\n\n")
 		}
 
@@ -51,7 +51,7 @@ func (g *FactoryGen) Generate(compiled CompiledExpr, w io.Writer) {
 			g.w.write("\n")
 		}
 
-		g.w.writeIndent("return _f.onConstruct(_f.mem.memoize%s(&%s))\n", define.name, define.varName)
+		g.w.writeIndent("return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&%s)))\n", define.varName)
 		g.w.unnest(1, "}\n\n")
 	}
 
@@ -59,6 +59,7 @@ func (g *FactoryGen) Generate(compiled CompiledExpr, w io.Writer) {
 }
 
 func (g *FactoryGen) genRule(rule *xformRule) {
+	g.resetUnique()
 	g.w.writeIndent("// [%s]\n", rule.name)
 	g.w.nest("{\n")
 
@@ -71,7 +72,7 @@ func (g *FactoryGen) genRule(rule *xformRule) {
 	g.w.writeIndent("_group = ")
 	g.genReplace(rule, rule.replace)
 	g.w.write("\n")
-	g.w.writeIndent("_f.mem.addAltFingerprint(_fingerprint, _group)\n")
+	g.w.writeIndent("_f.mem.addAltFingerprint(%s.fingerprint(), _group)\n", rule.define.varName)
 	g.w.writeIndent("return _group\n")
 
 	g.w.unnest(g.w.nesting-1, "}\n")
@@ -177,7 +178,7 @@ func (g *FactoryGen) genConstantMatchField(matchFields *MatchFieldsExpr, opName 
 
 	for index, matchField := range matchFields.Fields() {
 		fieldName := g.lookupFieldName(opName, index)
-		g.genMatch(matchField, fmt.Sprintf("%s.%s", varName, fieldName), false)
+		g.genMatch(matchField, fmt.Sprintf("%s.%s()", varName, fieldName), false)
 	}
 }
 
