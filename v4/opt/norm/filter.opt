@@ -1,0 +1,50 @@
+# =============================================================================
+# filter.opt contains patterns which normalize select and join filters. Since
+# both (and only) these operators allow filters, often patterns need to be
+# duplicated for each case.
+#
+# In order to make filter matching easier, filters create a Filters operator
+# to wrap the boolean filter expression (except when it's True or False). The
+# filter list expands its operand into a list of AND'd. The OptGen list
+# matching operator can then easily hoist or rewrite items in the list.
+# =============================================================================
+
+
+# EliminateSelect discards the unnecessary select operator in the case where
+# its filter is always true.
+[EliminateSelect, Normalize]
+(Select $input:* (True)) => $input
+
+# EliminateFilters maps an empty filter list to True.
+[EliminateFilters, Normalize]
+(Filters $items:* & (IsEmptyList $items)) => (True)
+
+# EnsureSelectFilters adds a Filters operator to the select operator's filter
+# operand if it does not already exist. This allows upstream patterns to rely
+# upon the presence of the Filters when matching.
+[EnsureSelectFilters, Normalize]
+(Select
+    $input:*
+    $filter:^(Filters) & (UseFilters $filter)
+)
+=>
+(Select
+    $input
+    (FlattenFilterCondition $filter)
+)
+
+# EnsureJoinFilters adds a Filters operator to the join operator's filter
+# operand if it does not already exist. This allows upstream patterns to rely
+# upon the presence of the Filters when matching.
+[EnsureJoinFilters, Normalize]
+(Join
+    $left:*
+    $right:*
+    $on:^(Filters) & (UseFilters $on)
+)
+=>
+((OpName)
+    $left
+    $right
+    (FlattenFilterCondition $on)
+)

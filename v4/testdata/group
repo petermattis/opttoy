@@ -1,0 +1,156 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+build
+SELECT x FROM a GROUP BY x
+----
+arrange
+ ├── columns: x:1
+ └── group-by
+      ├── columns: a.x:1
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      ├── projections [unbound=(1)]
+      │    └── variable: a.x [unbound=(1)]
+      └── projections
+
+build
+SELECT y FROM a GROUP BY y, x
+----
+project
+ ├── columns: y:2
+ ├── group-by
+ │    ├── columns: a.x:1 a.y:2
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── projections [unbound=(1,2)]
+ │    │    ├── variable: a.y [unbound=(2)]
+ │    │    └── variable: a.x [unbound=(1)]
+ │    └── projections
+ └── projections [unbound=(2)]
+      └── variable: a.y [unbound=(2)]
+
+build
+SELECT DISTINCT * FROM a
+----
+arrange
+ ├── columns: x:1 y:2
+ └── group-by
+      ├── columns: a.x:1 a.y:2
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      ├── projections [unbound=(1,2)]
+      │    ├── variable: a.x [unbound=(1)]
+      │    └── variable: a.y [unbound=(2)]
+      └── projections
+
+build
+SELECT COUNT(*) FROM a
+----
+arrange
+ ├── columns: column1:3
+ └── group-by
+      ├── columns: column1:3
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      ├── projections
+      └── projections
+           └── function: count_rows
+
+build
+SELECT COUNT(*) FROM a GROUP BY x
+----
+project
+ ├── columns: column2:3
+ ├── group-by
+ │    ├── columns: a.x:1 column2:3
+ │    ├── scan
+ │    │    └── columns: a.x:1 a.y:2
+ │    ├── projections [unbound=(1)]
+ │    │    └── variable: a.x [unbound=(1)]
+ │    └── projections
+ │         └── function: count_rows
+ └── projections [unbound=(3)]
+      └── variable: column2 [unbound=(3)]
+
+build
+SELECT x FROM a GROUP BY x HAVING SUM(y) > 0
+----
+project
+ ├── columns: x:1
+ ├── select
+ │    ├── columns: a.x:1 column2:3*
+ │    ├── group-by
+ │    │    ├── columns: a.x:1 column2:3
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── projections [unbound=(1)]
+ │    │    │    └── variable: a.x [unbound=(1)]
+ │    │    └── projections [unbound=(2)]
+ │    │         └── function: sum [unbound=(2)]
+ │    │              └── variable: a.y [unbound=(2)]
+ │    └── gt [unbound=(3)]
+ │         ├── variable: column2 [unbound=(3)]
+ │         └── const: 0
+ └── projections [unbound=(1)]
+      └── variable: a.x [unbound=(1)]
+
+build
+SELECT x, SUM(y) FROM a GROUP BY x HAVING SUM(y) > 0
+----
+project
+ ├── columns: x:1 column3:4
+ ├── select
+ │    ├── columns: a.x:1 column2:3* column3:4
+ │    ├── group-by
+ │    │    ├── columns: a.x:1 column2:3 column3:4
+ │    │    ├── scan
+ │    │    │    └── columns: a.x:1 a.y:2
+ │    │    ├── projections [unbound=(1)]
+ │    │    │    └── variable: a.x [unbound=(1)]
+ │    │    └── projections [unbound=(2)]
+ │    │         ├── function: sum [unbound=(2)]
+ │    │         │    └── variable: a.y [unbound=(2)]
+ │    │         └── function: sum [unbound=(2)]
+ │    │              └── variable: a.y [unbound=(2)]
+ │    └── gt [unbound=(3)]
+ │         ├── variable: column2 [unbound=(3)]
+ │         └── const: 0
+ └── projections [unbound=(1,4)]
+      ├── variable: a.x [unbound=(1)]
+      └── variable: column3 [unbound=(4)]
+
+# This query is artificial and is intended only to highlight that the
+# two group-by expressions are placed in different groups in the memo.
+
+memo
+SELECT SUM(x) FROM a GROUP BY x UNION SELECT SUM(x) FROM a WHERE y > 1 GROUP BY y
+----
+24: [union [9 23]]
+23: [project [21 22]]
+22: [projections [18]]
+21: [group-by [15 20 19]]
+20: [projections [11]]
+19: [projections [17]]
+18: [variable column2]
+17: [function sum [16]]
+16: [variable a.x]
+15: [select [10 14]]
+14: [filters [13]]
+13: [gt [11 12]]
+12: [const 1]
+11: [variable a.y]
+10: [scan a]
+9: [project [7 8]]
+8: [projections [4]]
+7: [group-by [1 6 5]]
+6: [projections [2]]
+5: [projections [3]]
+4: [variable column2]
+3: [function sum [2]]
+2: [variable a.x]
+1: [scan a]
