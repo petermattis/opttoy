@@ -234,6 +234,40 @@ func (_f *Factory) ConstructLt(
 		return _group
 	}
 
+	if _f.maxSteps <= 0 {
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_ltExpr))
+	}
+
+	// [NormalizeInequalityVar]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable == nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				_f.maxSteps--
+				_group = _f.commuteInequalityExpr(LtOp, left, right)
+				_f.mem.addAltFingerprint(_ltExpr.fingerprint(), _group)
+				return _group
+			}
+		}
+	}
+
+	// [NormalizeInequalityVarOrder]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				if _f.isLowerExpr(right, left) {
+					_f.maxSteps--
+					_group = _f.commuteInequalityExpr(LtOp, left, right)
+					_f.mem.addAltFingerprint(_ltExpr.fingerprint(), _group)
+					return _group
+				}
+			}
+		}
+	}
+
 	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_ltExpr)))
 }
 
@@ -245,6 +279,40 @@ func (_f *Factory) ConstructGt(
 	_group := _f.mem.lookupGroupByFingerprint(_gtExpr.fingerprint())
 	if _group != 0 {
 		return _group
+	}
+
+	if _f.maxSteps <= 0 {
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_gtExpr))
+	}
+
+	// [NormalizeInequalityVar]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable == nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				_f.maxSteps--
+				_group = _f.commuteInequalityExpr(GtOp, left, right)
+				_f.mem.addAltFingerprint(_gtExpr.fingerprint(), _group)
+				return _group
+			}
+		}
+	}
+
+	// [NormalizeInequalityVarOrder]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				if _f.isLowerExpr(right, left) {
+					_f.maxSteps--
+					_group = _f.commuteInequalityExpr(GtOp, left, right)
+					_f.mem.addAltFingerprint(_gtExpr.fingerprint(), _group)
+					return _group
+				}
+			}
+		}
 	}
 
 	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_gtExpr)))
@@ -260,6 +328,40 @@ func (_f *Factory) ConstructLe(
 		return _group
 	}
 
+	if _f.maxSteps <= 0 {
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_leExpr))
+	}
+
+	// [NormalizeInequalityVar]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable == nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				_f.maxSteps--
+				_group = _f.commuteInequalityExpr(LeOp, left, right)
+				_f.mem.addAltFingerprint(_leExpr.fingerprint(), _group)
+				return _group
+			}
+		}
+	}
+
+	// [NormalizeInequalityVarOrder]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				if _f.isLowerExpr(right, left) {
+					_f.maxSteps--
+					_group = _f.commuteInequalityExpr(LeOp, left, right)
+					_f.mem.addAltFingerprint(_leExpr.fingerprint(), _group)
+					return _group
+				}
+			}
+		}
+	}
+
 	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_leExpr)))
 }
 
@@ -271,6 +373,40 @@ func (_f *Factory) ConstructGe(
 	_group := _f.mem.lookupGroupByFingerprint(_geExpr.fingerprint())
 	if _group != 0 {
 		return _group
+	}
+
+	if _f.maxSteps <= 0 {
+		return _f.mem.memoizeNormExpr((*memoExpr)(&_geExpr))
+	}
+
+	// [NormalizeInequalityVar]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable == nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				_f.maxSteps--
+				_group = _f.commuteInequalityExpr(GeOp, left, right)
+				_f.mem.addAltFingerprint(_geExpr.fingerprint(), _group)
+				return _group
+			}
+		}
+	}
+
+	// [NormalizeInequalityVarOrder]
+	{
+		_variable := _f.mem.lookupNormExpr(left).asVariable()
+		if _variable != nil {
+			_variable2 := _f.mem.lookupNormExpr(right).asVariable()
+			if _variable2 != nil {
+				if _f.isLowerExpr(right, left) {
+					_f.maxSteps--
+					_group = _f.commuteInequalityExpr(GeOp, left, right)
+					_f.mem.addAltFingerprint(_geExpr.fingerprint(), _group)
+					return _group
+				}
+			}
+		}
 	}
 
 	return _f.onConstruct(_f.mem.memoizeNormExpr((*memoExpr)(&_geExpr)))
@@ -864,7 +1000,7 @@ func (_f *Factory) ConstructSelect(
 		if _filters == nil {
 			if _f.useFilters(filter) {
 				_f.maxSteps--
-				_group = _f.ConstructSelect(input, _f.flattenFilterCondition(filter))
+				_group = _f.ConstructSelect(input, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{input}), filter))
 				_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
 				return _group
 			}
@@ -877,18 +1013,54 @@ func (_f *Factory) ConstructSelect(
 		if isJoinLookup[_norm.op] {
 			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
 			left := _e.ChildGroup(0)
-			right := _e.ChildGroup(1)
-			on := _e.ChildGroup(2)
-			_filters := _f.mem.lookupNormExpr(filter).asFilters()
-			if _filters != nil {
-				list := _filters.conditions()
-				for _, _item := range _f.mem.lookupList(_filters.conditions()) {
-					condition := _item
-					if !_f.isCorrelated(condition, right) {
-						_f.maxSteps--
-						_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{_f.ConstructSelect(left, condition), right, on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
-						_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
-						return _group
+			_select := _f.mem.lookupNormExpr(_e.ChildGroup(0)).asSelect()
+			if _select == nil {
+				right := _e.ChildGroup(1)
+				on := _e.ChildGroup(2)
+				_filters := _f.mem.lookupNormExpr(filter).asFilters()
+				if _filters != nil {
+					list := _filters.conditions()
+					for _, _item := range _f.mem.lookupList(_filters.conditions()) {
+						condition := _item
+						if !_f.isCorrelated(condition, right) {
+							_f.maxSteps--
+							_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{_f.ConstructSelect(left, condition), right, on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
+							_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
+							return _group
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// [PushDownSelectJoinSelectLeft]
+	{
+		_norm := _f.mem.lookupNormExpr(input)
+		if isJoinLookup[_norm.op] {
+			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
+			_select := _f.mem.lookupNormExpr(_e.ChildGroup(0)).asSelect()
+			if _select != nil {
+				inputInner := _select.input()
+				_filters := _f.mem.lookupNormExpr(_select.filter()).asFilters()
+				if _filters != nil {
+					for _, _item := range _f.mem.lookupList(_filters.conditions()) {
+						filterInner := _item
+						right := _e.ChildGroup(1)
+						on := _e.ChildGroup(2)
+						_filters2 := _f.mem.lookupNormExpr(filter).asFilters()
+						if _filters2 != nil {
+							list := _filters2.conditions()
+							for _, _item := range _f.mem.lookupList(_filters2.conditions()) {
+								condition := _item
+								if !_f.isCorrelated(condition, right) {
+									_f.maxSteps--
+									_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{_f.ConstructSelect(inputInner, _f.ConstructFilters(_f.mem.storeList([]GroupID{filterInner, condition}))), right, on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
+									_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
+									return _group
+								}
+							}
+						}
 					}
 				}
 			}
@@ -902,17 +1074,53 @@ func (_f *Factory) ConstructSelect(
 			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
 			left := _e.ChildGroup(0)
 			right := _e.ChildGroup(1)
-			on := _e.ChildGroup(2)
-			_filters := _f.mem.lookupNormExpr(filter).asFilters()
-			if _filters != nil {
-				list := _filters.conditions()
-				for _, _item := range _f.mem.lookupList(_filters.conditions()) {
-					condition := _item
-					if !_f.isCorrelated(condition, left) {
-						_f.maxSteps--
-						_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{left, _f.ConstructSelect(right, condition), on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
-						_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
-						return _group
+			_select := _f.mem.lookupNormExpr(_e.ChildGroup(1)).asSelect()
+			if _select == nil {
+				on := _e.ChildGroup(2)
+				_filters := _f.mem.lookupNormExpr(filter).asFilters()
+				if _filters != nil {
+					list := _filters.conditions()
+					for _, _item := range _f.mem.lookupList(_filters.conditions()) {
+						condition := _item
+						if !_f.isCorrelated(condition, left) {
+							_f.maxSteps--
+							_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{left, _f.ConstructSelect(right, condition), on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
+							_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
+							return _group
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// [PushDownSelectJoinSelectRight]
+	{
+		_norm := _f.mem.lookupNormExpr(input)
+		if _norm.op == InnerJoinOp || _norm.op == InnerJoinApplyOp {
+			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
+			left := _e.ChildGroup(0)
+			_select := _f.mem.lookupNormExpr(_e.ChildGroup(1)).asSelect()
+			if _select != nil {
+				inputInner := _select.input()
+				_filters := _f.mem.lookupNormExpr(_select.filter()).asFilters()
+				if _filters != nil {
+					for _, _item := range _f.mem.lookupList(_filters.conditions()) {
+						filterInner := _item
+						on := _e.ChildGroup(2)
+						_filters2 := _f.mem.lookupNormExpr(filter).asFilters()
+						if _filters2 != nil {
+							list := _filters2.conditions()
+							for _, _item := range _f.mem.lookupList(_filters2.conditions()) {
+								condition := _item
+								if !_f.isCorrelated(condition, left) {
+									_f.maxSteps--
+									_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{left, _f.ConstructSelect(inputInner, _f.ConstructFilters(_f.mem.storeList([]GroupID{filterInner, condition}))), on}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
+									_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
+									return _group
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1031,7 +1239,7 @@ func (_f *Factory) ConstructInnerJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructInnerJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructInnerJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_innerJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1099,7 +1307,7 @@ func (_f *Factory) ConstructLeftJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructLeftJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructLeftJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_leftJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1167,7 +1375,7 @@ func (_f *Factory) ConstructRightJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructRightJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructRightJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_rightJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1235,7 +1443,7 @@ func (_f *Factory) ConstructFullJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructFullJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructFullJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_fullJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1303,7 +1511,7 @@ func (_f *Factory) ConstructSemiJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructSemiJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructSemiJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_semiJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1371,7 +1579,7 @@ func (_f *Factory) ConstructAntiJoin(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructAntiJoin(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructAntiJoin(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_antiJoinExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1439,7 +1647,7 @@ func (_f *Factory) ConstructInnerJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructInnerJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructInnerJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_innerJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1562,7 +1770,7 @@ func (_f *Factory) ConstructLeftJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructLeftJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructLeftJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_leftJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1653,7 +1861,7 @@ func (_f *Factory) ConstructRightJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructRightJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructRightJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_rightJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1744,7 +1952,7 @@ func (_f *Factory) ConstructFullJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructFullJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructFullJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_fullJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1850,7 +2058,7 @@ func (_f *Factory) ConstructSemiJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructSemiJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructSemiJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_semiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}
@@ -1975,7 +2183,7 @@ func (_f *Factory) ConstructAntiJoinApply(
 		if _filters == nil {
 			if _f.useFilters(on) {
 				_f.maxSteps--
-				_group = _f.ConstructAntiJoinApply(left, right, _f.flattenFilterCondition(on))
+				_group = _f.ConstructAntiJoinApply(left, right, _f.flattenFilterCondition(_f.mem.storeList([]GroupID{left, right}), on))
 				_f.mem.addAltFingerprint(_antiJoinApplyExpr.fingerprint(), _group)
 				return _group
 			}

@@ -1,5 +1,9 @@
 package opt
 
+import (
+	"fmt"
+)
+
 //go:generate optgen -out factory.og.go -pkg opt factory ops/scalar.opt ops/relational.opt ops/enforcer.opt norm/norm.opt norm/filter.opt norm/push_down.opt norm/decorrelate.opt
 
 type Factory struct {
@@ -61,6 +65,21 @@ func (f *Factory) onConstruct(group GroupID) GroupID {
 	return group
 }
 
+func (f *Factory) commuteInequalityExpr(op Operator, left, right GroupID) GroupID {
+	switch op {
+	case GeOp:
+		return f.ConstructLe(right, left)
+	case GtOp:
+		return f.ConstructLt(right, left)
+	case LeOp:
+		return f.ConstructGe(right, left)
+	case LtOp:
+		return f.ConstructGt(right, left)
+	}
+
+	panic(fmt.Sprint("called commuteInequalityExpr with operator %s", op))
+}
+
 func (f *Factory) concatFilterConditions(filterLeft, filterRight GroupID) GroupID {
 	leftExpr := f.mem.lookupNormExpr(filterLeft)
 	if leftExpr.op == TrueOp {
@@ -88,7 +107,7 @@ func (f *Factory) concatFilterConditions(filterLeft, filterRight GroupID) GroupI
 	return f.ConstructFilters(f.StoreList(items))
 }
 
-func (f *Factory) flattenFilterCondition(filter GroupID) GroupID {
+func (f *Factory) flattenFilterCondition(input ListID, filter GroupID) GroupID {
 	filterExpr := f.mem.lookupNormExpr(filter)
 
 	var items []GroupID
@@ -118,7 +137,7 @@ func (f *Factory) flattenFilterCondition(filter GroupID) GroupID {
 		items = []GroupID{filter}
 	}
 
-	return f.ConstructFilters(f.StoreList(items))
+	return f.inferEquivFilters(input, items)
 }
 
 func (f *Factory) isLowerExpr(left, right GroupID) bool {
@@ -243,6 +262,84 @@ func (f *Factory) appendColumnProjections(projections, group GroupID) GroupID {
 	})
 
 	return f.ConstructProjections(f.mem.storeList(items), f.mem.internPrivate(&outputCols))
+}
+
+// substitute recursively substitutes oldCol with newCol in the given filter
+// expression. For example, if oldCol=x and newCol=y, x < 5 will become y < 5.
+func (f *Factory) substitute(filter GroupID, oldCol, newCol ColumnIndex) GroupID {
+	filterExpr := f.mem.lookupNormExpr(filter)
+	// Base case: we have a variable expression.  If it matches oldCol, replace
+	// it with newCol.
+	if filterExpr.op == VariableOp {
+		if f.mem.lookupPrivate(filterExpr.asVariable().col()).(ColumnIndex) == oldCol {
+			return f.ConstructVariable(f.InternPrivate(newCol))
+		}
+		return filter
+	}
+
+	// Recursive Case: Perform recursive substitution on each child of the
+	// expression.
+	e := makeExpr(f.mem, filter, defaultPhysPropsID)
+	children := e.getChildGroups()
+	for i := 0; i < e.ChildCount(); i++ {
+		children[i] = f.substitute(children[i], oldCol, newCol)
+	}
+
+	return f.DynamicConstruct(e.Operator(), children, e.privateID())
+}
+
+// substituteAll performs all-pairs substitution of the filter columns with
+// equivalent columns.
+func (f *Factory) substituteAll(filter GroupID, filterCols, equivCols ColSet) []GroupID {
+	var items []GroupID
+	filterCols.ForEach(func(i int) {
+		equivCols.ForEach(func(j int) {
+			if i != j {
+				items = append(items, f.substitute(filter, ColumnIndex(i), ColumnIndex(j)))
+			}
+		})
+	})
+	return items
+}
+
+// inferEquivFilters augments the original list of filters with new filters
+// on equivalent columns.  For example, if columns x and y are equivalent
+// and the original list contains (x < 5), the new list will contain
+// (x < 5, y < 5).
+//
+// This function is useful for pushing filters below a join condition. For
+// example, consider the following query:
+//
+//   SELECT * FROM a JOIN b ON a.x = b.y WHERE a.x < 5
+//
+// By inferring a filter on b.y < 5, this can be rewritten as:
+//
+//   SELECT * FROM (SELECT * FROM a WHERE a.x < 5) AS a
+//            JOIN (SELECT * FROM b WHERE b.y < 5) AS b ON a.x = b.y
+func (f *Factory) inferEquivFilters(input ListID, filters []GroupID) GroupID {
+	// Start by copying in the existing filters.
+	items := make([]GroupID, len(filters))
+	copy(items, filters)
+
+	// Find all the equivalent column groups.
+	inputList := f.mem.lookupList(input)
+	var equivColSets ColSets
+	for _, group := range inputList {
+		equivColSets = append(equivColSets, f.mem.lookupGroup(group).logical.Relational.EquivCols...)
+	}
+
+	// Create new filters by substituting equivalent columns for the existing
+	// filter columns.
+	for _, filter := range filters {
+		for _, equivCols := range equivColSets {
+			filterCols := f.mem.lookupGroup(filter).logical.UnboundCols
+			if filterCols.SubsetOf(equivCols) {
+				items = append(items, f.substituteAll(filter, filterCols, equivCols)...)
+			}
+		}
+	}
+
+	return f.ConstructFilters(f.StoreList(items))
 }
 
 func (f *Factory) projectsSameCols(projections, input GroupID) bool {

@@ -1,6 +1,6 @@
 [PushDownSelectJoinLeft, Normalize]
 (Select
-    $input:(Join $left:* $right:* $on:*)
+    $input:(Join $left:^(Select) $right:* $on:*)
     (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $right) ... ])
 )
 =>
@@ -13,9 +13,24 @@
     (Filters (RemoveListItem $list $condition))
 )
 
+[PushDownSelectJoinSelectLeft, Normalize]
+(Select
+    $input:(Join (Select $inputInner:* (Filters [ ... $filterInner:* ... ])) $right:* $on:*)
+    (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $right) ... ])
+)
+=>
+(Select
+    ((OpName $input)
+        (Select $inputInner (Filters [$filterInner $condition]))
+        $right
+        $on
+    )
+    (Filters (RemoveListItem $list $condition))
+)
+
 [PushDownSelectJoinRight, Normalize]
 (Select
-    $input:(InnerJoin|InnerJoinApply $left:* $right:* $on:*)
+    $input:(InnerJoin|InnerJoinApply $left:* $right:^(Select) $on:*)
     (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $left) ... ])
 )
 =>
@@ -23,6 +38,21 @@
     ((OpName $input)
         $left
         (Select $right $condition)
+        $on
+    )
+    (Filters (RemoveListItem $list $condition))
+)
+
+[PushDownSelectJoinSelectRight, Normalize]
+(Select
+    $input:(InnerJoin|InnerJoinApply $left:* (Select $inputInner:* (Filters [ ... $filterInner:* ... ])) $on:*)
+    (Filters $list:[ ... $condition:* & ^(IsCorrelated $condition $left) ... ])
+)
+=>
+(Select
+    ((OpName $input)
+        $left
+        (Select $inputInner (Filters [$filterInner $condition]))
         $on
     )
     (Filters (RemoveListItem $list $condition))

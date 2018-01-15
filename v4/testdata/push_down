@@ -37,13 +37,16 @@ project
  │    │              ├── variable: a.x [unbound=(1)]
  │    │              └── placeholder: $1
  │    ├── select
- │    │    ├── columns: b.x:3 b.z:4*
+ │    │    ├── columns: b.x:3* b.z:4*
  │    │    ├── scan
  │    │    │    └── columns: b.x:3 b.z:4
- │    │    └── filters [unbound=(4)]
- │    │         └── eq [unbound=(4)]
- │    │              ├── variable: b.z [unbound=(4)]
- │    │              └── placeholder: $2
+ │    │    └── filters [unbound=(3,4)]
+ │    │         ├── eq [unbound=(4)]
+ │    │         │    ├── variable: b.z [unbound=(4)]
+ │    │         │    └── placeholder: $2
+ │    │         └── gt [unbound=(3)]
+ │    │              ├── variable: b.x [unbound=(3)]
+ │    │              └── placeholder: $1
  │    └── filters [unbound=(1,3)]
  │         └── eq [unbound=(1,3)]
  │              ├── variable: a.x [unbound=(1)]

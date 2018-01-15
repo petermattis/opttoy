@@ -24,6 +24,26 @@
 =>
 ((OpName) $right $left)
 
+# NormalizeInequalityVar ensures that variable references are on the left side
+# of inequality operators.
+[NormalizeInequalityVar, Normalize]
+(Le | Lt | Ge | Gt
+    $left:^(Variable)
+    $right:(Variable)
+)
+=>
+(CommuteInequalityExpr (OpName) $left $right)
+
+# NormalizeInequalityVarOrder establishes an arbitrary, but canonical ordering
+# of inequality operators where both operands are variables.
+[NormalizeInequalityVarOrder, Normalize]
+(Le | Lt | Ge | Gt
+    $left:(Variable)
+    $right:(Variable) & (IsLowerExpr $right $left)
+)
+=>
+(CommuteInequalityExpr (OpName) $left $right)
+
 # EliminateProject discards the unnecessary project operator when the projected
 # columns are the same as the input operand's columns.
 [EliminateProject, Normalize]
