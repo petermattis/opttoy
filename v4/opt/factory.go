@@ -181,6 +181,13 @@ func (f *Factory) replaceListItem(list ListID, search, replace GroupID) ListID {
 	return f.mem.storeList(newList)
 }
 
+func (f *Factory) appendListItem(list ListID, newItem GroupID) ListID {
+	existingList := f.mem.lookupList(list)
+	newList := append(existingList, newItem)
+
+	return f.mem.storeList(newList)
+}
+
 func (f *Factory) useFilters(filter GroupID) bool {
 	switch f.mem.lookupNormExpr(filter).op {
 	case TrueOp, FalseOp:

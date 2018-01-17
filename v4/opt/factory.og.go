@@ -1075,6 +1075,35 @@ func (_f *Factory) ConstructSelect(
 		}
 	}
 
+	// [PushDownSelectJoin]
+	{
+		_norm := _f.mem.lookupNormExpr(input)
+		if _norm.op == InnerJoinOp || _norm.op == InnerJoinApplyOp {
+			_e := makeExpr(_f.mem, input, defaultPhysPropsID)
+			left := _e.ChildGroup(0)
+			right := _e.ChildGroup(1)
+			_filters := _f.mem.lookupNormExpr(_e.ChildGroup(2)).asFilters()
+			if _filters != nil {
+				onList := _filters.conditions()
+				_filters2 := _f.mem.lookupNormExpr(filter).asFilters()
+				if _filters2 != nil {
+					list := _filters2.conditions()
+					for _, _item := range _f.mem.lookupList(_filters2.conditions()) {
+						condition := _item
+						if _f.isCorrelated(condition, left) {
+							if _f.isCorrelated(condition, right) {
+								_f.maxSteps--
+								_group = _f.ConstructSelect(_f.DynamicConstruct(_f.mem.lookupNormExpr(input).op, []GroupID{left, right, _f.ConstructFilters(_f.appendListItem(onList, condition))}, 0), _f.ConstructFilters(_f.removeListItem(list, condition)))
+								_f.mem.addAltFingerprint(_selectExpr.fingerprint(), _group)
+								return _group
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// [HoistSelectExists]
 	{
 		_filters := _f.mem.lookupNormExpr(filter).asFilters()

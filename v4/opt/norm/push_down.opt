@@ -28,6 +28,23 @@
     (Filters (RemoveListItem $list $condition))
 )
 
+# PushDownSelectJoin pushes a condition on to the join if it can't be pushed
+# below.
+[PushDownSelectJoin, Normalize]
+(Select
+    $input:(InnerJoin|InnerJoinApply $left:* $right:* (Filters $onList:*))
+    (Filters $list:[ ... $condition:* & (IsCorrelated $condition $left) & (IsCorrelated $condition $right) ... ])
+)
+=>
+(Select
+    ((OpName $input)
+        $left
+        $right
+        (Filters (AppendListItem $onList $condition))
+    )
+    (Filters (RemoveListItem $list $condition))
+)
+
 [PushDownJoinFilter, Normalize]
 (Join
     $left:*
