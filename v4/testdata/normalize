@@ -1,0 +1,23 @@
+exec
+CREATE TABLE a (x INT, y INT)
+----
+table a
+  x NULL
+  y NULL
+
+normalize
+SELECT a.* FROM a WHERE 5 > x and x > 1
+----
+arrange
+ ├── columns: x:1* y:2
+ └── select
+      ├── columns: a.x:1* a.y:2
+      ├── scan
+      │    └── columns: a.x:1 a.y:2
+      └── filters [unbound=(1)]
+           ├── lt [unbound=(1)]
+           │    ├── variable: a.x [unbound=(1)]
+           │    └── const: 5
+           └── gt [unbound=(1)]
+                ├── variable: a.x [unbound=(1)]
+                └── const: 1

@@ -30,7 +30,7 @@
 =>
 (Select
     $input
-    (FlattenFilterCondition $filter)
+    (FlattenFilterCondition [ $input ] $filter)
 )
 
 # EnsureJoinFilters adds a Filters operator to the join operator's filter
@@ -46,5 +46,5 @@
 ((OpName)
     $left
     $right
-    (FlattenFilterCondition $on)
+    (FlattenFilterCondition [ $left $right ] $on)
 )

@@ -411,7 +411,7 @@ func (b *Builder) buildScalarProjection(texpr tree.TypedExpr, inScope, outScope 
 	case *tree.ParenExpr:
 		return b.buildScalarProjection(t.TypedInnerExpr(), inScope, outScope)
 
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)
@@ -525,7 +525,7 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 	case tree.UnqualifiedStar:
 		fatalf("unexpected unresolved scalar expr: %T", scalar)
 
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		fatalf("unexpected unresolved scalar expr: %T", scalar)
 
 		// NB: this is the exception to the sorting of the case statements. The
@@ -905,7 +905,7 @@ func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope
 		}
 		return
 
-	case tree.UnresolvedName:
+	case *tree.UnresolvedName:
 		vn, err := t.NormalizeVarName()
 		if err != nil {
 			panic(err)

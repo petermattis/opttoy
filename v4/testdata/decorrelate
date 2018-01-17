@@ -104,6 +104,6 @@ arrange
       │         └── function: sum [unbound=(4)]
       │              └── variable: b.z [unbound=(4)]
       └── filters [unbound=(5)]
-           └── lt [unbound=(5)]
-                ├── const: 1000000
-                └── variable: column1 [unbound=(5)]
+           └── gt [unbound=(5)]
+                ├── variable: column1 [unbound=(5)]
+                └── const: 1000000
