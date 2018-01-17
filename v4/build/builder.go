@@ -471,12 +471,6 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 	case tree.DefaultVal:
 		unimplemented("%T", scalar)
 
-	case *tree.ExistsExpr:
-		// TODO(peter): the decorrelation code currently expects the subquery to be
-		// unwrapped for EXISTS expressions.
-		subquery := t.Subquery.(*subquery)
-		return b.factory.ConstructExists(subquery.out)
-
 	case *tree.FuncExpr:
 		out, _ := b.buildFunction(t, inScope)
 		return out
@@ -509,6 +503,10 @@ func (b *Builder) buildScalar(scalar tree.TypedExpr, inScope *scope) opt.GroupID
 		unimplemented("%T", scalar)
 
 	case *subquery:
+		if t.Exists {
+			return b.factory.ConstructExists(t.out)
+		}
+
 		v := b.factory.ConstructVariable(b.factory.InternPrivate(t.cols[0].index))
 		return b.factory.ConstructSubquery(t.out, v)
 

@@ -192,7 +192,7 @@ func (m *memo) storeList(items []GroupID) ListID {
 }
 
 func (m *memo) lookupList(id ListID) []GroupID {
-	return m.lists[id.offset : id.offset+id.len]
+	return m.lists[id.offset : id.offset+id.len : id.offset+id.len]
 }
 
 func (m *memo) internPrivate(private interface{}) PrivateID {

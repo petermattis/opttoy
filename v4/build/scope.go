@@ -278,13 +278,12 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 			}
 		}
 
-	case *tree.ExistsExpr:
-		if sub, ok := t.Subquery.(*tree.Subquery); ok {
-			t.Subquery = s.replaceSubquery(sub, true /* multi-row */, -1 /* desired-columns */)
-		}
-
 	case *tree.Subquery:
-		expr = s.replaceSubquery(t, false /* multi-row */, s.columns /* desired-columns */)
+		if t.Exists {
+			expr = s.replaceSubquery(t, true /* multi-row */, -1 /* desired-columns */)
+		} else {
+			expr = s.replaceSubquery(t, false /* multi-row */ , s.columns /* desired-columns */)
+		}
 	}
 
 	// Reset the desired number of columns since if the subquery is a child of
@@ -339,11 +338,18 @@ func (s *scope) replaceSubquery(sub *tree.Subquery, multiRow bool, desiredColumn
 		}
 	}
 
-	return &subquery{
+	subOut := &subquery{
 		cols:     outScope.cols,
 		out:      out,
 		multiRow: multiRow,
+		Exists:   sub.Exists,
 	}
+
+	if sub.Exists {
+		subOut.typ = types.Bool
+	}
+
+	return subOut
 }
 
 type subquery struct {
@@ -355,6 +361,9 @@ type subquery struct {
 
 	// typ is the lazily resolved type of the subquery.
 	typ types.T
+
+	// is this an EXISTS statement?
+	Exists bool
 }
 
 // String implements the tree.Expr interface.
