@@ -28,6 +28,20 @@
     (Filters (RemoveListItem $list $condition))
 )
 
+# PushDownSelectJoin pushes all filter conditions from a select on to an inner
+# join and removes the select.
+[PushDownSelectJoin, Normalize]
+(Select
+    $input:(InnerJoin|InnerJoinApply $left:* $right:* $on:*)
+    $filter:*
+)
+=>
+((OpName $input)
+    $left
+    $right
+    (ConcatFilterConditions $on $filter)
+)
+
 [PushDownJoinFilter, Normalize]
 (Join
     $left:*
