@@ -430,12 +430,6 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 	case tree.DefaultVal:
 		unimplemented("%T", pexpr)
 
-	case *tree.ExistsExpr:
-		// TODO(peter): the decorrelation code currently expects the subquery to be
-		// unwrapped for EXISTS expressions.
-		subquery := t.Subquery.(*subquery)
-		result = newUnaryExpr(existsOp, subquery.expr)
-
 	case *tree.FuncExpr:
 		def, err := t.Func.Resolve(scope.state.semaCtx.SearchPath)
 		if err != nil {
@@ -491,7 +485,11 @@ func buildScalar(pexpr tree.TypedExpr, scope *scope) *expr {
 		unimplemented("%T", pexpr)
 
 	case *subquery:
-		result = newUnaryExpr(subqueryOp, t.expr)
+		if t.exists {
+			result = newUnaryExpr(existsOp, t.expr)
+		} else {
+			result = newUnaryExpr(subqueryOp, t.expr)
+		}
 
 	case *tree.Tuple:
 		result = &expr{
