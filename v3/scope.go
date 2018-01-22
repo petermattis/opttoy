@@ -130,13 +130,12 @@ func (s *scope) VisitPre(expr tree.Expr) (recurse bool, newExpr tree.Expr) {
 			}
 		}
 
-	case *tree.ExistsExpr:
-		if sub, ok := t.Subquery.(*tree.Subquery); ok {
-			t.Subquery = s.replaceSubquery(sub, true /* multi-row */, -1 /* desired-columns */)
-		}
-
 	case *tree.Subquery:
-		expr = s.replaceSubquery(t, false /* multi-row */, s.columns /* desired-columns */)
+		if t.Exists {
+			expr = s.replaceSubquery(t, true /* multi-row */, -1 /* desired-columns */)
+		} else {
+			expr = s.replaceSubquery(t, false /* multi-row */, s.columns /* desired-columns */)
+		}
 	}
 
 	// Reset the desired number of columns since if the subquery is a child of
@@ -170,6 +169,7 @@ func (s *scope) replaceSubquery(sub *tree.Subquery, multiRow bool, desiredColumn
 	return &subquery{
 		multiRow: multiRow,
 		expr:     result,
+		exists:   sub.Exists,
 	}
 }
 
@@ -178,6 +178,7 @@ type subquery struct {
 	// Is the subquery in a multi-row or single-row context?
 	multiRow bool
 	expr     *expr
+	exists   bool
 }
 
 var _ tree.TypedExpr = &subquery{}
@@ -204,6 +205,10 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 	}
 
 	// The typing for subqueries is complex, but regular.
+	//
+	// * If the subquery is part of an EXISTS statement:
+	//
+	//   The type of the subquery is always "bool".
 	//
 	// * If the subquery is used in a single-row context:
 	//
@@ -254,6 +259,11 @@ func (s *subquery) TypeCheck(_ *tree.SemaContext, desired types.T) (tree.TypedEx
 	//
 	// Without that auto-unwrapping of single-column subqueries, this query would
 	// type check as "<int> IN <tuple{tuple{int}}>" which would fail.
+
+	if s.exists {
+		s.typ = types.Bool
+		return s, nil
+	}
 
 	if len(s.expr.props.columns) == 1 {
 		s.typ = s.expr.props.columns[0].typ
